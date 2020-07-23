@@ -1,0 +1,4 @@
+include_rules
+
+# Generate config.fbs source include
+: foreach *.glsl |> xxd -i < %f > %o && echo ",0x00" >> %o |> %b.h $(ROOT)/<gen_headers>

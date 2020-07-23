@@ -1,0 +1,33 @@
+ROOT = $(TUP_CWD)
+DEFINES_CONFIG_FILE = $(ROOT)/defines.cfg
+SRC_PATH = $(ROOT)/src/
+THIRD_PARTY_PATH = $(ROOT)/third_party/
+
+BIN_TARGET = $(ROOT)/ts-viz
+
+CC = clang
+CXX = clang++
+
+CFLAGS += -std=c++17
+CFLAGS += -Wall -Werror -Wno-missing-braces -Wno-unused
+CFLAGS += -I$(SRC_PATH) -I$(THIRD_PARTY_PATH)
+CFLAGS += -DIMGUI_IMPL_OPENGL_LOADER_GLEW
+
+ifeq (@(BUILD_TYPE),debug)
+    CFLAGS += -O0 -g -fdebug-prefix-map=`pwd`=`pwd | sed 's/\/\.tup\/.*//'`
+endif
+ifeq (@(BUILD_TYPE),release)
+    CFLAGS += -O3 -ffast-math -DNDEBUG
+endif
+
+ifeq (@(TUP_PLATFORM),macosx)
+    CFLAGS += -stdlib=libc++
+    LDFLAGS += -framework OpenGL `pkg-config --static --libs yaml-cpp glfw3 glew`
+else
+    LDFLAGS += `pkg-config --static --libs yaml-cpp gl glfw3 glew`
+endif
+
+!cpp = |> $(CXX) $(CFLAGS) $(CFLAGS_%f) -c %f -o %o |> %f.o $(ROOT)/<src_objects>
+# !archive = |> ar rs %o |>
+!link = |> $(CXX) $(LDFLAGS) $(LDFLAGS_$BIN_TARGET) -o $(BIN_TARGET) |>
+!write_linker_cmd = |> echo "$(CXX) $(LDFLAGS) $(LDFLAGS_$BIN_TARGET) -o $(BIN_TARGET) %<src_objects>" > %o |> link.sh
