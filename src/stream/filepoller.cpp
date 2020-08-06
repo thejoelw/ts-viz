@@ -33,20 +33,24 @@ void FilePoller::tick(app::TickerContext &tickerContext) {
     }
 
     struct timeval tv;
-    tv.tv_sec = 1;
-    tv.tv_usec = 0;
+    tv.tv_sec = 0;
+    tv.tv_usec = 1000000 / 60;
     select(maxFd + 1, &fds, NULL, NULL, &tv);
 
     for (File &file : files) {
         if (file.closed) {continue;}
 
         if (FD_ISSET(file.fileNo, &fds)) {
-            ssize_t size = getline(&file.lineData, &file.lineSize, file.filePtr);
-            if (size != -1) {
-                file.lineDispaatcher(context, file.lineData, size);
-            } else {
-                file.closed = true;
-            }
+//            while (true) {
+                ssize_t size = getline(&file.lineData, &file.lineSize, file.filePtr);
+                if (size == -1) {
+                    file.closed = true;
+                } else if (size == 0) {
+                    break;
+                } else {
+                    file.lineDispaatcher(context, file.lineData, size);
+                }
+//            }
         }
     }
 }

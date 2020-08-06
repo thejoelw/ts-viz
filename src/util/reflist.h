@@ -3,8 +3,6 @@
 #include <assert.h>
 #include <vector>
 
-#include "app/appcontext.h"
-
 namespace util {
 
 template <typename Type, typename ContainerType = std::vector<Type *>>
@@ -13,9 +11,7 @@ public:
     typedef typename ContainerType::iterator iterator;
     typedef typename ContainerType::const_iterator const_iterator;
 
-    RefList(app::AppContext &context) {
-        (void) context;
-    }
+    RefList() {}
 
     void add(Type *inst) {
         data.push_back(inst);
@@ -38,7 +34,7 @@ public:
         Invoker() = delete;
 
         template <void (Type::*Method)(ArgTypes...)>
-        static void call(RefList &refList, ArgTypes... args) {
+        static void call(const RefList &refList, ArgTypes... args) {
             typename ContainerType::const_iterator i = refList.data.cbegin();
             while (i != refList.data.cend()) {
                 ((*i)->*Method)(std::forward<ArgTypes>(args)...);

@@ -3,8 +3,6 @@
 #include <assert.h>
 #include <unordered_set>
 
-#include "app/appcontext.h"
-
 namespace util {
 
 template <typename Type, typename ContainerType = std::unordered_set<Type *>>
@@ -13,9 +11,7 @@ public:
     typedef typename ContainerType::iterator iterator;
     typedef typename ContainerType::const_iterator const_iterator;
 
-    RefSet(app::AppContext &context) {
-        (void) context;
-    }
+    RefSet() {}
 
     void add(Type *inst) {
         bool inserted = data.insert(inst).second;
@@ -38,7 +34,7 @@ public:
         Invoker() = delete;
 
         template <void (Type::*Method)(ArgTypes...)>
-        static void call(RefSet &refSet, ArgTypes... args) {
+        static void call(const RefSet &refSet, ArgTypes... args) {
             typename ContainerType::const_iterator i = refSet.data.cbegin();
             while (i != refSet.data.cend()) {
                 ((*i)->*Method)(std::forward<ArgTypes>(args)...);

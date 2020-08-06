@@ -6,19 +6,11 @@ namespace graphics {
 
 class GlVao;
 
-class PointShared {
+class Point {
 public:
-    GLfloat position[3];
-    GLfloat normal[3];
-
-    GLuint meshIndex;
-    GLuint materialIndex = 0;
+    GLfloat position[2];
 
     static void setupVao(GlVao &vao);
-};
-
-class PointLocal {
-public:
 };
 
 }

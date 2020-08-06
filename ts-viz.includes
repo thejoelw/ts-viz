@@ -1,6 +1,3 @@
 src/
 third_party/
 build-debug/src/
-src/program
-src/jw_util
-src/series

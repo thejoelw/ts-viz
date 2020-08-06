@@ -3,7 +3,7 @@
 #include "rapidjson/include/rapidjson/stringbuffer.h"
 #include "rapidjson/include/rapidjson/writer.h"
 
-#include "render/seriesrenderer.h"
+#include "render/renderer.h"
 #include "program/resolver.h"
 
 namespace {
@@ -24,12 +24,14 @@ ProgramManager::ProgramManager(app::AppContext &context)
 {}
 
 void ProgramManager::recvRecord(const rapidjson::Document &row) {
+    context.get<render::Renderer>().clearSeries();
+
     for (rapidjson::Value::ConstMemberIterator it = row.MemberBegin(); it != row.MemberEnd(); ++it) {
         ProgObj obj = makeProgObj(it->value);
-        if (std::holds_alternative<series::Series<float> *>(obj)) {
-            context.get<render::SeriesRenderer>().addSeries(it->name.GetString(), *std::get<series::Series<float> *>(obj));
-//        } else if (std::holds_alternative<series::Series<double> *>(obj)) {
-//            context.get<render::SeriesRenderer>().addSeries(it->name.GetString(), *std::get<series::Series<double> *>(obj));
+        if (std::holds_alternative<series::DataSeries<float> *>(obj)) {
+            context.get<render::Renderer>().addSeries(it->name.GetString(), std::get<series::DataSeries<float> *>(obj));
+        } else if (std::holds_alternative<series::DataSeries<double> *>(obj)) {
+            context.get<render::Renderer>().addSeries(it->name.GetString(), std::get<series::DataSeries<double> *>(obj));
         } else {
             throw InvalidProgramException("Value for top-level entry " + jsonToStr(it->name) + " must be a series");
         }

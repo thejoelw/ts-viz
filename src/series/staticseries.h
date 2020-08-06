@@ -2,33 +2,39 @@
 
 #include "jw_util/hash.h"
 
-#include "series/series.h"
+#include "series/dataseries.h"
 
 namespace series {
 
 template <typename ElementType, typename OperatorType>
-class StaticSeries : public Series<ElementType> {
+class StaticSeries : public DataSeries<ElementType> {
 public:
-    StaticSeries(tf::Taskflow &taskflow, OperatorType op)
-        : Series<ElementType>(taskflow.emplace([this, op](){
-            if (this->requestedBegin < this->requestedEnd) {
-                op(this->data);
-            }
-        }))
+    StaticSeries(app::AppContext &context, OperatorType op, std::size_t width)
+        : DataSeries<ElementType>(context)
         , op(op)
+        , width(width)
     {}
 
-    void request(std::size_t begin, std::size_t end) {
-        if (begin < this->requestedBegin) {
-            this->requestedBegin = begin;
+    void propogateRequest() override {
+        if (this->requestedEnd > width) {
+            this->requestedEnd = width;
         }
-        if (end > this->requestedEnd) {
-            this->requestedEnd = end;
+        if (this->requestedBegin < this->requestedEnd) {
+            this->requestedBegin = 0;
+            this->requestedEnd = width;
         }
+    }
+
+    void computeInto(ElementType *dst, std::size_t begin, std::size_t end) override {
+        assert(begin == 0);
+        assert(end == width);
+
+        op(dst, begin, end);
     }
 
 private:
     OperatorType op;
+    std::size_t width;
 };
 
 }

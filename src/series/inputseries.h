@@ -2,26 +2,35 @@
 
 #include "jw_util/hash.h"
 
-#include "series/series.h"
+#include "series/dataseries.h"
 
 namespace series {
 
 template <typename ElementType>
-class InputSeries : public Series<ElementType> {
+class InputSeries : public DataSeries<ElementType> {
 public:
     InputSeries(tf::Taskflow &taskflow, const std::string &)
-        : Series<ElementType>(taskflow.emplace([](){}))
+        : DataSeries<ElementType>(taskflow.emplace([](){}))
     {}
 
-    void request(std::size_t begin, std::size_t end) {
-        assert(begin <= end);
-        assert(end < this->data.size() + this->dataOffset);
-    }
+    void propogateRequest() {}
 
     void set(std::size_t index, ElementType value) {
-        this->data.resize(index + 1 - this->dataOffset);
-        *this->getData(index) = value;
+        this->request(index, index + 1);
+        sets.emplace_back(index, value);
     }
+
+    void computeInto(ElementType *dst, std::size_t begin, std::size_t end) override {
+        for (auto s : sets) {
+            assert(begin <= s.first);
+            assert(s.first < end);
+            dst[s.first - begin] = s.second;
+        }
+        sets.clear();
+    }
+
+private:
+    std::vector<std::pair<std::size_t, ElementType>> sets;
 };
 
 }

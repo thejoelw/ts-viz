@@ -28,6 +28,9 @@ public:
         void set(const std::string &key, const DataType val) {
             define_map[key] = std::to_string(val);
         }
+        void set(const std::string &key, const std::string &val) {
+            define_map[key] = val;
+        }
 
         void writeInto(std::string &str) const;
 

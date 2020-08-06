@@ -2,7 +2,7 @@
 
 #include <variant>
 
-#include "series/series.h"
+#include "series/dataseries.h"
 
 namespace program {
 
@@ -29,8 +29,8 @@ typedef std::variant<
     UncastNumber,
     float,
     double,
-    series::Series<float>*,
-    series::Series<double>*
+    series::DataSeries<float>*,
+    series::DataSeries<double>*
 > ProgObj;
 
 static std::string progObjTypeNames[] = {

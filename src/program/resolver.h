@@ -4,6 +4,7 @@
 #include <variant>
 
 #include "program/progobj.h"
+#include "jw_util/baseexception.h"
 #include "jw_util/hash.h"
 #include "util/hashforwarder.h"
 
@@ -16,6 +17,22 @@ struct get_variant_index;
 
 template <typename T, typename... Ts>
 struct get_variant_index<T, std::variant<Ts...>> : std::integral_constant<std::size_t, std::variant<tag<Ts>...>(tag<T>()).index()> {};
+
+template <typename T>
+struct function_traits : public function_traits<decltype(&T::operator())>
+{};
+
+template <typename ClassType, typename ReturnType, typename... Args>
+struct function_traits<ReturnType(ClassType::*)(Args...) const> {
+    enum { arity = sizeof...(Args) };
+
+    typedef ReturnType result_type;
+
+    template <std::size_t i>
+    struct arg {
+        typedef typename std::tuple_element<i, std::tuple<Args...>>::type type;
+    };
+};
 
 }
 
@@ -39,9 +56,13 @@ public:
     ProgObj call(const std::string &name, const std::vector<ProgObj> &args);
 
 private:
-    template <typename ReturnType, typename... ArgTypes>
-    void decl(const std::string &name, ReturnType (*cb)(ArgTypes...)) {
-        std::unique_ptr<Invokable> ptr = std::make_unique<FuncPtrWrapper<ReturnType, ArgTypes...>>(cb);
+    template <typename FuncType>
+    void decl(const std::string &name, FuncType cb) {
+        declFunc(name, cb, &FuncType::operator());
+    }
+    template <typename ClassType, typename ReturnType, typename... ArgTypes>
+    void declFunc(const std::string &name, ClassType cb, ReturnType(ClassType::*)(ArgTypes...) const) {
+        std::unique_ptr<Invokable> ptr = std::make_unique<LambdaWrapper<ClassType, ReturnType, ArgTypes...>>(cb);
         declarations.emplace(Decl(name, Decl::calcArgTypeComb(std::vector<ProgObj>{ArgTypes{}...})), std::move(ptr));
     }
 
@@ -51,11 +72,11 @@ private:
         virtual ProgObj invoke(const std::vector<ProgObj> &args) = 0;
     };
 
-    template <typename ReturnType, typename... ArgTypes>
-    class FuncPtrWrapper : public Invokable {
+    template <typename FuncType, typename ReturnType, typename... ArgTypes>
+    class LambdaWrapper : public Invokable {
     public:
-        FuncPtrWrapper(ReturnType (*ptr)(ArgTypes...))
-            : ptr(ptr)
+        LambdaWrapper(FuncType func)
+            : func(func)
         {}
 
         ProgObj invoke(const std::vector<ProgObj> &args) {
@@ -63,11 +84,11 @@ private:
         }
 
     private:
-        ReturnType (*ptr)(ArgTypes...);
+        FuncType func;
 
         template <std::size_t... Indices>
         ProgObj invokeSeq(const std::vector<ProgObj>& args, std::index_sequence<Indices...>) {
-            return ptr(std::get<ArgTypes>(args[Indices])...);
+            return func(std::get<ArgTypes>(args[Indices])...);
         }
     };
 

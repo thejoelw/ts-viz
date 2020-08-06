@@ -5,6 +5,8 @@
 
 #include "rapidjson/include/rapidjson/document.h"
 
+#include "jw_util/baseexception.h"
+
 #include "app/appcontext.h"
 #include "program/progobj.h"
 

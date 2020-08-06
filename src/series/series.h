@@ -1,40 +1,100 @@
 #pragma once
 
-#include <vector>
-
 #include "taskflow/taskflow/taskflow.hpp"
-#include "PicoSHA2/picosha2.h"
 
-#include "graphics/glbuffer.h"
+#include "app/appcontext.h"
+#include "util/refset.h"
+#include "util/taskscheduler.h"
 
 namespace series {
 
-template <typename ElementType>
 class Series {
 public:
-    Series(tf::Task task)
-        : task(task)
-    {}
+    class Registry {
+    public:
+        Registry(app::AppContext &context) {
+            (void) context;
+        }
 
-    virtual void request(std::size_t begin, std::size_t end) = 0;
-    virtual void compute() = 0;
+        std::vector<util::RefSet<Series>> &getLayers() {
+            return layers;
+        }
 
-    ElementType *getData(std::size_t begin) {
-        assert(begin >= dataOffset);
-        return data.data() + (begin - dataOffset);
+        util::RefSet<Series> &getDepthSet(std::size_t depth) {
+            if (layers.size() <= depth) {
+                layers.resize(depth + 1);
+            }
+            return layers[depth];
+        }
+
+    private:
+        std::vector<util::RefSet<Series>> layers;
+    };
+
+    Series(app::AppContext &context)
+        : context(context)
+        , task(context.get<tf::Taskflow>().emplace([this]() {
+            if (this->requestedBegin < this->requestedEnd) {
+                this->compute(this->requestedBegin, this->requestedEnd);
+                assert(computedBegin == this->requestedBegin);
+                assert(computedEnd == this->requestedEnd);
+            }
+        }))
+    {
+        context.get<Registry>().getDepthSet(depth).add(this);
+    }
+
+    ~Series() {
+        context.get<Registry>().getDepthSet(depth).remove(this);
+    }
+
+    virtual void propogateRequest() = 0;
+    virtual void compute(std::size_t begin, std::size_t end) = 0;
+    virtual void draw(std::size_t begin, std::size_t end, std::size_t stride) = 0;
+
+    void dependsOn(const Series *input) {
+        task.succeed(input->task);
+
+        if (depth <= input->depth) {
+            context.get<Registry>().getDepthSet(depth).remove(this);
+            depth = input->depth + 1;
+            context.get<Registry>().getDepthSet(depth).add(this);
+        }
+    }
+
+    void request(std::size_t begin, std::size_t end) {
+        assert(begin < end);
+
+        if (requestedBegin == requestedEnd) {
+            requestedBegin = begin;
+            requestedEnd = end;
+        } else {
+            if (begin < requestedBegin) {
+                requestedBegin = begin;
+            }
+            if (end > requestedEnd) {
+                requestedEnd = end;
+            }
+        }
+    }
+
+    std::size_t getDepth() const {
+        return depth;
     }
 
 protected:
-    std::vector<ElementType> data;
-    std::size_t dataOffset = 0;
+    app::AppContext &context;
+
+    std::size_t computedBegin = 0;
+    std::size_t computedEnd = 0;
 
     std::size_t requestedBegin = 0;
     std::size_t requestedEnd = 0;
 
+    std::size_t depth = 0;
+
 private:
     tf::Task task;
-
-//    graphics::GlBuffer<ElementType> remoteBuffer;
 };
 
 }
