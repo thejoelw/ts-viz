@@ -10,20 +10,16 @@ namespace render {
 
 FillProgram::FillProgram(app::AppContext &context)
     : Program(context)
-{
-    vao.bind();
-    graphics::Point::setupVao(vao);
-    vao.unbind();
+{}
+
+void FillProgram::insertDefines() {
+    Program::insertDefines();
+
+    graphics::Point::insertDefines(defines);
 }
 
-void FillProgram::insertDefines(Defines &defines) {
-    Program::insertDefines(defines);
-
-    vao.insertDefines(defines);
-}
-
-void FillProgram::setupProgram(const Defines &defines) {
-    Program::setupProgram(defines);
+void FillProgram::setupProgram() {
+    Program::setupProgram();
 
     context.get<spdlog::logger>().debug("Compiling fill vertex shader");
     std::string vertShaderStr = std::string(Shaders::fillVert);
@@ -43,9 +39,6 @@ void FillProgram::linkProgram() {
 
 void FillProgram::draw(std::size_t offsetIndex, std::size_t count, glm::vec4 color) {
     Program::bind();
-
-    assertLinked();
-    vao.assertBound();
 
     glUniform4f(colorLocation, color.r, color.g, color.b, color.a);
     graphics::GL::catchErrors();

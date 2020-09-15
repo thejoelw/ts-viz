@@ -29,8 +29,8 @@ typedef std::variant<
     UncastNumber,
     float,
     double,
-    series::DataSeries<float>*,
-    series::DataSeries<double>*
+    series::DataSeries<float> *,
+    series::DataSeries<double> *
 > ProgObj;
 
 static std::string progObjTypeNames[] = {

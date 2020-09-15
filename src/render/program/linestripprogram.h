@@ -11,24 +11,18 @@ class LineStripProgram : public Program {
 public:
     LineStripProgram(app::AppContext &context);
 
-    virtual void insertDefines(Defines &defines);
-    virtual void setupProgram(const Defines &defines);
+    virtual void insertDefines();
+    virtual void setupProgram();
     virtual void linkProgram();
 
     void draw(std::size_t begin, std::size_t stride, std::size_t offsetIndex, std::size_t count);
 
-    graphics::GlVao &getVao() {
-        return vao;
-    }
-
 private:
-    graphics::GlVao vao;
-
     GLint offsetLocation;
     GLint scaleLocation;
     GLint colorLocation;
 
-    void insertElementTypeDef(Defines &defines);
+    void insertElementTypeDef();
 };
 
 }

@@ -15,28 +15,30 @@ public:
     {}
 
     void draw(std::size_t begin, std::size_t stride, const std::vector<ElementType> &data) {
-        LineStripProgram<ElementType> &program = context.get<LineStripProgram<ElementType>>();
+        vao.bind();
 
-        program.getVao().bind();
+        LineStripProgram<ElementType> &program = context.get<LineStripProgram<ElementType>>();
 
         remoteBuffer.bind();
         if (remoteBuffer.needs_resize(data.size())) {
             remoteBuffer.update_size(data.size());
 
-            program.getVao().assertBound();
+            vao.assertBound();
             remoteBuffer.bind();
-            graphics::Element<ElementType>::setupVao(program.getVao());
+
+            program.make();
         }
         remoteBuffer.write(0, data.size(), data.data());
 
         program.draw(begin, stride, 0, data.size());
 
-        program.getVao().unbind();
+        vao.unbind();
     }
 
 private:
     app::AppContext &context;
 
+    graphics::GlVao vao;
     graphics::GlBuffer<ElementType> remoteBuffer;
 };
 

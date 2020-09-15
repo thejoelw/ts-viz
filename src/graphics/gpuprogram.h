@@ -60,9 +60,10 @@ public:
 protected:
     app::AppContext &context;
 
+    bool isLinked = false;
+
 private:
     GLuint program_id;
-    bool isLinked = false;
     std::vector<GLuint> shaders;
 };
 

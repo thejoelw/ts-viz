@@ -1,6 +1,7 @@
 #pragma once
 
 #include "graphics/gl.h"
+#include "render/program/program.h"
 
 namespace graphics {
 
@@ -10,7 +11,7 @@ class Point {
 public:
     GLfloat position[2];
 
-    static void setupVao(GlVao &vao);
+    static void insertDefines(render::Program::Defines &defines);
 };
 
 }

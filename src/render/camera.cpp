@@ -14,9 +14,7 @@ Camera::Camera(app::AppContext &context)
     , offset(0.0f)
     , scale(0.01f)
     , remoteBuffer(GL_ARRAY_BUFFER, GL_STATIC_DRAW)
-{
-    context.get<FillProgram>().make();
-}
+{}
 
 void Camera::tickOpen(app::TickerContext &tickerContext) {
     tickerContext.get<ImguiRenderer::Ticker>();
@@ -115,7 +113,7 @@ void Camera::drawMouseRegion() {
         case MouseRegion::Bottom: pts = bottomPts; break;
     }
 
-    program.getVao().bind();
+    vao.bind();
 
     static graphics::Point *lastPts = 0;
     if (pts != lastPts) {
@@ -123,9 +121,10 @@ void Camera::drawMouseRegion() {
         if (remoteBuffer.needs_resize(size)) {
             remoteBuffer.update_size(size);
 
-            program.getVao().assertBound();
+            vao.assertBound();
             remoteBuffer.bind();
-            graphics::Point::setupVao(program.getVao());
+
+            program.make();
         }
         remoteBuffer.write(0, size, pts);
 
@@ -134,12 +133,13 @@ void Camera::drawMouseRegion() {
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    graphics::GL::catchErrors();
 
     program.draw(0, size, glm::vec4(0.0f, 0.0f, 0.0f, 0.2f));
 
     glDisable(GL_BLEND);
 
-    program.getVao().unbind();
+    vao.unbind();
 }
 
 }

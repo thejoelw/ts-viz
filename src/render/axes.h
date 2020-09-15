@@ -12,6 +12,7 @@ public:
     void tickClose(app::TickerContext &tickerContext);
 
 private:
+    float getBestTickSize(float size);
 };
 
 }

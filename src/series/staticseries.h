@@ -25,11 +25,17 @@ public:
         }
     }
 
-    void computeInto(ElementType *dst, std::size_t begin, std::size_t end) override {
+    std::pair<std::size_t, std::size_t> computeInto(ElementType *dst, std::size_t begin, std::size_t end) override {
         assert(begin == 0);
         assert(end == width);
 
         op(dst, begin, end);
+
+        return std::make_pair(begin, end);
+    }
+
+    std::size_t getStaticWidth() const override {
+        return width;
     }
 
 private:

@@ -20,9 +20,6 @@ Renderer::Renderer(app::AppContext &context)
     glPointSize(2.0f);
 
     graphics::GL::catchErrors();
-
-    context.get<LineStripProgram<float>>().make();
-    context.get<LineStripProgram<double>>().make();
 }
 
 void Renderer::clearSeries() {

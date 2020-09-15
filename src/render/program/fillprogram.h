@@ -13,19 +13,13 @@ class FillProgram : public Program {
 public:
     FillProgram(app::AppContext &context);
 
-    virtual void insertDefines(Defines &defines);
-    virtual void setupProgram(const Defines &defines);
+    virtual void insertDefines();
+    virtual void setupProgram();
     virtual void linkProgram();
 
     void draw(std::size_t offset, std::size_t count, glm::vec4 color);
 
-    graphics::GlVao &getVao() {
-        return vao;
-    }
-
 private:
-    graphics::GlVao vao;
-
     GLint colorLocation;
 };
 

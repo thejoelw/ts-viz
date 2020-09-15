@@ -2,6 +2,7 @@
 
 #include <typeindex>
 #include <variant>
+#include <type_traits>
 
 #include "program/progobj.h"
 #include "jw_util/baseexception.h"
@@ -88,7 +89,7 @@ private:
 
         template <std::size_t... Indices>
         ProgObj invokeSeq(const std::vector<ProgObj>& args, std::index_sequence<Indices...>) {
-            return func(std::get<ArgTypes>(args[Indices])...);
+            return func(std::get<typename std::remove_cv<typename std::remove_reference<ArgTypes>::type>::type>(args[Indices])...);
         }
     };
 

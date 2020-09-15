@@ -173,6 +173,7 @@ void GpuProgram::assertLinked() const {
 }
 
 void GpuProgram::bind() {
+    assertLinked();
     glUseProgram(program_id);
     graphics::GL::catchErrors();
 }

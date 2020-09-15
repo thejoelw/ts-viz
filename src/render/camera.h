@@ -5,6 +5,7 @@
 
 #include "app/tickercontext.h"
 #include "graphics/glbuffer.h"
+#include "graphics/glvao.h"
 #include "graphics/type/point.h"
 
 namespace render {
@@ -40,6 +41,7 @@ private:
     glm::vec2 offset;
     glm::vec2 scale;
 
+    graphics::GlVao vao;
     graphics::GlBuffer<graphics::Point> remoteBuffer;
 
     glm::vec2 computeDelta() const;

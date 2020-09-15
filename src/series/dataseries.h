@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <fftw3.h>
 
 #include "series/series.h"
 #include "render/seriesrenderer.h"
@@ -10,6 +11,15 @@ namespace series {
 template <typename ElementType>
 class DataSeries : public Series {
 public:
+    class DynamicWidthException : public jw_util::BaseException {
+        friend class DataSeries<ElementType>;
+
+    private:
+        DynamicWidthException(const std::string &msg)
+            : BaseException(msg)
+        {}
+    };
+
     DataSeries(app::AppContext &context)
         : Series(context)
     {}
@@ -32,8 +42,7 @@ public:
             end = computedEnd;
         }
 
-        assert(begin <= end);
-        if (begin == end) {
+        if (begin >= end) {
             return;
         }
 
@@ -41,9 +50,8 @@ public:
         sample.clear();
         sample.reserve((end - begin + stride - 1) / stride);
 
-        std::size_t storedBegin = getStoredBegin();
         for (std::size_t i = begin; i < end; i += stride) {
-            sample.push_back(data[i - storedBegin]);
+            sample.push_back(data[i - allocatedBegin]);
         }
 
         renderer->draw(begin, stride, sample);
@@ -58,59 +66,89 @@ public:
             return;
         }
 
-        std::size_t prevStoreBegin = getStoredBegin();
-        std::size_t prevStoreEnd = getStoredEnd();
-        std::size_t prevBegin = computedBegin;
-        std::size_t prevEnd = computedEnd;
-        computedBegin = begin;
-        computedEnd = end;
-        std::size_t newStoreBegin = getStoredBegin();
-        std::size_t newStoreEnd = getStoredEnd();
+        reallocData();
 
-        if (newStoreBegin != prevStoreBegin || newStoreEnd != prevStoreEnd) {
-            ElementType *newData = new ElementType[newStoreEnd - newStoreBegin];
-            if (data) {
-                std::copy(data + (prevBegin - prevStoreBegin), data + (prevEnd - prevStoreBegin), newData + (prevBegin - newStoreBegin));
-                delete[] data;
+        if ((computedEnd - computedBegin) * 3 > end - begin) {
+            if (begin < computedBegin) {
+                std::pair<std::size_t, std::size_t> res = computeInto(data + (begin - allocatedBegin), begin, computedBegin);
+                if (res.first != res.second) {
+                    assert(res.first < res.second);
+                    assert(res.second == computedBegin);
+                    computedBegin = res.first;
+                }
             }
-            data = newData;
-        }
-
-        if ((prevEnd - prevBegin) * 3 > end - begin) {
-            if (begin < prevBegin) {
-                computeInto(data + (begin - newStoreBegin), begin, prevBegin);
-            }
-            if (end > prevEnd) {
-                computeInto(data + (prevEnd - newStoreBegin), prevEnd, end);
+            if (end > computedEnd) {
+                std::pair<std::size_t, std::size_t> res = computeInto(data + (computedEnd - allocatedBegin), computedEnd, end);
+                if (res.first != res.second) {
+                    assert(res.first < res.second);
+                    assert(res.first == computedEnd);
+                    computedEnd = res.second;
+                }
             }
         } else {
-            computeInto(data + (begin - newStoreBegin), begin, end);
+            std::pair<std::size_t, std::size_t> res = computeInto(data + (begin - allocatedBegin), begin, end);
+            if (res.first != res.second) {
+                assert(res.first < res.second);
+                if (res.first < computedBegin) {
+                    computedBegin = res.first;
+                }
+                if (res.second > computedEnd) {
+                    computedEnd = res.second;
+                }
+            }
         }
     }
-    virtual void computeInto(ElementType *dst, std::size_t begin, std::size_t end) = 0;
+    virtual std::pair<std::size_t, std::size_t> computeInto(ElementType *dst, std::size_t begin, std::size_t end) = 0;
 
     std::pair<ElementType *, ElementType *> getData(std::size_t begin, std::size_t end) {
         assert(begin >= computedBegin);
         assert(end <= computedEnd);
-        std::size_t storedBegin = getStoredBegin();
-        return std::make_pair(data + (begin - storedBegin), data + (end - storedBegin));
+        return std::make_pair(data + (begin - allocatedBegin), data + (end - allocatedBegin));
     }
+
+    virtual std::size_t getStaticWidth() const {
+        throw DynamicWidthException("Cannot get static width for series");
+    }
+
+    std::size_t getAllocatedBegin() const { return allocatedBegin; }
+    std::size_t getAllocatedEnd() const { return allocatedEnd; }
 
 private:
     ElementType *data = 0;
+
+    std::size_t allocatedBegin = 0;
+    std::size_t allocatedEnd = 0;
+
     render::SeriesRenderer<ElementType> *renderer = 0;
 
-    unsigned int getPaddingSizeLog2() const {
-        std::size_t size = computedEnd - computedBegin;
-        return (sizeof(unsigned long long) * CHAR_BIT - 1) - __builtin_clzll((size / 4) | 1);
-    }
-    std::size_t getStoredBegin() const {
-        unsigned int paddingSizeLog2 = getPaddingSizeLog2();
-        return (computedBegin >> paddingSizeLog2) << paddingSizeLog2;
-    }
-    std::size_t getStoredEnd() const {
-        unsigned int paddingSizeLog2 = getPaddingSizeLog2();
-        return (((computedEnd - 1) >> paddingSizeLog2) + 1) << paddingSizeLog2;
+    void reallocData() {
+        std::size_t size = requestedEnd - requestedBegin;
+        unsigned int minSizeLog2 = (sizeof(unsigned long long) * CHAR_BIT) - __builtin_clzll(size | 1);
+        std::size_t newBegin = (requestedBegin >> minSizeLog2) << minSizeLog2;
+        std::size_t newEnd = (((requestedEnd - 1) >> minSizeLog2) + 1) << minSizeLog2;
+
+        size = newEnd - newBegin;
+        assert((size & (size - 1)) == 0);
+
+        assert(newBegin <= allocatedBegin);
+        assert(newEnd >= allocatedEnd);
+        if (newBegin == allocatedBegin && newEnd == allocatedEnd) {
+            return;
+        }
+
+        ElementType *newData = static_cast<ElementType *>(fftw_malloc(sizeof(ElementType) * (newEnd - newBegin)));
+        if (data) {
+            ElementType *b1 = newData + (computedBegin - newBegin);
+            ElementType *b2 = newData + (computedEnd - newBegin);
+            ElementType *b3 = newData + (newEnd - newBegin);
+            std::fill(newData, b1, static_cast<ElementType>(0.0));
+            std::copy(data + (computedBegin - allocatedBegin), data + (computedEnd - allocatedBegin), b1);
+            std::fill(b2, b3, static_cast<ElementType>(0.0));
+            fftw_free(data);
+        }
+        data = newData;
+        allocatedBegin = newBegin;
+        allocatedEnd = newEnd;
     }
 };
 

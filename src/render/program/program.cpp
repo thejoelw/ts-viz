@@ -7,31 +7,33 @@ Program::Program(app::AppContext &context)
 {}
 
 void Program::make() {
-    Defines defines;
-
 #ifndef NDEBUG
     calledBaseInsertDefines = false;
     calledBaseSetupProgram = false;
     calledBaseLinkProgram = false;
 #endif
 
-    insertDefines(defines);
+    insertDefines();
     assert(calledBaseInsertDefines);
 
-    setupProgram(defines);
+    if (isLinked) {
+        return;
+    }
+
+    setupProgram();
     assert(calledBaseSetupProgram);
 
     linkProgram();
     assert(calledBaseLinkProgram);
 }
 
-void Program::insertDefines(Defines &defines) {
+void Program::insertDefines() {
 #ifndef NDEBUG
     calledBaseInsertDefines = true;
 #endif
 }
 
-void Program::setupProgram(const Defines &defines) {
+void Program::setupProgram() {
 #ifndef NDEBUG
     calledBaseSetupProgram = true;
 #endif

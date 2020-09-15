@@ -28,44 +28,4 @@ void GlVao::assertBound() const {
 #endif
 }
 
-GLuint GlVao::prepareProgramAttribute(const std::string &name, GLuint locationSize) {
-    std::vector<Define>::const_iterator i = preparedDefines.cbegin();
-    while (i != preparedDefines.cend()) {
-        if (i->name == name) {
-            return i->value;
-        }
-        i++;
-    }
-
-    Define attr;
-    attr.name = name;
-    attr.value = nextAttributeLocation;
-    preparedDefines.push_back(attr);
-
-    nextAttributeLocation += locationSize;
-
-    int maxAttributes;
-    glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &maxAttributes);
-    assert(nextAttributeLocation <= static_cast<unsigned int>(maxAttributes));
-
-    return attr.value;
-}
-
-void GlVao::prepareDefine(const std::string &name, GLuint value) {
-    Define attr;
-    attr.name = name;
-    attr.value = value;
-    preparedDefines.push_back(attr);
-}
-
-void GlVao::insertDefines(GpuProgram::Defines &defines) const {
-    std::vector<Define>::const_iterator i = preparedDefines.cbegin();
-    while (i != preparedDefines.cend()) {
-        defines.set(i->name, i->value);
-        //glBindAttribLocation(programId, i->location, i->name);
-        graphics::GL::catchErrors();
-        i++;
-    }
-}
-
 }

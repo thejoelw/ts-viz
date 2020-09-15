@@ -23,7 +23,9 @@ const add = (a, b) => ['add', a, b];
 
 const seq = (w) => ['seq', w];
 
-const windowSimpleDouble = (scale_0) => ['window_simple_double', scale_0];
+const windowRect = (scale_0) => ['window_rect', scale_0];
+const windowSimple = (scale_0) => ['window_simple', scale_0];
+const conv = (a, b) => ['conv', a, b];
 
 const plot = (x, y, color) => [
 	'plot',
@@ -34,7 +36,8 @@ const plot = (x, y, color) => [
 
 const prg = () => {
 	return {
-		a: windowSimpleDouble(add(f(4), d(10))),
+		a: input('a'),
+		b: add(f(0.5), input('a')),
 	};
 
 	const a = input('a');

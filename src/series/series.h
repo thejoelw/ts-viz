@@ -36,8 +36,6 @@ public:
         , task(context.get<tf::Taskflow>().emplace([this]() {
             if (this->requestedBegin < this->requestedEnd) {
                 this->compute(this->requestedBegin, this->requestedEnd);
-                assert(computedBegin == this->requestedBegin);
-                assert(computedEnd == this->requestedEnd);
             }
         }))
     {
@@ -63,7 +61,9 @@ public:
     }
 
     void request(std::size_t begin, std::size_t end) {
-        assert(begin < end);
+        if (begin >= end) {
+            return;
+        }
 
         if (requestedBegin == requestedEnd) {
             requestedBegin = begin;
@@ -76,6 +76,13 @@ public:
                 requestedEnd = end;
             }
         }
+    }
+
+    std::size_t getComputedBegin() const {
+        return computedBegin;
+    }
+    std::size_t getComputedEnd() const {
+        return computedEnd;
     }
 
     std::size_t getDepth() const {
