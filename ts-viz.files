@@ -92,6 +92,7 @@ src/render/seriesrenderer.h
 src/render/shaders.cpp
 src/render/shaders.h
 src/series/convseries.h
+src/series/dataseries.cpp
 src/series/dataseries.h
 src/series/inputseries.h
 src/series/parallelopseries.h
@@ -110,6 +111,8 @@ src/util/pool.h
 src/util/reflist.h
 src/util/refset.h
 src/util/smallvectormanager.h
+src/util/task.cpp
+src/util/task.h
 src/util/taskscheduler.cpp
 src/util/taskscheduler.h
 src/util/testrunner.cpp

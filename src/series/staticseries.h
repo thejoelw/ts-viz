@@ -15,23 +15,10 @@ public:
         , width(width)
     {}
 
-    void propogateRequest() override {
-        if (this->requestedEnd > width) {
-            this->requestedEnd = width;
-        }
-        if (this->requestedBegin < this->requestedEnd) {
-            this->requestedBegin = 0;
-            this->requestedEnd = width;
-        }
-    }
-
-    std::pair<std::size_t, std::size_t> computeInto(ElementType *dst, std::size_t begin, std::size_t end) override {
-        assert(begin == 0);
-        assert(end == width);
-
-        op(dst, begin, end);
-
-        return std::make_pair(begin, end);
+    std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
+        return [this, chunkIndex](ElementType *dst) {
+            op(dst, chunkIndex * DataSeries<ElementType>::ChunkData::size, (chunkIndex + 1) * DataSeries<ElementType>::ChunkData::size);
+        };
     }
 
     std::size_t getStaticWidth() const override {

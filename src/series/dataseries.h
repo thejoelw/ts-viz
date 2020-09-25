@@ -3,8 +3,13 @@
 #include <vector>
 #include <fftw3.h>
 
+#include "jw_util/thread.h"
+
 #include "series/series.h"
 #include "render/seriesrenderer.h"
+#include "util/taskscheduler.h"
+#include "util/task.h"
+#include "util/pool.h"
 
 namespace series {
 
@@ -19,6 +24,39 @@ public:
             : BaseException(msg)
         {}
     };
+
+protected:
+    class Chunk {
+        friend class DataSeries<ElementType>;
+
+    public:
+        static constexpr std::size_t size = 1024 * 1024 / sizeof(ElementType);
+
+        Chunk(DataSeries<ElementType> *series, std::size_t index) {
+            assert(activeComputingChunk == 0);
+            activeComputingChunk = this;
+
+            task.setFunction(series->getChunkGenerator(index));
+
+            assert(activeComputingChunk == this);
+            activeComputingChunk = 0;
+        }
+
+        util::Task::Status getStatus() const {
+            return task.getStatus();
+        }
+
+        ElementType *getData() {
+            assert(task.getStatus() == util::Task::Status::Done);
+            return data;
+        }
+
+    private:
+        ElementType data[size];
+        util::Task task;
+    };
+
+public:
 
     DataSeries(app::AppContext &context)
         : Series(context)
@@ -35,121 +73,81 @@ public:
             renderer = new render::SeriesRenderer<ElementType>(context);
         }
 
-        if (begin < computedBegin) {
-            begin = computedBegin;
-        }
-        if (end > computedEnd) {
-            end = computedEnd;
-        }
-
-        if (begin >= end) {
-            return;
-        }
-
         static thread_local std::vector<ElementType> sample;
         sample.clear();
         sample.reserve((end - begin + stride - 1) / stride);
 
         for (std::size_t i = begin; i < end; i += stride) {
-            sample.push_back(data[i - allocatedBegin]);
+            Chunk *chunk = getChunk(i / Chunk::size);
+            if (chunk->getStatus() == util::Task::Status::Done) {
+                sample.push_back(chunk->getData()[i % Chunk::size]);
+            }
         }
 
         renderer->draw(begin, stride, sample);
-    }
-
-    void compute(std::size_t begin, std::size_t end) override {
-        assert(begin < end);
-        assert(begin <= computedBegin);
-        assert(end >= computedEnd);
-
-        if (begin == computedBegin && end == computedEnd) {
-            return;
-        }
-
-        reallocData();
-
-        if ((computedEnd - computedBegin) * 3 > end - begin) {
-            if (begin < computedBegin) {
-                std::pair<std::size_t, std::size_t> res = computeInto(data + (begin - allocatedBegin), begin, computedBegin);
-                if (res.first != res.second) {
-                    assert(res.first < res.second);
-                    assert(res.second == computedBegin);
-                    computedBegin = res.first;
-                }
-            }
-            if (end > computedEnd) {
-                std::pair<std::size_t, std::size_t> res = computeInto(data + (computedEnd - allocatedBegin), computedEnd, end);
-                if (res.first != res.second) {
-                    assert(res.first < res.second);
-                    assert(res.first == computedEnd);
-                    computedEnd = res.second;
-                }
-            }
-        } else {
-            std::pair<std::size_t, std::size_t> res = computeInto(data + (begin - allocatedBegin), begin, end);
-            if (res.first != res.second) {
-                assert(res.first < res.second);
-                if (res.first < computedBegin) {
-                    computedBegin = res.first;
-                }
-                if (res.second > computedEnd) {
-                    computedEnd = res.second;
-                }
-            }
-        }
-    }
-    virtual std::pair<std::size_t, std::size_t> computeInto(ElementType *dst, std::size_t begin, std::size_t end) = 0;
-
-    std::pair<ElementType *, ElementType *> getData(std::size_t begin, std::size_t end) {
-        assert(begin >= computedBegin);
-        assert(end <= computedEnd);
-        return std::make_pair(data + (begin - allocatedBegin), data + (end - allocatedBegin));
     }
 
     virtual std::size_t getStaticWidth() const {
         throw DynamicWidthException("Cannot get static width for series");
     }
 
-    std::size_t getAllocatedBegin() const { return allocatedBegin; }
-    std::size_t getAllocatedEnd() const { return allocatedEnd; }
+    util::Task *getNearbyTask(std::size_t index) {
+        for (std::size_t i = 1; i < 4; i++) {
+            if (index >= i) {
+                Chunk *neighbor = chunks[index - i];
+                if (neighbor) {
+                    return &neighbor->task;
+                }
+            }
+
+            if (index + i < chunks.size()) {
+                Chunk *neighbor = chunks[index + i];
+                if (neighbor) {
+                    return &neighbor->task;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    Chunk *makeChunk(std::size_t index) {
+        util::Task *nearbyTask = getNearbyTask(index);
+        Chunk *res = context.get<util::Pool<Chunk>>().alloc(this, index);
+        if (nearbyTask) {
+            res->task.addSimilarTask(*nearbyTask);
+        }
+
+        res->task.submitTo(context.get<util::TaskScheduler>());
+
+        return res;
+    }
+
+    Chunk *getChunk(std::size_t index) {
+        jw_util::Thread::assert_main_thread();
+
+        if (chunks.size() <= index) {
+            chunks.resize(index + 1, 0);
+        }
+        if (chunks[index] == 0) {
+            chunks[index] = makeChunk(index);
+        }
+
+        if (activeComputingChunk) {
+            activeComputingChunk->task.addDependency(chunks[index]->task);
+        }
+
+        return chunks[index];
+    }
+
+    virtual std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) = 0;
 
 private:
-    ElementType *data = 0;
+    std::vector<Chunk *> chunks;
 
-    std::size_t allocatedBegin = 0;
-    std::size_t allocatedEnd = 0;
+    static thread_local Chunk *activeComputingChunk;
 
     render::SeriesRenderer<ElementType> *renderer = 0;
-
-    void reallocData() {
-        std::size_t size = requestedEnd - requestedBegin;
-        unsigned int minSizeLog2 = (sizeof(unsigned long long) * CHAR_BIT) - __builtin_clzll(size | 1);
-        std::size_t newBegin = (requestedBegin >> minSizeLog2) << minSizeLog2;
-        std::size_t newEnd = (((requestedEnd - 1) >> minSizeLog2) + 1) << minSizeLog2;
-
-        size = newEnd - newBegin;
-        assert((size & (size - 1)) == 0);
-
-        assert(newBegin <= allocatedBegin);
-        assert(newEnd >= allocatedEnd);
-        if (newBegin == allocatedBegin && newEnd == allocatedEnd) {
-            return;
-        }
-
-        ElementType *newData = static_cast<ElementType *>(fftw_malloc(sizeof(ElementType) * (newEnd - newBegin)));
-        if (data) {
-            ElementType *b1 = newData + (computedBegin - newBegin);
-            ElementType *b2 = newData + (computedEnd - newBegin);
-            ElementType *b3 = newData + (newEnd - newBegin);
-            std::fill(newData, b1, static_cast<ElementType>(0.0));
-            std::copy(data + (computedBegin - allocatedBegin), data + (computedEnd - allocatedBegin), b1);
-            std::fill(b2, b3, static_cast<ElementType>(0.0));
-            fftw_free(data);
-        }
-        data = newData;
-        allocatedBegin = newBegin;
-        allocatedEnd = newEnd;
-    }
 };
 
 }

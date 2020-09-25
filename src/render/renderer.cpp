@@ -42,7 +42,6 @@ void Renderer::tickClose(app::TickerContext &tickerContext) {
     std::size_t stride = std::max(static_cast<std::size_t>(1), (maxX - minX) >> 12);
 
     for (series::Series *series : added) {
-        series->request(minX, maxX);
         series->draw(minX, maxX, stride);
     }
 }
