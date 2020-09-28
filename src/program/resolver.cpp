@@ -1,7 +1,11 @@
 #include "resolver.h"
 
+#include "series/inputseries.h"
 #include "series/staticseries.h"
 #include "series/parallelopseries.h"
+#include "series/convseries.h"
+
+#include "defs/INPUT_SERIES_ELEMENT_TYPE.h"
 
 namespace {
 
@@ -39,6 +43,11 @@ auto windowSimple(app::AppContext &context, RealType scale_0) {
     return new series::StaticSeries<double, decltype(op)>(context, op, width);
 }
 
+template <typename RealType>
+auto convolve(app::AppContext &context, series::DataSeries<RealType> *kernel, series::DataSeries<RealType> *ts) {
+    return new series::ConvSeries<RealType>(context, *kernel, *ts);
+}
+
 }
 
 namespace program {
@@ -46,7 +55,7 @@ namespace program {
 Resolver::Resolver(app::AppContext &context)
     : context(context)
 {
-    decl("input", [](const std::string &name){return 12.0f;});
+    decl("input", [&context](const std::string &name){return new series::InputSeries<INPUT_SERIES_ELEMENT_TYPE>(context, name);});
 
     decl("cast_float", [](UncastNumber num){return static_cast<float>(num.value);});
     decl("cast_double", [](UncastNumber num){return static_cast<double>(num.value);});
@@ -63,6 +72,9 @@ Resolver::Resolver(app::AppContext &context)
 
     decl("window_simple", [&context](float scale_0){return windowSimple(context, scale_0);});
     decl("window_simple", [&context](double scale_0){return windowSimple(context, scale_0);});
+
+    decl("conv", [&context](series::DataSeries<float> *kernel, series::DataSeries<float> *ts){return convolve(context, kernel, ts);});
+    decl("conv", [&context](series::DataSeries<double> *kernel, series::DataSeries<double> *ts){return convolve(context, kernel, ts);});
 }
 
 ProgObj Resolver::call(const std::string &name, const std::vector<ProgObj> &args) {

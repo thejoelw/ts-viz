@@ -29,6 +29,7 @@ src/graphics/type/element.h
 src/graphics/type/point.cpp
 src/graphics/type/point.h
 src/jw_util/README.md
+src/jw_util/arraypool.h
 src/jw_util/baseexception.h
 src/jw_util/bitinterface.h
 src/jw_util/bitset.h
@@ -92,7 +93,6 @@ src/render/seriesrenderer.h
 src/render/shaders.cpp
 src/render/shaders.h
 src/series/convseries.h
-src/series/dataseries.cpp
 src/series/dataseries.h
 src/series/inputseries.h
 src/series/parallelopseries.h
@@ -105,6 +105,8 @@ src/shaders/main.frag.glsl
 src/shaders/main.vert.glsl
 src/stream/filepoller.cpp
 src/stream/filepoller.h
+src/stream/inputmanager.cpp
+src/stream/inputmanager.h
 src/stream/jsonunwrapper.h
 src/util/hashforwarder.h
 src/util/pool.h

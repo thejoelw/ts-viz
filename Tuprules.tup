@@ -22,9 +22,9 @@ endif
 
 ifeq (@(TUP_PLATFORM),macosx)
     CFLAGS += -stdlib=libc++
-    LDFLAGS += -framework OpenGL `pkg-config --static --libs yaml-cpp glfw3 glew`
+    LDFLAGS += -framework OpenGL `pkg-config --static --libs yaml-cpp glfw3 glew fftw3 fftw3f`
 else
-    LDFLAGS += `pkg-config --static --libs yaml-cpp gl glfw3 glew`
+    LDFLAGS += `pkg-config --static --libs yaml-cpp gl glfw3 glew fftw3 fftw3f`
 endif
 
 !cpp = |> $(CXX) $(CFLAGS) $(CFLAGS_%f) -c %f -o %o |> %f.o $(ROOT)/<src_objects>

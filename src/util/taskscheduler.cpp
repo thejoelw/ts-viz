@@ -4,10 +4,12 @@
 
 namespace util {
 
-TaskScheduler::TaskScheduler(std::size_t numThreads)
+TaskScheduler::TaskScheduler(app::AppContext &context, std::size_t numThreads)
     : numThreads(numThreads)
     , threads(numThreads ? new std::thread[numThreads] : 0)
 {
+    (void) context;
+
     for (std::size_t i = 0; i < numThreads; i++) {
         threads[i] = std::thread(&TaskScheduler::worker, this);
     }
@@ -31,8 +33,6 @@ TaskScheduler::~TaskScheduler() {
 
 void TaskScheduler::addTask(Task *task) {
     assert(task->waitingCount == 0);
-    assert(task->status == Task::Status::Pending);
-    task->status = Task::Status::Queued;
 
     std::unique_lock<std::mutex> lock(mutex);
     queue.push(task);

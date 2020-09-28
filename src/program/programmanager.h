@@ -30,8 +30,6 @@ public:
 private:
     app::AppContext &context;
 
-    tf::Taskflow taskflow;
-
     ProgObj makeProgObj(const rapidjson::Value &value);
 };
 

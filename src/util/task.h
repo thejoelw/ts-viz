@@ -5,6 +5,8 @@
 #include <vector>
 #include <chrono>
 
+#include "jw_util/baseexception.h"
+
 namespace util {
 
 class TaskScheduler;
@@ -29,6 +31,7 @@ public:
     void setFunction(const std::function<void(TaskScheduler &)> &newFunc);
 
     void submitTo(TaskScheduler &scheduler);
+    void rerun(TaskScheduler &scheduler);
 
 private:
     std::atomic<Status> status = Status::Pending;

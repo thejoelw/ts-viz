@@ -4,13 +4,15 @@
 #include <thread>
 #include <queue>
 
+namespace app { class AppContext; }
+
 namespace util {
 
 class Task;
 
 class TaskScheduler {
 public:
-    TaskScheduler(std::size_t numThreads = std::thread::hardware_concurrency());
+    TaskScheduler(app::AppContext &context, std::size_t numThreads = std::thread::hardware_concurrency());
     ~TaskScheduler();
 
     void addTask(Task *task);

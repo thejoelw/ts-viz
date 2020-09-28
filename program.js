@@ -35,16 +35,14 @@ const plot = (x, y, color) => [
 ];
 
 const prg = () => {
+	const a = input('x');
+
 	return {
-		a: input('a'),
-		b: add(f(0.5), input('a')),
+		a,
+		// b: conv(windowRect(f(1000)), a),
+		c: add(a, d(4)),
+		// b: conv(a, windowSimple(f(20))),
 	};
-
-	const a = input('a');
-	const b = input('b');
-	const c = add(a, b);
-
-	return { a, b, c };
 };
 
 console.log(JSON.stringify(prg()));

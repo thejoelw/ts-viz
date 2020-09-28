@@ -17,7 +17,17 @@ public:
 
     std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
         return [this, chunkIndex](ElementType *dst) {
-            op(dst, chunkIndex * DataSeries<ElementType>::ChunkData::size, (chunkIndex + 1) * DataSeries<ElementType>::ChunkData::size);
+            static constexpr std::size_t size = DataSeries<ElementType>::Chunk::size;
+            std::size_t begin = chunkIndex * size;
+            std::size_t end = (chunkIndex + 1) * size;
+//            if (width < begin) {
+//                std::fill_n(dst, size, NAN);
+//                return;
+//            } else if (width < end) {
+//                std::fill(dst + width - begin, dst + size, NAN);
+//                end = width;
+//            }
+            op(dst, begin, end);
         };
     }
 

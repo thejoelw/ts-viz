@@ -1,6 +1,59 @@
 #pragma once
 
+#include <fftw3.h>
+
 #include "series/dataseries.h"
+
+namespace {
+
+static unsigned long long nextPow2(unsigned long long x) {
+    if (x < 2) {
+        return 1;
+    }
+    unsigned int ceilLog2 = (sizeof(unsigned long long) * CHAR_BIT) - __builtin_clzll(x - 1);
+    return static_cast<unsigned long long>(1) << ceilLog2;
+}
+
+template <typename ElementType>
+struct fftwx_impl;
+
+template<> struct fftwx_impl<float> {
+    typedef fftwf_plan Plan;
+    typedef fftwf_complex Complex;
+
+    static float *alloc_real(std::size_t size) { return fftwf_alloc_real(size); }
+    static Complex *alloc_complex(std::size_t size) { return fftwf_alloc_complex(size); }
+    static void free(void *ptr) { return fftwf_free(ptr); }
+
+    static Plan plan_dft_r2c_1d(std::size_t size, float *in, Complex *out, unsigned flags) { return fftwf_plan_dft_r2c_1d(size, in, out, flags); }
+    static Plan plan_dft_c2r_1d(std::size_t size, Complex *in, float *out, unsigned flags) { return fftwf_plan_dft_c2r_1d(size, in, out, flags); }
+
+    static void execute(Plan plan) { fftwf_execute(plan); }
+    static void execute_dft_r2c(Plan plan, float *in, Complex *out) { fftwf_execute_dft_r2c(plan, in, out); }
+    static void execute_dft_c2r(Plan plan, Complex *in, float *out) { fftwf_execute_dft_c2r(plan, in, out); }
+
+    static void destroy_plan(Plan plan) { fftwf_destroy_plan(plan); }
+};
+
+template<> struct fftwx_impl<double> {
+    typedef fftw_plan Plan;
+    typedef fftw_complex Complex;
+
+    static double *alloc_real(std::size_t size) { return fftw_alloc_real(size); }
+    static Complex *alloc_complex(std::size_t size) { return fftw_alloc_complex(size); }
+    static void free(void *ptr) { return fftw_free(ptr); }
+
+    static Plan plan_dft_r2c_1d(std::size_t size, double *in, Complex *out, unsigned flags) { return fftw_plan_dft_r2c_1d(size, in, out, flags); }
+    static Plan plan_dft_c2r_1d(std::size_t size, Complex *in, double *out, unsigned flags) { return fftw_plan_dft_c2r_1d(size, in, out, flags); }
+
+    static void execute(Plan plan) { fftw_execute(plan); }
+    static void execute_dft_r2c(Plan plan, double *in, Complex *out) { fftw_execute_dft_r2c(plan, in, out); }
+    static void execute_dft_c2r(Plan plan, Complex *in, double *out) { fftw_execute_dft_c2r(plan, in, out); }
+
+    static void destroy_plan(Plan plan) { fftw_destroy_plan(plan); }
+};
+
+}
 
 namespace series {
 
@@ -9,116 +62,165 @@ class ConvSeries : public DataSeries<ElementType> {
 private:
     static constexpr std::size_t fftSizeThreshold = 32;
 
+    static constexpr std::size_t chunkSize = DataSeries<ElementType>::Chunk::size;
+
+    typedef fftwx_impl<ElementType> fftwx;
+
 public:
-    ConvSeries(app::AppContext &context, const DataSeries<ElementType> &kernel, const DataSeries<ElementType> &ts)
+    ConvSeries(app::AppContext &context, DataSeries<ElementType> &kernel, DataSeries<ElementType> &ts)
         : DataSeries<ElementType>(context)
         , kernel(kernel)
         , ts(ts)
-        , kernelWidth(kernel.getStaticWidth())
+        , kernelBack(kernel.getStaticWidth() - 1)
+        , sourceSize(kernelBack + chunkSize)
+        , planSize(nextPow2(sourceSize))
     {
-        assert(kernelWidth > 0);
-
-        this->dependsOn(&kernel);
-        this->dependsOn(&ts);
+        assert(kernelBack != static_cast<std::size_t>(-1));
     }
 
-    void propogateRequest() override {
-        kernel.request(0, kernelWidth);
-        std::size_t sub = kernelWidth - 1;
-        ts.request(this->requestedBegin > sub ? this->requestedBegin - sub : 0, this->requestedEnd);
+    ~ConvSeries() {
+        for (PlanIO planIO : planIOs) {
+            fftwx::free(planIO.in);
+            fftwx::free(planIO.fft);
+            fftwx::free(planIO.out);
+        }
+
+        fftwx::free(kernelFft);
+
+        fftwx::destroy_plan(planBwd);
+        fftwx::destroy_plan(planFwd);
     }
 
-    std::pair<std::size_t, std::size_t> computeInto(ElementType *dst, std::size_t begin, std::size_t end) override {
-        if (kernel.getComputedBegin() == kernel.getComputedEnd()) {
-            return std::make_pair(0, 0);
+    std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
+        std::size_t begin = chunkIndex * chunkSize;
+        std::size_t end = (chunkIndex + 1) * chunkSize;
+        if (end <= kernelBack) {
+            return [](ElementType *dst) {
+                std::fill_n(dst, chunkSize, NAN);
+            };
         }
 
-        assert(kernel.getComputedBegin() == 0);
-        assert(kernel.getComputedEnd() == kernelWidth);
-
-        std::size_t minBegin = ts.getComputedBegin() + kernelWidth - 1;
-        if (begin < minBegin) { begin = minBegin; }
-
-        std::size_t maxEnd = ts.getComputedEnd();
-        if (end > maxEnd) { end = maxEnd; }
-
-        if (begin >= end) {
-            return std::make_pair(0, 0);
+        std::size_t numKernelChunks = kernelBack / chunkSize + 1;
+        typename DataSeries<ElementType>::Chunk **kernelChunks = new typename DataSeries<ElementType>::Chunk *[numKernelChunks];
+        for (std::size_t i = 0; i < numKernelChunks; i++) {
+            kernelChunks[i] = kernel.getChunk(i);
         }
 
-        std::size_t size = end - begin;
-        if (size < fftSizeThreshold) {
-            std::pair<ElementType *, ElementType *> kernelRange = kernel.getData(0, kernelWidth);
-            std::pair<ElementType *, ElementType *> tsRange = ts.getData(begin, end);
+        std::size_t numTsChunks = std::min((sourceSize - 1) / chunkSize + 1, chunkIndex);
+        typename DataSeries<ElementType>::Chunk **tsChunks = new typename DataSeries<ElementType>::Chunk *[numTsChunks];
+        for (std::size_t i = 0; i < numTsChunks; i++) {
+            tsChunks[i] = ts.getChunk(chunkIndex - i);
+        }
 
-            for (ElementType *tsIt = tsRange.first; tsIt < tsRange.second; tsIt++) {
-                ElementType *tsIt2 = tsIt;
-                ElementType sum = 0.0;
-                // TODO: Sum from smallest to biggest
-                for (ElementType *kIt = kernelRange.first; kIt < kernelRange.second; kIt++) {
-                    sum += *kIt * *tsIt2--;
-                }
-                *dst++ = sum;
-            }
-        } else {
-            assert(size > 1);
-            std::size_t ceilLog2 = (sizeof(unsigned long long) * CHAR_BIT) - __builtin_clzll(size - 1);
-            std::size_t nextPow2 = static_cast<std::size_t>(1) << ceilLog2;
-
-            if (planSize != nextPow2) {
-                assert(nextPow2 >= size);
-                std::size_t remainingPadding = nextPow2 - size;
-
-                std::size_t expandEnd = std::min(remainingPadding, ts.getAllocatedEnd() - end);
-                remainingPadding -= expandEnd;
-                std::size_t end2 = end + expandEnd;
-
-                std::size_t expandBegin = std::min(remainingPadding, begin - ts.getAllocatedBegin());
-                remainingPadding -= expandBegin;
-                std::size_t begin2 = begin - expandBegin;
-
-                assert(remainingPadding == 0);
-                assert(end2 - begin2 == nextPow2);
-
-                planSize = nextPow2;
-                out = fftw_alloc_complex(nextPow2);
-                plan = fftw_plan_dft_r2c_1d(nextPow2, ts.getData(begin2, end2), out, FFTW_ESTIMATE | FFTW_PRESERVE_INPUT);
+        return [this, begin, end, numKernelChunks, kernelChunks, numTsChunks, tsChunks](ElementType *dst) {
+            assert(kernelBack < end);
+            if (begin < kernelBack) {
+                std::fill_n(dst, kernelBack - begin, NAN);
             }
 
-            fftw_execute
+            PlanIO planIO = requestPlanIO(numKernelChunks, kernelChunks);
 
+            assert(numTsChunks <= planSize / chunkSize);
+            assert(numTsChunks * chunkSize <= planSize);
+            for (std::size_t i = 0; i < numTsChunks; i++) {
+                std::copy_n(tsChunks[i]->getData(), chunkSize, planIO.in + i * chunkSize);
+            }
+            std::fill(planIO.in + sourceSize, planIO.in + planSize, static_cast<ElementType>(0.0));
 
-            fftw_complex in[N];
-            fftw_complex out[N];
-            fftw_plan p = fftw_create_plan(nextPow2, FFTW_FORWARD, FFTW_MEASURE);
-            fftw_one(p, in, out);
-            fftw_destroy_plan(p);
-        }
+            fftwx::execute_dft_r2c(planFwd, planIO.in, planIO.fft);
 
+            // Elementwise multiply
+            for (std::size_t i = 0; i < planSize; i++) {
+                ElementType *a = planIO.fft[i];
+                ElementType *b = kernelFft[i];
 
-        begin = std::apply([begin](auto &... x){return vmax(begin, x.getComputedBegin()...);}, args);
-        end = std::apply([end](auto &... x){return vmin(end, x.getComputedEnd()...);}, args);
-        if (begin >= end) {
-            return std::make_pair(0, 0);
-        }
-        auto sources = std::apply([begin, end](auto &... x){return std::make_tuple(x.getData(begin, end).first...);}, args);
+                ElementType c = a[0] * b[0] - a[1] * b[1];
+                ElementType d = a[0] * b[1] + a[1] * b[0];
+                a[0] = c;
+                a[1] = d;
+            }
 
-        for (std::size_t i = begin; i < end; i++) {
-            *dst++ = std::apply([this](auto *&... s){return op(*s++...);}, sources);
-        }
+            // Backward fft
+            fftwx::execute_dft_c2r(planBwd, planIO.fft, planIO.out);
 
-        return std::make_pair(begin, end);
+            std::copy_n(planIO.out, chunkSize, dst);
+
+            releasePlanIO(planIO);
+
+            delete[] kernelChunks;
+            delete[] tsChunks;
+        };
+
     }
 
 private:
-    const DataSeries<ElementType> &kernel;
-    const DataSeries<ElementType> &ts;
+    DataSeries<ElementType> &kernel;
+    DataSeries<ElementType> &ts;
 
-    std::size_t kernelWidth;
+    std::size_t kernelBack;
+    std::size_t sourceSize;
+    std::size_t planSize;
 
-    std::size_t planSize = 0;
-    fftw_complex *out;
-    fftw_plan plan;
+    std::mutex planMutex;
+    typename fftwx::Plan planFwd;
+    typename fftwx::Plan planBwd;
+    bool hasPlan;
+
+    typename fftwx::Complex *kernelFft;
+
+    struct PlanIO {
+        ElementType *in;
+        typename fftwx::Complex *fft;
+        ElementType *out;
+    };
+
+    std::vector<PlanIO> planIOs;
+
+    PlanIO requestPlanIO(std::size_t numKernelChunks, typename DataSeries<ElementType>::Chunk **kernelChunks) {
+        std::unique_lock<std::mutex> lock(planMutex);
+        if (!hasPlan) {
+            processKernel(numKernelChunks, kernelChunks);
+            hasPlan = true;
+        }
+
+        return makePlanIO();
+    }
+
+    PlanIO makePlanIO() {
+        if (planIOs.empty()) {
+            PlanIO res;
+            res.in = fftwx::alloc_real(planSize);
+            res.fft = fftwx::alloc_complex(planSize);
+            res.out = fftwx::alloc_real(planSize);
+            return res;
+        } else {
+            PlanIO res = planIOs.back();
+            planIOs.pop_back();
+            return res;
+        }
+    }
+
+    void releasePlanIO(PlanIO planIO) {
+        std::unique_lock<std::mutex> lock(planMutex);
+        planIOs.push_back(planIO);
+    }
+
+    void processKernel(std::size_t numKernelChunks, typename DataSeries<ElementType>::Chunk **kernelChunks) {
+        ElementType *tmpIn = fftwx::alloc_real(planSize);
+        typename fftwx::Complex *tmpFft = fftwx::alloc_complex(planSize);
+
+        planFwd = fftwx::plan_dft_r2c_1d(planSize, tmpIn, tmpFft, FFTW_ESTIMATE | FFTW_DESTROY_INPUT);
+        planBwd = fftwx::plan_dft_c2r_1d(planSize, tmpFft, tmpIn, FFTW_ESTIMATE | FFTW_DESTROY_INPUT);
+
+        for (std::size_t i = 0; i < numKernelChunks; i++) {
+            std::copy_n(kernelChunks[i]->getData(), chunkSize, tmpIn + i * chunkSize);
+        }
+        std::fill(tmpIn + kernelBack + 1, tmpIn + planSize, static_cast<ElementType>(0.0));
+        fftwx::execute(planFwd);
+
+        fftwx::free(tmpIn);
+        kernelFft = tmpFft;
+    }
 };
 
 }

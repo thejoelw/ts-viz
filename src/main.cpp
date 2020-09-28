@@ -11,6 +11,7 @@
 #include "stream/filepoller.h"
 #include "stream/jsonunwrapper.h"
 #include "program/programmanager.h"
+#include "stream/inputmanager.h"
 
 int main(int argc, char **argv)
 {
@@ -36,6 +37,7 @@ int main(int argc, char **argv)
     }
 
     context.get<stream::FilePoller>().addFile<stream::JsonUnwrapper<program::ProgramManager>>(argv[1]);
+    context.get<stream::FilePoller>().addFile<stream::JsonUnwrapper<stream::InputManager>>(argv[2]);
 
     // Run it!!!
     try {

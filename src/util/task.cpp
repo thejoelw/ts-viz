@@ -21,12 +21,27 @@ void Task::setFunction(const std::function<void(TaskScheduler &)> &newFunc) {
 }
 
 void Task::submitTo(TaskScheduler &scheduler) {
+    assert(status == Task::Status::Pending);
+
     if (!--waitingCount) {
+        status = Task::Status::Queued;
+
         scheduler.addTask(this);
     }
 }
 
-void Task::call(TaskScheduler &scheduler, util::ArgTypes args) {
+void Task::rerun(TaskScheduler &scheduler) {
+    if (status == Status::Done) {
+        status = Status::Queued;
+        scheduler.addTask(this);
+
+        for (Task *dep : dependents) {
+            dep->rerun(scheduler);
+        }
+    }
+}
+
+void Task::call(TaskScheduler &scheduler) {
     assert(status == Status::Queued);
     status = Status::Running;
 
@@ -35,7 +50,6 @@ void Task::call(TaskScheduler &scheduler, util::ArgTypes args) {
     auto t2 = std::chrono::high_resolution_clock::now();
 
     double durationSeconds = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count();
-    assert(selfDuration == 0.0);
     selfDuration = durationSeconds;
 
     assert(status == Status::Running);

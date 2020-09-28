@@ -41,16 +41,15 @@ void FilePoller::tick(app::TickerContext &tickerContext) {
         if (file.closed) {continue;}
 
         if (FD_ISSET(file.fileNo, &fds)) {
-//            while (true) {
-                ssize_t size = getline(&file.lineData, &file.lineSize, file.filePtr);
-                if (size == -1) {
-                    file.closed = true;
-                } else if (size == 0) {
-                    break;
-                } else {
-                    file.lineDispaatcher(context, file.lineData, size);
-                }
-//            }
+            ssize_t size = getline(&file.lineData, &file.lineSize, file.filePtr);
+            if (size == -1) {
+                file.closed = true;
+//                break;
+            } else if (size == 0) {
+//                break;
+            } else {
+                file.lineDispaatcher(context, file.lineData, size);
+            }
         }
     }
 }

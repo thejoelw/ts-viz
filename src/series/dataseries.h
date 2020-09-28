@@ -1,7 +1,6 @@
 #pragma once
 
 #include <vector>
-#include <fftw3.h>
 
 #include "jw_util/thread.h"
 
@@ -10,6 +9,8 @@
 #include "util/taskscheduler.h"
 #include "util/task.h"
 #include "util/pool.h"
+
+#include "defs/CHUNK_SIZE_LOG2.h"
 
 namespace series {
 
@@ -30,13 +31,13 @@ protected:
         friend class DataSeries<ElementType>;
 
     public:
-        static constexpr std::size_t size = 1024 * 1024 / sizeof(ElementType);
+        static constexpr std::size_t size = (static_cast<std::size_t>(1) << CHUNK_SIZE_LOG2) / sizeof(ElementType);
 
         Chunk(DataSeries<ElementType> *series, std::size_t index) {
             assert(activeComputingChunk == 0);
             activeComputingChunk = this;
 
-            task.setFunction(series->getChunkGenerator(index));
+            task.setFunction([this, cb = series->getChunkGenerator(index)](util::TaskScheduler &){cb(data);});
 
             assert(activeComputingChunk == this);
             activeComputingChunk = 0;
@@ -60,7 +61,9 @@ public:
 
     DataSeries(app::AppContext &context)
         : Series(context)
-    {}
+    {
+        jw_util::Thread::set_main_thread();
+    }
 
     ~DataSeries() {
         delete[] renderer;
@@ -75,12 +78,13 @@ public:
 
         static thread_local std::vector<ElementType> sample;
         sample.clear();
-        sample.reserve((end - begin + stride - 1) / stride);
 
         for (std::size_t i = begin; i < end; i += stride) {
             Chunk *chunk = getChunk(i / Chunk::size);
             if (chunk->getStatus() == util::Task::Status::Done) {
                 sample.push_back(chunk->getData()[i % Chunk::size]);
+            } else {
+                sample.push_back(NAN);
             }
         }
 
@@ -123,21 +127,38 @@ public:
         return res;
     }
 
-    Chunk *getChunk(std::size_t index) {
+    Chunk *getChunk(std::size_t chunkIndex) {
         jw_util::Thread::assert_main_thread();
 
-        if (chunks.size() <= index) {
-            chunks.resize(index + 1, 0);
+        if (chunks.size() <= chunkIndex) {
+            chunks.resize(chunkIndex + 1, 0);
         }
-        if (chunks[index] == 0) {
-            chunks[index] = makeChunk(index);
+        if (chunks[chunkIndex] == 0) {
+            chunks[chunkIndex] = makeChunk(chunkIndex);
         }
 
         if (activeComputingChunk) {
-            activeComputingChunk->task.addDependency(chunks[index]->task);
+            activeComputingChunk->task.addDependency(chunks[chunkIndex]->task);
         }
 
-        return chunks[index];
+        return chunks[chunkIndex];
+    }
+
+    ElementType *modifyChunk(std::size_t chunkIndex) {
+        jw_util::Thread::assert_main_thread();
+
+        if (chunks.size() <= chunkIndex) {
+            chunks.resize(chunkIndex + 1, 0);
+        }
+        if (chunks[chunkIndex] == 0) {
+            chunks[chunkIndex] = makeChunk(chunkIndex);
+        }
+
+        assert(!activeComputingChunk);
+
+        chunks[chunkIndex]->task.rerun(context.get<util::TaskScheduler>());
+
+        return chunks[chunkIndex]->data;
     }
 
     virtual std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) = 0;
@@ -145,7 +166,7 @@ public:
 private:
     std::vector<Chunk *> chunks;
 
-    static thread_local Chunk *activeComputingChunk;
+    static inline thread_local Chunk *activeComputingChunk;
 
     render::SeriesRenderer<ElementType> *renderer = 0;
 };

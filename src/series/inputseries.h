@@ -9,28 +9,23 @@ namespace series {
 template <typename ElementType>
 class InputSeries : public DataSeries<ElementType> {
 public:
-    InputSeries(tf::Taskflow &taskflow, const std::string &)
-        : DataSeries<ElementType>(taskflow.emplace([](){}))
-    {}
+    InputSeries(app::AppContext &context, const std::string &name)
+        : DataSeries<ElementType>(context)
+    {
+        (void) name;
+    }
 
-    void propogateRequest() {}
+    std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
+        (void) chunkIndex;
+        return [](ElementType *dst) {
+            (void) dst;
+        };
+    }
 
     void set(std::size_t index, ElementType value) {
-        this->request(index, index + 1);
-        sets.emplace_back(index, value);
+        static constexpr std::size_t size = DataSeries<ElementType>::Chunk::size;
+        this->modifyChunk(index / size)[index % size] = value;
     }
-
-    void computeInto(ElementType *dst, std::size_t begin, std::size_t end) override {
-        for (auto s : sets) {
-            assert(begin <= s.first);
-            assert(s.first < end);
-            dst[s.first - begin] = s.second;
-        }
-        sets.clear();
-    }
-
-private:
-    std::vector<std::pair<std::size_t, ElementType>> sets;
 };
 
 }

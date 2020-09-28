@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 
+#include "spdlog/logger.h"
 #include "rapidjson/include/rapidjson/document.h"
 #include "rapidjson/include/rapidjson/error/en.h"
 
@@ -13,22 +14,21 @@ template <typename ReceiverClass>
 class JsonUnwrapper {
 public:
     JsonUnwrapper(app::AppContext &context)
-        : receiver(context.get<ReceiverClass>())
+        : context(context)
     {}
 
     void recvLine(const char *data, std::size_t size) {
         rapidjson::Document row;
 
         if (row.Parse(data, size).HasParseError()) {
-            fprintf(stderr, "Parser error: %s\n", rapidjson::GetParseError_En(row.GetParseError()));
-            return;
+            context.get<spdlog::logger>().warn("Parser error: {}", rapidjson::GetParseError_En(row.GetParseError()));
+        } else {
+            context.get<ReceiverClass>().recvRecord(row);
         }
-
-        receiver.recvRecord(row);
     }
 
 private:
-    ReceiverClass &receiver;
+    app::AppContext &context;
 };
 
 }
