@@ -40,7 +40,7 @@ const prg = () => {
 	return {
 		a,
 		// b: conv(windowRect(f(1000)), a),
-		c: add(a, d(4)),
+		c: add(a, f(3)),
 		// b: conv(a, windowSimple(f(20))),
 	};
 };

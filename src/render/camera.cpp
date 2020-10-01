@@ -9,8 +9,8 @@ namespace render {
 
 Camera::Camera(app::AppContext &context)
     : TickableBase(context)
-    , min(0.0f)
-    , max(1.0f)
+    , min(0.0f, 0.0f)
+    , max(1e6f, 10.0f)
     , offset(0.0f)
     , scale(0.01f)
     , remoteBuffer(GL_ARRAY_BUFFER, GL_STATIC_DRAW)

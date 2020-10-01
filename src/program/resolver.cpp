@@ -10,9 +10,15 @@
 namespace {
 
 template <typename RealType>
-auto funcAdd(app::AppContext &context, series::DataSeries<RealType> *a, series::DataSeries<RealType> *b) {
+auto funcAddParallel(app::AppContext &context, series::DataSeries<RealType> *a, series::DataSeries<RealType> *b) {
     auto op = [](RealType a, RealType b) {return a + b;};
     return new series::ParallelOpSeries<RealType, decltype(op), series::DataSeries<RealType>, series::DataSeries<RealType>>(context, op, *a, *b);
+}
+
+template <typename RealType>
+auto funcAddEach(app::AppContext &context, series::DataSeries<RealType> *a, RealType b) {
+    auto op = [b](RealType a) {return a + b;};
+    return new series::ParallelOpSeries<RealType, decltype(op), series::DataSeries<RealType>>(context, op, *a);
 }
 
 template <typename RealType>
@@ -64,8 +70,12 @@ Resolver::Resolver(app::AppContext &context)
     decl("add", [](float a, double b){return a + b;});
     decl("add", [](double a, float b){return a + b;});
     decl("add", [](double a, double b){return a + b;});
-    decl("add", [&context](series::DataSeries<float> *a, series::DataSeries<float> *b){return funcAdd(context, a, b);});
-    decl("add", [&context](series::DataSeries<double> *a, series::DataSeries<double> *b){return funcAdd(context, a, b);});
+    decl("add", [&context](series::DataSeries<float> *a, float b){return funcAddEach(context, a, b);});
+    decl("add", [&context](series::DataSeries<double> *a, double b){return funcAddEach(context, a, b);});
+    decl("add", [&context](float a, series::DataSeries<float> *b){return funcAddEach(context, b, a);});
+    decl("add", [&context](double a, series::DataSeries<double> *b){return funcAddEach(context, b, a);});
+    decl("add", [&context](series::DataSeries<float> *a, series::DataSeries<float> *b){return funcAddParallel(context, a, b);});
+    decl("add", [&context](series::DataSeries<double> *a, series::DataSeries<double> *b){return funcAddParallel(context, a, b);});
 
     decl("window_rect", [&context](float scale_0){return windowRect(context, scale_0);});
     decl("window_rect", [&context](double scale_0){return windowRect(context, scale_0);});

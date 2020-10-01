@@ -34,6 +34,8 @@ protected:
         static constexpr std::size_t size = (static_cast<std::size_t>(1) << CHUNK_SIZE_LOG2) / sizeof(ElementType);
 
         Chunk(DataSeries<ElementType> *series, std::size_t index) {
+            task.setName(series->getName() + "[" + std::to_string(index) + "]");
+
             assert(activeComputingChunk == 0);
             activeComputingChunk = this;
 
@@ -43,13 +45,21 @@ protected:
             activeComputingChunk = 0;
         }
 
-        util::Task::Status getStatus() const {
-            return task.getStatus();
+        bool isDone() const {
+            return task.isDone();
         }
 
         ElementType *getData() {
-            assert(task.getStatus() == util::Task::Status::Done);
+            assert(task.isDone());
             return data;
+        }
+
+        ElementType *getVolatileData() {
+            return data;
+        }
+
+        util::Task &getTask() {
+            return task;
         }
 
     private:
@@ -69,6 +79,8 @@ public:
         delete[] renderer;
     }
 
+    virtual std::string getName() const = 0;
+
     void draw(std::size_t begin, std::size_t end, std::size_t stride) override {
         assert(begin <= end);
 
@@ -81,7 +93,7 @@ public:
 
         for (std::size_t i = begin; i < end; i += stride) {
             Chunk *chunk = getChunk(i / Chunk::size);
-            if (chunk->getStatus() == util::Task::Status::Done) {
+            if (chunk->isDone()) {
                 sample.push_back(chunk->getData()[i % Chunk::size]);
             } else {
                 sample.push_back(NAN);
@@ -122,7 +134,7 @@ public:
             res->task.addSimilarTask(*nearbyTask);
         }
 
-        res->task.submitTo(context.get<util::TaskScheduler>());
+        res->task.finishDependency(context.get<util::TaskScheduler>());
 
         return res;
     }
@@ -144,6 +156,7 @@ public:
         return chunks[chunkIndex];
     }
 
+    /*
     ElementType *modifyChunk(std::size_t chunkIndex) {
         jw_util::Thread::assert_main_thread();
 
@@ -160,13 +173,15 @@ public:
 
         return chunks[chunkIndex]->data;
     }
+    */
 
     virtual std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) = 0;
 
+protected:
+    static inline thread_local Chunk *activeComputingChunk;
+
 private:
     std::vector<Chunk *> chunks;
-
-    static inline thread_local Chunk *activeComputingChunk;
 
     render::SeriesRenderer<ElementType> *renderer = 0;
 };

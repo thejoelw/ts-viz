@@ -91,6 +91,8 @@ public:
         fftwx::destroy_plan(planFwd);
     }
 
+    std::string getName() const override { return "conv"; }
+
     std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
         std::size_t begin = chunkIndex * chunkSize;
         std::size_t end = (chunkIndex + 1) * chunkSize;

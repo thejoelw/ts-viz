@@ -35,7 +35,7 @@ void ProgramManager::recvRecord(const rapidjson::Document &row) {
             } else if (std::holds_alternative<series::DataSeries<double> *>(obj)) {
                 context.get<render::Renderer>().addSeries(it->name.GetString(), std::get<series::DataSeries<double> *>(obj));
             } else {
-                throw InvalidProgramException("Value for top-level entry " + jsonToStr(it->name) + " must be a series");
+                throw InvalidProgramException("Value for top-level entry " + jsonToStr(it->name) + " is a " + progObjTypeNames[obj.index()] + ", but must be a series");
             }
         } catch (const InvalidProgramException &ex) {
             context.get<spdlog::logger>().warn("InvalidProgramException: {}", ex.what());

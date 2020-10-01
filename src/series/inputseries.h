@@ -15,8 +15,11 @@ public:
         (void) name;
     }
 
+    std::string getName() const override { return "input"; }
+
     std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
-        (void) chunkIndex;
+        this->activeComputingChunk->getTask().addDependency();
+
         return [](ElementType *dst) {
             (void) dst;
         };
@@ -24,7 +27,11 @@ public:
 
     void set(std::size_t index, ElementType value) {
         static constexpr std::size_t size = DataSeries<ElementType>::Chunk::size;
-        this->modifyChunk(index / size)[index % size] = value;
+//        this->modifyChunk(index / size)[index % size] = value;
+        this->getChunk(index / size)->getVolatileData()[index % size] = value;
+        if (index % size == size - 1) {
+            this->getChunk(index / size)->getTask().finishDependency(this->context.template get<util::TaskScheduler>());
+        }
     }
 };
 

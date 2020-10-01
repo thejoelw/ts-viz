@@ -7,6 +7,8 @@
 
 #include "jw_util/baseexception.h"
 
+#include "defs/TASKSCHEDULER_ENABLE_DEBUG_OUTPUT.h"
+
 namespace util {
 
 class TaskScheduler;
@@ -15,27 +17,19 @@ class Task {
     friend class TaskScheduler;
 
 public:
-    enum class Status {
-        Pending,
-        Queued,
-        Running,
-        Done,
-    };
+    void addSimilarTask(Task &similar);
+    void setFunction(const std::function<void(TaskScheduler &)> &newFunc);
+    void addDependency(Task &dep);
+    void addDependency();
+    void finishDependency(TaskScheduler &scheduler);
+//    void rerun(TaskScheduler &scheduler);
+//    void rerunAfter(TaskScheduler &scheduler);
 
-    Status getStatus() const {
-        return status;
+    bool isDone() const {
+        return selfDuration != 0.0;
     }
 
-    void addSimilarTask(Task &similar);
-    void addDependency(Task &dep);
-    void setFunction(const std::function<void(TaskScheduler &)> &newFunc);
-
-    void submitTo(TaskScheduler &scheduler);
-    void rerun(TaskScheduler &scheduler);
-
 private:
-    std::atomic<Status> status = Status::Pending;
-
     std::function<void(TaskScheduler &)> func;
 
     double orderingSum = 0.0;
@@ -44,14 +38,25 @@ private:
     double selfDuration = 0.0;
     double followingDuration = -1.0;
 
-    std::atomic<std::size_t> waitingCount = 1;
+    std::atomic<unsigned int> depCounter = 1;
     std::vector<Task *> dependents;
 
     void call(TaskScheduler &scheduler);
 
     double getOrdering() const;
-
     double getCriticalPathDuration();
+
+#if TASKSCHEDULER_ENABLE_DEBUG_OUTPUT
+public:
+    void setName(const std::string &newName) {
+        name = newName;
+    }
+
+private:
+    std::string name;
+#else
+    void setName(const std::string &) {}
+#endif
 };
 
 }

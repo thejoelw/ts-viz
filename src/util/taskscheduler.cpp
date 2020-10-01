@@ -32,8 +32,6 @@ TaskScheduler::~TaskScheduler() {
 }
 
 void TaskScheduler::addTask(Task *task) {
-    assert(task->waitingCount == 0);
-
     std::unique_lock<std::mutex> lock(mutex);
     queue.push(task);
     cond.notify_one();

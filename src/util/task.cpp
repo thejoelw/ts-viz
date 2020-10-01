@@ -2,6 +2,10 @@
 
 #include "util/taskscheduler.h"
 
+#if TASKSCHEDULER_ENABLE_DEBUG_OUTPUT
+#include "spdlog/spdlog.h"
+#endif
+
 namespace util {
 
 void Task::addSimilarTask(Task &similar) {
@@ -9,42 +13,54 @@ void Task::addSimilarTask(Task &similar) {
     orderingCount++;
 }
 
-void Task::addDependency(Task &dep) {
-    // Says dep must run before this
-
-    waitingCount++;
-    dep.dependents.push_back(this);
-}
-
 void Task::setFunction(const std::function<void(TaskScheduler &)> &newFunc) {
     func = newFunc;
 }
 
-void Task::submitTo(TaskScheduler &scheduler) {
-    assert(status == Task::Status::Pending);
+void Task::addDependency(Task &dep) {
+    // Says dep must run before this
 
-    if (!--waitingCount) {
-        status = Task::Status::Queued;
+    depCounter++;
+    dep.dependents.push_back(this);
+}
 
+void Task::addDependency() {
+    depCounter++;
+}
+
+void Task::finishDependency(TaskScheduler &scheduler) {
+    unsigned int prevValue = depCounter--;
+    assert(prevValue != 0);
+    if (prevValue == 1) {
         scheduler.addTask(this);
     }
 }
 
+/*
 void Task::rerun(TaskScheduler &scheduler) {
-    if (status == Status::Done) {
-        status = Status::Queued;
-        scheduler.addTask(this);
-
+    unsigned int prevValue = depCounter.fetch_and(~doneMask);
+    if (prevValue & doneMask) {
         for (Task *dep : dependents) {
-            dep->rerun(scheduler);
+            dep->rerunAfter(scheduler);
+        }
+    }
+    if (prevValue == doneMask) {
+        scheduler.addTask(this);
+    }
+}
+
+void Task::rerunAfter(TaskScheduler &scheduler) {
+    unsigned int prevValue = depCounter.fetch_and(~doneMask);
+    if (prevValue & doneMask) {
+        depCounter++;
+        for (Task *dep : dependents) {
+            dep->rerunAfter(scheduler);
         }
     }
 }
+*/
 
 void Task::call(TaskScheduler &scheduler) {
-    assert(status == Status::Queued);
-    status = Status::Running;
-
     auto t1 = std::chrono::high_resolution_clock::now();
     func(scheduler);
     auto t2 = std::chrono::high_resolution_clock::now();
@@ -52,11 +68,8 @@ void Task::call(TaskScheduler &scheduler) {
     double durationSeconds = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count();
     selfDuration = durationSeconds;
 
-    assert(status == Status::Running);
-    status = Status::Done;
-
     for (Task *dep : dependents) {
-        dep->submitTo(scheduler);
+        dep->finishDependency(scheduler);
     }
 }
 
