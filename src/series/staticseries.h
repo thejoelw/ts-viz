@@ -22,13 +22,13 @@ public:
             static constexpr std::size_t size = DataSeries<ElementType>::Chunk::size;
             std::size_t begin = chunkIndex * size;
             std::size_t end = (chunkIndex + 1) * size;
-//            if (width < begin) {
-//                std::fill_n(dst, size, NAN);
-//                return;
-//            } else if (width < end) {
-//                std::fill(dst + width - begin, dst + size, NAN);
-//                end = width;
-//            }
+            if (width < begin) {
+                std::fill_n(dst, size, NAN);
+                return;
+            } else if (width < end) {
+                std::fill(dst + width - begin, dst + size, NAN);
+                end = width;
+            }
             op(dst, begin, end);
         };
     }

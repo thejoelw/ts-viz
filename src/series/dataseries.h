@@ -36,13 +36,13 @@ protected:
         Chunk(DataSeries<ElementType> *series, std::size_t index) {
             task.setName(series->getName() + "[" + std::to_string(index) + "]");
 
-            assert(activeComputingChunk == 0);
+            Chunk *prevActiveComputingChunk = activeComputingChunk;
             activeComputingChunk = this;
 
             task.setFunction([this, cb = series->getChunkGenerator(index)](util::TaskScheduler &){cb(data);});
 
             assert(activeComputingChunk == this);
-            activeComputingChunk = 0;
+            activeComputingChunk = prevActiveComputingChunk;
         }
 
         bool isDone() const {

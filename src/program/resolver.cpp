@@ -23,16 +23,16 @@ auto funcAddEach(app::AppContext &context, series::DataSeries<RealType> *a, Real
 
 template <typename RealType>
 auto windowRect(app::AppContext &context, RealType width) {
-    auto op = [width](double *dst, std::size_t begin, std::size_t end) {
+    auto op = [width](RealType *dst, std::size_t begin, std::size_t end) {
         std::fill_n(dst, end - begin, 1.0 / width);
     };
 
-    return new series::StaticSeries<double, decltype(op)>(context, op, width);
+    return new series::StaticSeries<RealType, decltype(op)>(context, op, width);
 }
 
 template <typename RealType>
 auto windowSimple(app::AppContext &context, RealType scale_0) {
-    auto op = [scale_0](double *dst, std::size_t begin, std::size_t end) {
+    auto op = [scale_0](RealType *dst, std::size_t begin, std::size_t end) {
         double sum = 0.0;
         for (std::size_t i = begin; i < end; i++) {
             double t = i / scale_0;
@@ -46,7 +46,7 @@ auto windowSimple(app::AppContext &context, RealType scale_0) {
     };
 
     std::size_t width = std::sqrt(-std::log(1e-9)) * scale_0 + 1.0;
-    return new series::StaticSeries<double, decltype(op)>(context, op, width);
+    return new series::StaticSeries<RealType, decltype(op)>(context, op, width);
 }
 
 template <typename RealType>

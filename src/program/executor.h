@@ -1,7 +1,5 @@
 #pragma once
 
-#include "taskflow/taskflow/taskflow.hpp"
-
 #include "app/tickercontext.h"
 
 namespace program {
@@ -12,10 +10,6 @@ public:
     ~Executor();
 
     void tick(app::TickerContext &tickerContext);
-
-private:
-    tf::Executor executor;
-    tf::Taskflow taskflow;
 };
 
 }

@@ -1,6 +1,8 @@
 #include "filepoller.h"
 
-#include <sys/select.h>
+#include <unistd.h>
+
+#include "spdlog/spdlog.h"
 
 namespace stream {
 
@@ -9,48 +11,106 @@ FilePoller::FilePoller(app::AppContext &context)
 {}
 
 FilePoller::~FilePoller() {
-    for (const File &file : files) {
-        fclose(file.filePtr);
-        free(file.lineData);
+    // Make them stop
+    running = false;
+
+    // Interrupt all the read() calls
+    for (File &file : files) {
+        pthread_kill(file.thread.native_handle(), SIGINT);
     }
+
+    // Wait until all threads stop
+    for (File &file : files) {
+        file.thread.join();
+    }
+
+    dispatchMessages();
 }
 
 void FilePoller::tick(app::TickerContext &tickerContext) {
     (void) tickerContext;
+    dispatchMessages();
+}
 
-    fd_set fds;
-    FD_ZERO(&fds);
+void FilePoller::dispatchMessages() {
+    for (File &file : files) {
+        Message msg;
+        while (file.messages.try_dequeue(msg)) {
+            msg.lineDispatcher(context, msg.data, msg.size);
+        }
+    }
+}
 
-    int maxFd = files.front().fileNo;
-    for (const File &file : files) {
-        if (file.closed) {continue;}
+void FilePoller::loop(FilePoller *filePoller, File &file) {
+    static constexpr std::size_t initialChunkSize = 1024 * 1024;
 
-        FD_SET(file.fileNo, &fds);
+    int fileNo = file.path != "-" ? open(file.path.data(), O_RDONLY) : STDIN_FILENO;
+    if (fileNo == -1) {
+        spdlog::error("Syscall open() returned -1 and set errno == {}", errno);
+        return;
+    }
 
-        if (file.fileNo > maxFd) {
-            maxFd = file.fileNo;
+    std::size_t chunkSize = initialChunkSize;
+    char *data = new char[chunkSize];
+    std::size_t lineStart = 0;
+    std::size_t index = 0;
+
+    while (filePoller->running) {
+        ssize_t readBytes = read(fileNo, data + index, chunkSize - index);
+
+        if (readBytes == -1) {
+            if (errno == EINTR) {
+                continue;
+            }
+            spdlog::error("Syscall read() returned -1 and set errno == {}", errno);
+            break;
+        } else if (readBytes == 0) {
+            break;
+        }
+        assert(readBytes > 0);
+
+        for (std::size_t end = index + readBytes; index < end; index++) {
+            if (data[index] == '\n') {
+                Message msg;
+                msg.lineDispatcher = file.lineDispatcher;
+                msg.data = data + lineStart;
+                msg.size = index - lineStart;
+                file.messages.enqueue(msg);
+
+                lineStart = index;
+            }
+        }
+
+        assert(index <= chunkSize);
+        if (index == chunkSize) {
+            chunkSize = (chunkSize - lineStart) * 2;
+            if (chunkSize < initialChunkSize) {
+                chunkSize = initialChunkSize;
+            } else if (chunkSize > SSIZE_MAX) {
+                chunkSize = SSIZE_MAX;
+            }
+
+            char *newData = new char[chunkSize];
+            std::copy(data + lineStart, data + index, newData);
+
+            Message msg;
+            msg.lineDispatcher = &freeer;
+            msg.data = data;
+            file.messages.enqueue(msg);
+
+            data = newData;
+            lineStart = 0;
+            index -= lineStart;
         }
     }
 
-    struct timeval tv;
-    tv.tv_sec = 0;
-    tv.tv_usec = 1000000 / 60;
-    select(maxFd + 1, &fds, NULL, NULL, &tv);
+    Message msg;
+    msg.lineDispatcher = &freeer;
+    msg.data = data;
+    file.messages.enqueue(msg);
 
-    for (File &file : files) {
-        if (file.closed) {continue;}
-
-        if (FD_ISSET(file.fileNo, &fds)) {
-            ssize_t size = getline(&file.lineData, &file.lineSize, file.filePtr);
-            if (size == -1) {
-                file.closed = true;
-//                break;
-            } else if (size == 0) {
-//                break;
-            } else {
-                file.lineDispaatcher(context, file.lineData, size);
-            }
-        }
+    if (file.path != "-") {
+        close(fileNo);
     }
 }
 
