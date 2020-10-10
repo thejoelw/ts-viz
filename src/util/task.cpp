@@ -20,7 +20,12 @@ void Task::setFunction(const std::function<void(TaskScheduler &)> &newFunc) {
 void Task::addDependency(Task &dep) {
     // Says dep must run before this
 
-    depCounter++;
+    std::lock_guard<SpinLock> lock(dependentsMutex);
+
+    if (!dep.isDone()) {
+        depCounter++;
+    }
+
     dep.dependents.push_back(this);
 }
 
@@ -31,6 +36,7 @@ void Task::addDependency() {
 void Task::finishDependency(TaskScheduler &scheduler) {
     unsigned int prevValue = depCounter--;
     assert(prevValue != 0);
+    assert(prevValue != static_cast<unsigned int>(-1));
     if (prevValue == 1) {
         scheduler.addTask(this);
     }
@@ -68,13 +74,22 @@ void Task::call(TaskScheduler &scheduler) {
     double durationSeconds = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count();
     selfDuration = durationSeconds;
 
+    std::lock_guard<SpinLock> lock(dependentsMutex);
+
     for (Task *dep : dependents) {
         dep->finishDependency(scheduler);
     }
+
+    unsigned int prevValue = depCounter--;
+    assert(prevValue == 0);
 }
 
 double Task::getOrdering() const {
-    return orderingSum / orderingCount;
+    if (orderingCount > 0) {
+        return orderingSum / orderingCount;
+    } else {
+        return 0.0;
+    }
 }
 
 double Task::getCriticalPathDuration() {

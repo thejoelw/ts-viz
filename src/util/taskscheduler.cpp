@@ -33,6 +33,7 @@ TaskScheduler::~TaskScheduler() {
 
 void TaskScheduler::addTask(Task *task) {
     std::unique_lock<std::mutex> lock(mutex);
+
     queue.push(task);
     cond.notify_one();
 }

@@ -9,6 +9,8 @@
 
 #include "defs/TASKSCHEDULER_ENABLE_DEBUG_OUTPUT.h"
 
+#include "util/spinlock.h"
+
 namespace util {
 
 class TaskScheduler;
@@ -26,7 +28,7 @@ public:
 //    void rerunAfter(TaskScheduler &scheduler);
 
     bool isDone() const {
-        return selfDuration != 0.0;
+        return depCounter == static_cast<unsigned int>(-1);
     }
 
 private:
@@ -39,6 +41,7 @@ private:
     double followingDuration = -1.0;
 
     std::atomic<unsigned int> depCounter = 1;
+    SpinLock dependentsMutex;
     std::vector<Task *> dependents;
 
     void call(TaskScheduler &scheduler);

@@ -1,6 +1,7 @@
 #include "filepoller.h"
 
 #include <unistd.h>
+#include <chrono>
 
 #include "spdlog/spdlog.h"
 
@@ -16,27 +17,29 @@ FilePoller::~FilePoller() {
 
     // Interrupt all the read() calls
     for (File &file : files) {
-        pthread_kill(file.thread.native_handle(), SIGINT);
+        // SIGURG doesn't terminate by default
+        pthread_kill(file.thread.native_handle(), SIGURG);
     }
 
     // Wait until all threads stop
     for (File &file : files) {
         file.thread.join();
     }
-
-    dispatchMessages();
 }
 
 void FilePoller::tick(app::TickerContext &tickerContext) {
     (void) tickerContext;
-    dispatchMessages();
-}
 
-void FilePoller::dispatchMessages() {
     for (File &file : files) {
+        std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+
         Message msg;
         while (file.messages.try_dequeue(msg)) {
             msg.lineDispatcher(context, msg.data, msg.size);
+
+            if (std::chrono::steady_clock::now() - start > std::chrono::milliseconds(100)) {
+                break;
+            }
         }
     }
 }
@@ -77,7 +80,7 @@ void FilePoller::loop(FilePoller *filePoller, File &file) {
                 msg.size = index - lineStart;
                 file.messages.enqueue(msg);
 
-                lineStart = index;
+                lineStart = index + 1;
             }
         }
 
@@ -99,8 +102,8 @@ void FilePoller::loop(FilePoller *filePoller, File &file) {
             file.messages.enqueue(msg);
 
             data = newData;
-            lineStart = 0;
             index -= lineStart;
+            lineStart = 0;
         }
     }
 

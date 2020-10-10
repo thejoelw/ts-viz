@@ -115,19 +115,14 @@ public:
         }
 
         return [this, begin, end, numKernelChunks, kernelChunks, numTsChunks, tsChunks](ElementType *dst) {
-            assert(kernelBack < end);
-            if (begin < kernelBack) {
-                std::fill_n(dst, kernelBack - begin, NAN);
-            }
-
             PlanIO planIO = requestPlanIO(numKernelChunks, kernelChunks);
 
             assert(numTsChunks <= planSize / chunkSize);
             assert(numTsChunks * chunkSize <= planSize);
             for (std::size_t i = 0; i < numTsChunks; i++) {
-                std::copy_n(tsChunks[i]->getData(), chunkSize, planIO.in + i * chunkSize);
+                std::copy_n(tsChunks[i]->getData(), chunkSize, planIO.in + planSize - (i + 1) * chunkSize);
             }
-            std::fill(planIO.in + sourceSize, planIO.in + planSize, static_cast<ElementType>(0.0));
+            std::fill(planIO.in, planIO.in + planSize - sourceSize, static_cast<ElementType>(0.0));
 
             fftwx::execute_dft_r2c(planFwd, planIO.in, planIO.fft);
 
@@ -145,12 +140,17 @@ public:
             // Backward fft
             fftwx::execute_dft_c2r(planBwd, planIO.fft, planIO.out);
 
-            std::copy_n(planIO.out, chunkSize, dst);
+            std::copy_n(planIO.out + planSize - chunkSize, chunkSize, dst);
 
             releasePlanIO(planIO);
 
             delete[] kernelChunks;
             delete[] tsChunks;
+
+            assert(kernelBack < end);
+            if (begin < kernelBack) {
+                std::fill_n(dst, kernelBack - begin, NAN);
+            }
         };
 
     }
@@ -166,7 +166,7 @@ private:
     std::mutex planMutex;
     typename fftwx::Plan planFwd;
     typename fftwx::Plan planBwd;
-    bool hasPlan;
+    bool hasPlan = false;
 
     typename fftwx::Complex *kernelFft;
 
@@ -214,8 +214,13 @@ private:
         planFwd = fftwx::plan_dft_r2c_1d(planSize, tmpIn, tmpFft, FFTW_ESTIMATE | FFTW_DESTROY_INPUT);
         planBwd = fftwx::plan_dft_c2r_1d(planSize, tmpFft, tmpIn, FFTW_ESTIMATE | FFTW_DESTROY_INPUT);
 
+        ElementType invPlanSize = static_cast<ElementType>(1.0) / planSize;
         for (std::size_t i = 0; i < numKernelChunks; i++) {
-            std::copy_n(kernelChunks[i]->getData(), chunkSize, tmpIn + i * chunkSize);
+            ElementType *src = kernelChunks[i]->getData();
+            ElementType *dst = tmpIn + i * chunkSize;
+            for (std::size_t j = 0; j < chunkSize; j++) {
+                dst[j] = src[j] * invPlanSize;
+            }
         }
         std::fill(tmpIn + kernelBack + 1, tmpIn + planSize, static_cast<ElementType>(0.0));
         fftwx::execute(planFwd);

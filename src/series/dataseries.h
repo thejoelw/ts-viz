@@ -108,6 +108,8 @@ public:
     }
 
     util::Task *getNearbyTask(std::size_t index) {
+        return 0;
+
         for (std::size_t i = 1; i < 4; i++) {
             if (index >= i) {
                 Chunk *neighbor = chunks[index - i];

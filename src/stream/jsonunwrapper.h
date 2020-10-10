@@ -23,6 +23,7 @@ public:
         if (row.Parse(data, size).HasParseError()) {
             context.get<spdlog::logger>().warn("Parser error: {}", rapidjson::GetParseError_En(row.GetParseError()));
         } else {
+//            context.get<spdlog::logger>().info("Received record: {}", std::string(data, size));
             context.get<ReceiverClass>().recvRecord(row);
         }
     }

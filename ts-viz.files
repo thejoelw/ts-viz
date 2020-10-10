@@ -113,6 +113,7 @@ src/util/pool.h
 src/util/reflist.h
 src/util/refset.h
 src/util/smallvectormanager.h
+src/util/spinlock.h
 src/util/task.cpp
 src/util/task.h
 src/util/taskscheduler.cpp

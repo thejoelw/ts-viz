@@ -55,8 +55,6 @@ private:
     }
 
     static void loop(FilePoller *filePoller, File &threadCtx);
-
-    void dispatchMessages();
 };
 
 }
