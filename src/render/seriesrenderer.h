@@ -14,32 +14,17 @@ public:
         , remoteBuffer(GL_ARRAY_BUFFER, GL_STREAM_DRAW)
     {}
 
-    void draw(std::size_t begin, std::size_t stride, const std::vector<ElementType> &data) {
-        vao.bind();
-
-        LineStripProgram<ElementType> &program = context.get<LineStripProgram<ElementType>>();
-
-        remoteBuffer.bind();
-        if (remoteBuffer.needs_resize(data.size())) {
-            remoteBuffer.update_size(data.size());
-
-            vao.assertBound();
-            remoteBuffer.bind();
-
-            program.make();
-        }
-        remoteBuffer.write(0, data.size(), data.data());
-
-        program.draw(begin, stride, 0, data.size());
-
-        vao.unbind();
-    }
+    void draw(std::size_t begin, std::size_t stride, const std::vector<ElementType> &data);
 
 private:
     app::AppContext &context;
 
     graphics::GlVao vao;
     graphics::GlBuffer<ElementType> remoteBuffer;
+
+    typename LineStripProgram<ElementType>::DrawStyle drawStyle;
+
+    void updateDrawStyle();
 };
 
 }

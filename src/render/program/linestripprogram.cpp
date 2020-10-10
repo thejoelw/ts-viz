@@ -6,6 +6,12 @@
 #include "render/shaders.h"
 #include "render/camera.h"
 
+namespace {
+
+bool prevStyleSmooth = false;
+
+}
+
 namespace render {
 
 template <typename ElementType>
@@ -58,7 +64,7 @@ void LineStripProgram<ElementType>::linkProgram() {
 }
 
 template <typename ElementType>
-void LineStripProgram<ElementType>::draw(std::size_t begin, std::size_t stride, std::size_t offsetIndex, std::size_t count) {
+void LineStripProgram<ElementType>::draw(std::size_t begin, std::size_t stride, std::size_t offsetIndex, std::size_t count, DrawStyle style) {
     Program::bind();
 
     glm::vec2 offset = context.get<render::Camera>().getOffset();
@@ -69,8 +75,19 @@ void LineStripProgram<ElementType>::draw(std::size_t begin, std::size_t stride, 
 
     glUniform2f(offsetLocation, offset.x, offset.y);
     glUniform2f(scaleLocation, scale.x, scale.y);
-    glUniform4f(colorLocation, 0.0f, 0.0f, 0.0f, 1.0f);
+    glUniform4f(colorLocation, style.color[0], style.color[1], style.color[2], style.color[3]);
     graphics::GL::catchErrors();
+
+    if (style.smooth != prevStyleSmooth) {
+        if (style.smooth) {
+            glEnable(GL_LINE_SMOOTH);
+        } else {
+            glDisable(GL_LINE_SMOOTH);
+        }
+        graphics::GL::catchErrors();
+
+        prevStyleSmooth = style.smooth;
+    }
 
     glDrawArrays(GL_LINE_STRIP, offsetIndex, count);
     graphics::GL::catchErrors();
