@@ -67,6 +67,8 @@ void Task::rerunAfter(TaskScheduler &scheduler) {
 */
 
 void Task::call(TaskScheduler &scheduler) {
+    assert(depCounter == 0);
+
     auto t1 = std::chrono::high_resolution_clock::now();
     func(scheduler);
     auto t2 = std::chrono::high_resolution_clock::now();
@@ -76,12 +78,12 @@ void Task::call(TaskScheduler &scheduler) {
 
     std::lock_guard<SpinLock> lock(dependentsMutex);
 
+    unsigned int prevValue = depCounter--;
+    assert(prevValue == 0);
+
     for (Task *dep : dependents) {
         dep->finishDependency(scheduler);
     }
-
-    unsigned int prevValue = depCounter--;
-    assert(prevValue == 0);
 }
 
 double Task::getOrdering() const {

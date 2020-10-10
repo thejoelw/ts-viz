@@ -39,7 +39,8 @@ protected:
             Chunk *prevActiveComputingChunk = activeComputingChunk;
             activeComputingChunk = this;
 
-            task.setFunction([this, cb = series->getChunkGenerator(index)](util::TaskScheduler &){cb(data);});
+            auto func = series->getChunkGenerator(index);
+            task.setFunction([this, func](util::TaskScheduler &){func(data);});
 
             assert(activeComputingChunk == this);
             activeComputingChunk = prevActiveComputingChunk;
@@ -50,7 +51,8 @@ protected:
         }
 
         ElementType *getData() {
-            assert(task.isDone());
+            unsigned int ref;
+            assert(task.isDone(ref));
             return data;
         }
 

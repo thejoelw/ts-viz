@@ -39,8 +39,8 @@ const prg = () => {
 
 	return {
 		a,
-		b: conv(windowRect(f(400)), a),
-		c: conv(windowRect(f(2000)), a),
+		f: conv(windowRect(f(100)), a),
+		c: conv(windowRect(f(200)), a),
 		// c: add(a, f(20)),
 		// b: conv(a, windowSimple(f(20))),
 	};

@@ -30,6 +30,10 @@ public:
     bool isDone() const {
         return depCounter == static_cast<unsigned int>(-1);
     }
+    bool isDone(unsigned int &ref) const {
+        ref = depCounter;
+        return depCounter == static_cast<unsigned int>(-1);
+    }
 
 private:
     std::function<void(TaskScheduler &)> func;

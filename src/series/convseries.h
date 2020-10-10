@@ -53,6 +53,8 @@ template<> struct fftwx_impl<double> {
     static void destroy_plan(Plan plan) { fftw_destroy_plan(plan); }
 };
 
+std::mutex fftwMutex;
+
 }
 
 namespace series {
@@ -79,6 +81,8 @@ public:
     }
 
     ~ConvSeries() {
+        std::unique_lock<std::mutex> lock(fftwMutex);
+
         for (PlanIO planIO : planIOs) {
             fftwx::free(planIO.in);
             fftwx::free(planIO.fft);
@@ -108,10 +112,10 @@ public:
             kernelChunks[i] = kernel.getChunk(i);
         }
 
-        std::size_t numTsChunks = std::min((sourceSize - 1) / chunkSize + 1, chunkIndex);
+        std::size_t numTsChunks = std::min((sourceSize - 1) / chunkSize, chunkIndex) + 1;
         typename DataSeries<ElementType>::Chunk **tsChunks = new typename DataSeries<ElementType>::Chunk *[numTsChunks];
         for (std::size_t i = 0; i < numTsChunks; i++) {
-            tsChunks[i] = ts.getChunk(chunkIndex - i);
+            tsChunks[i] = ts.getChunk(chunkIndex - numTsChunks + i + 1);
         }
 
         return [this, begin, end, numKernelChunks, kernelChunks, numTsChunks, tsChunks](ElementType *dst) {
@@ -120,9 +124,9 @@ public:
             assert(numTsChunks <= planSize / chunkSize);
             assert(numTsChunks * chunkSize <= planSize);
             for (std::size_t i = 0; i < numTsChunks; i++) {
-                std::copy_n(tsChunks[i]->getData(), chunkSize, planIO.in + planSize - (i + 1) * chunkSize);
+                std::copy_n(tsChunks[i]->getData(), chunkSize, planIO.in + planSize - (numTsChunks - i) * chunkSize);
             }
-            std::fill(planIO.in, planIO.in + planSize - sourceSize, static_cast<ElementType>(0.0));
+            std::fill(planIO.in, planIO.in + planSize - std::min(sourceSize, numTsChunks * chunkSize), static_cast<ElementType>(0.0));
 
             fftwx::execute_dft_r2c(planFwd, planIO.in, planIO.fft);
 
@@ -163,10 +167,9 @@ private:
     std::size_t sourceSize;
     std::size_t planSize;
 
-    std::mutex planMutex;
+    bool hasPlan = false;
     typename fftwx::Plan planFwd;
     typename fftwx::Plan planBwd;
-    bool hasPlan = false;
 
     typename fftwx::Complex *kernelFft;
 
@@ -175,11 +178,10 @@ private:
         typename fftwx::Complex *fft;
         ElementType *out;
     };
-
     std::vector<PlanIO> planIOs;
 
     PlanIO requestPlanIO(std::size_t numKernelChunks, typename DataSeries<ElementType>::Chunk **kernelChunks) {
-        std::unique_lock<std::mutex> lock(planMutex);
+        std::unique_lock<std::mutex> lock(fftwMutex);
         if (!hasPlan) {
             processKernel(numKernelChunks, kernelChunks);
             hasPlan = true;
@@ -203,7 +205,7 @@ private:
     }
 
     void releasePlanIO(PlanIO planIO) {
-        std::unique_lock<std::mutex> lock(planMutex);
+        std::unique_lock<std::mutex> lock(fftwMutex);
         planIOs.push_back(planIO);
     }
 
