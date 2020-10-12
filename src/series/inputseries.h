@@ -27,12 +27,28 @@ public:
 
     void set(std::size_t index, ElementType value) {
         static constexpr std::size_t size = DataSeries<ElementType>::Chunk::size;
-//        this->modifyChunk(index / size)[index % size] = value;
-        this->getChunk(index / size)->getVolatileData()[index % size] = value;
-        if (index % size == size - 1) {
-            this->getChunk(index / size)->getTask().finishDependency(this->context.template get<util::TaskScheduler>());
+
+        std::size_t prevChunk = nextIndex / size;
+
+        assert(index >= nextIndex);
+        while  (nextIndex < index) {
+            this->getChunk(nextIndex / size)->getVolatileData()[nextIndex % size] = prevValue;
+            nextIndex++;
+        }
+
+        prevValue = value;
+        this->getChunk(nextIndex / size)->getVolatileData()[nextIndex % size] = value;
+        nextIndex++;
+
+        while (prevChunk < nextIndex / size) {
+            this->getChunk(prevChunk)->getTask().finishDependency(this->context.template get<util::TaskScheduler>());
+            prevChunk++;
         }
     }
+
+private:
+    ElementType prevValue = NAN;
+    std::size_t nextIndex = 0;
 };
 
 }

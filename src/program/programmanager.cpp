@@ -27,15 +27,18 @@ ProgramManager::ProgramManager(app::AppContext &context)
 void ProgramManager::recvRecord(const rapidjson::Document &row) {
     context.get<render::Renderer>().clearSeries();
 
-    for (rapidjson::Value::ConstMemberIterator it = row.MemberBegin(); it != row.MemberEnd(); ++it) {
+    if (!row.IsArray()) {
+        context.get<spdlog::logger>().warn("Top-level node must be an array");
+        return;
+    }
+
+    for (rapidjson::SizeType i = 0; i < row.Size(); i++) {
         try {
-            ProgObj obj = makeProgObj(it->value);
-            if (std::holds_alternative<series::DataSeries<float> *>(obj)) {
-                context.get<render::Renderer>().addSeries(it->name.GetString(), std::get<series::DataSeries<float> *>(obj));
-            } else if (std::holds_alternative<series::DataSeries<double> *>(obj)) {
-                context.get<render::Renderer>().addSeries(it->name.GetString(), std::get<series::DataSeries<double> *>(obj));
+            ProgObj obj = makeProgObj(row[i]);
+            if (std::holds_alternative<render::SeriesRenderer *>(obj)) {
+                context.get<render::Renderer>().addSeries(std::get<render::SeriesRenderer *>(obj));
             } else {
-                throw InvalidProgramException("Value for top-level entry " + jsonToStr(it->name) + " is a " + progObjTypeNames[obj.index()] + ", but must be a series");
+                throw InvalidProgramException("Value for top-level entry at index " + std::to_string(i) + " is a " + progObjTypeNames[obj.index()] + ", but must be a series renderer");
             }
         } catch (const InvalidProgramException &ex) {
             context.get<spdlog::logger>().warn("InvalidProgramException: {}", ex.what());

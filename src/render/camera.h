@@ -29,6 +29,15 @@ public:
     glm::vec2 getOffset() const { return offset; }
     glm::vec2 getScale() const { return scale; }
 
+    void setBoundsX(float minX, float maxX) {
+        min.x = minX;
+        max.x = maxX;
+    }
+    void setBoundsY(float minY, float maxY) {
+        min.y = minY;
+        max.y = maxY;
+    }
+
 private:
     static constexpr float mouseRegionSize = 0.2f;
 

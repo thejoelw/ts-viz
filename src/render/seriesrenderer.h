@@ -1,30 +1,29 @@
 #pragma once
 
-#include "graphics/glbuffer.h"
-#include "graphics/type/element.h"
-#include "render/program/linestripprogram.h"
+#include <cstdlib>
+#include <string>
+
+namespace app { class AppContext; }
 
 namespace render {
 
-template <typename ElementType>
 class SeriesRenderer {
 public:
-    SeriesRenderer(app::AppContext &context)
+    SeriesRenderer(app::AppContext &context, const std::string &name)
         : context(context)
-        , remoteBuffer(GL_ARRAY_BUFFER, GL_STREAM_DRAW)
+        , name(name)
     {}
 
-    void draw(std::size_t begin, std::size_t stride, const std::vector<ElementType> &data);
+    virtual void draw(std::size_t begin, std::size_t end, std::size_t stride) = 0;
 
-private:
+    const std::string &getName() const {
+        return name;
+    }
+
+protected:
     app::AppContext &context;
 
-    graphics::GlVao vao;
-    graphics::GlBuffer<ElementType> remoteBuffer;
-
-    typename LineStripProgram<ElementType>::DrawStyle drawStyle;
-
-    void updateDrawStyle();
+    std::string name;
 };
 
 }

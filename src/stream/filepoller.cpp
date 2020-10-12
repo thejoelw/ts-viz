@@ -2,14 +2,29 @@
 
 #include <unistd.h>
 #include <chrono>
+#include <csignal>
 
 #include "spdlog/spdlog.h"
+
+namespace {
+
+void signalHandler(int action) {
+    (void) action;
+}
+
+}
 
 namespace stream {
 
 FilePoller::FilePoller(app::AppContext &context)
     : TickableBase(context)
-{}
+{
+    struct sigaction act = {};
+    act.sa_handler = signalHandler;
+    act.sa_flags = 0;
+    act.sa_mask = 0;
+    sigaction(SIGUSR1, &act, nullptr);
+}
 
 FilePoller::~FilePoller() {
     // Make them stop
@@ -17,8 +32,7 @@ FilePoller::~FilePoller() {
 
     // Interrupt all the read() calls
     for (File &file : files) {
-        // SIGURG doesn't terminate by default
-        pthread_kill(file.thread.native_handle(), SIGURG);
+        pthread_kill(file.thread.native_handle(), SIGUSR1);
     }
 
     // Wait until all threads stop
@@ -37,7 +51,7 @@ void FilePoller::tick(app::TickerContext &tickerContext) {
         while (file.messages.try_dequeue(msg)) {
             msg.lineDispatcher(context, msg.data, msg.size);
 
-            if (std::chrono::steady_clock::now() - start > std::chrono::milliseconds(100)) {
+            if (std::chrono::steady_clock::now() - start > std::chrono::milliseconds(10)) {
                 break;
             }
         }

@@ -7,12 +7,11 @@
 namespace series {
 
 template <typename ElementType, typename OperatorType>
-class StaticSeries : public DataSeries<ElementType> {
+class InfCompSeries : public DataSeries<ElementType> {
 public:
-    StaticSeries(app::AppContext &context, OperatorType op, std::size_t width)
+    InfCompSeries(app::AppContext &context, OperatorType op)
         : DataSeries<ElementType>(context)
         , op(op)
-        , width(width)
     {}
 
     std::string getName() const override { return "static"; }
@@ -22,24 +21,12 @@ public:
             static constexpr std::size_t size = DataSeries<ElementType>::Chunk::size;
             std::size_t begin = chunkIndex * size;
             std::size_t end = (chunkIndex + 1) * size;
-            if (width < begin) {
-                std::fill_n(dst, size, NAN);
-                return;
-            } else if (width < end) {
-                std::fill(dst + width - begin, dst + size, NAN);
-                end = width;
-            }
             op(dst, begin, end);
         };
     }
 
-    std::size_t getStaticWidth() const override {
-        return width;
-    }
-
 private:
     OperatorType op;
-    std::size_t width;
 };
 
 }

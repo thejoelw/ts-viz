@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "app/tickercontext.h"
-#include "series/series.h"
+#include "render/seriesrenderer.h"
 
 namespace render {
 
@@ -12,13 +12,13 @@ public:
     Renderer(app::AppContext &context);
 
     void clearSeries();
-    void addSeries(const char *name, series::Series *s);
+    void addSeries(render::SeriesRenderer *renderer);
 
     void tickOpen(app::TickerContext &tickerContext);
     void tickClose(app::TickerContext &tickerContext);
 
 private:
-    std::vector<series::Series *> added;
+    std::vector<render::SeriesRenderer *> added;
 };
 
 }

@@ -67,8 +67,6 @@ src/jw_util/workqueue.h
 src/jw_util/workqueuebase.h
 src/jw_util/workqueueinsomniac.h
 src/main.cpp
-src/program/executor.cpp
-src/program/executor.h
 src/program/progobj.h
 src/program/programmanager.cpp
 src/program/programmanager.h
@@ -78,6 +76,8 @@ src/render/axes.cpp
 src/render/axes.h
 src/render/camera.cpp
 src/render/camera.h
+src/render/dataseriesrenderer.cpp
+src/render/dataseriesrenderer.h
 src/render/imguirenderer.cpp
 src/render/imguirenderer.h
 src/render/program/fillprogram.cpp
@@ -88,16 +88,15 @@ src/render/program/program.cpp
 src/render/program/program.h
 src/render/renderer.cpp
 src/render/renderer.h
-src/render/seriesrenderer.cpp
 src/render/seriesrenderer.h
 src/render/shaders.cpp
 src/render/shaders.h
 src/series/convseries.h
 src/series/dataseries.h
+src/series/finitecompseries.h
+src/series/infcompseries.h
 src/series/inputseries.h
 src/series/parallelopseries.h
-src/series/series.h
-src/series/staticseries.h
 src/shaders/Tupfile
 src/shaders/fill.frag.glsl
 src/shaders/fill.vert.glsl

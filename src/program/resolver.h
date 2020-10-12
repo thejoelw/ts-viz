@@ -54,13 +54,14 @@ public:
 
     Resolver(app::AppContext &context);
 
-    ProgObj call(const std::string &name, const std::vector<ProgObj> &args);
-
-private:
     template <typename FuncType>
     void decl(const std::string &name, FuncType cb) {
         declFunc(name, cb, &FuncType::operator());
     }
+
+    ProgObj call(const std::string &name, const std::vector<ProgObj> &args);
+
+private:
     template <typename ClassType, typename ReturnType, typename... ArgTypes>
     void declFunc(const std::string &name, ClassType cb, ReturnType(ClassType::*)(ArgTypes...) const) {
         std::unique_ptr<Invokable> ptr = std::make_unique<LambdaWrapper<ClassType, ReturnType, ArgTypes...>>(cb);

@@ -4,7 +4,6 @@
 
 #include "app/tickercontext.h"
 #include "app/window.h"
-#include "program/executor.h"
 #include "render/renderer.h"
 #include "render/axes.h"
 
@@ -16,7 +15,6 @@ MainLoop::MainLoop(AppContext &context)
 
 void MainLoop::run() {
     context.get<Window>();
-    context.get<program::Executor>();
     context.get<render::Renderer>();
     context.get<render::Axes>();
 
