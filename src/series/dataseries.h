@@ -11,9 +11,6 @@
 
 #include "defs/CHUNK_SIZE_LOG2.h"
 
-// TODO: REMOVE
-#include "spdlog/spdlog.h"
-
 namespace series {
 
 extern thread_local util::Task *activeTask;
@@ -25,7 +22,7 @@ public:
         friend class DataSeries<ElementType>;
 
     public:
-        static constexpr std::size_t size = (static_cast<std::size_t>(1) << CHUNK_SIZE_LOG2) / sizeof(ElementType);
+        static constexpr std::size_t size = static_cast<std::size_t>(1) << CHUNK_SIZE_LOG2;
 
         Chunk(DataSeries<ElementType> *series, std::size_t index) {
             jw_util::Thread::assert_main_thread();
@@ -46,11 +43,7 @@ public:
         }
 
         ElementType *getData() {
-            unsigned int ref;
-            if (!task.isDone(ref)) {
-                spdlog::info("{} fail", reinterpret_cast<std::uintptr_t>(&task));
-            }
-            assert(task.isDone(ref));
+            assert(task.isDone());
             return data;
         }
 

@@ -23,20 +23,11 @@ public:
     void tickOpen(app::TickerContext &tickerContext);
     void tickClose(app::TickerContext &tickerContext);
 
-    glm::vec2 getMin() const { return min; }
-    glm::vec2 getMax() const { return max; }
+    glm::vec2 &getMin() { return min; }
+    glm::vec2 &getMax() { return max; }
 
     glm::vec2 getOffset() const { return offset; }
     glm::vec2 getScale() const { return scale; }
-
-    void setBoundsX(float minX, float maxX) {
-        min.x = minX;
-        max.x = maxX;
-    }
-    void setBoundsY(float minY, float maxY) {
-        min.y = minY;
-        max.y = maxY;
-    }
 
 private:
     static constexpr float mouseRegionSize = 0.2f;

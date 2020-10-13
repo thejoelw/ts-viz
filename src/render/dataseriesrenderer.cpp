@@ -44,7 +44,8 @@ void DataSeriesRenderer<ElementType>::draw(std::size_t begin, std::size_t end, s
             max = center + 1e-9;
         }
 
-        context.get<render::Camera>().setBoundsY(min, max);
+        context.get<render::Camera>().getMin().y = min;
+        context.get<render::Camera>().getMax().y = max;
     }
 
     vao.bind();

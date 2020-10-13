@@ -16,6 +16,8 @@ public:
     }
 
     std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
+        (void) chunkIndex;
+
         activeTask->addDependency();
 
         return [](ElementType *dst) {

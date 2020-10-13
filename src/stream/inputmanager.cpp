@@ -2,6 +2,7 @@
 
 #include "program/resolver.h"
 #include "spdlog/logger.h"
+#include "render/camera.h"
 
 namespace stream {
 
@@ -27,6 +28,11 @@ void InputManager::recvRecord(const rapidjson::Document &row) {
         }
 
         in->set(index, static_cast<INPUT_SERIES_ELEMENT_TYPE>(it->value.GetDouble()));
+    }
+
+    render::Camera &cam = context.get<render::Camera>();
+    if (index <= cam.getMax().x && (index + 1) > cam.getMax().x) {
+        cam.getMax().x = index + 1;
     }
 
     index++;

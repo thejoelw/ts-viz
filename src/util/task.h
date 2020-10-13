@@ -22,14 +22,8 @@ public:
     void addDependency(Task &dep);
     void addDependency();
     void finishDependency(TaskScheduler &scheduler);
-//    void rerun(TaskScheduler &scheduler);
-//    void rerunAfter(TaskScheduler &scheduler);
 
     bool isDone() const {
-        return depCounter == static_cast<unsigned int>(-1);
-    }
-    bool isDone(unsigned int &ref) const {
-        ref = depCounter;
         return depCounter == static_cast<unsigned int>(-1);
     }
 
