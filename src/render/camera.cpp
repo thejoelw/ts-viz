@@ -37,7 +37,7 @@ void Camera::tickOpen(app::TickerContext &tickerContext) {
         case MouseRegion::Bottom: min.x += delta.x; max += delta; break;
     }
 
-    if (window.isMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT)) {
+    if (window.isMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT) && !ImGui::GetIO().WantCaptureMouse) {
         glm::vec2 delta = mousePosition - prevMousePos;
         delta *= (max - min) * glm::vec2(-0.5f, 0.5f);
         max += delta;
@@ -53,6 +53,10 @@ void Camera::tickClose(app::TickerContext &tickerContext) {
 }
 
 glm::vec2 Camera::computeDelta() const {
+    if (ImGui::GetIO().WantCaptureKeyboard) {
+        return glm::vec2(0.0f, 0.0f);
+    }
+
     app::Window &window = context.get<app::Window>();
 
     glm::vec2 delta;
@@ -65,6 +69,10 @@ glm::vec2 Camera::computeDelta() const {
 }
 
 Camera::MouseRegion Camera::computeMouseRegion() const {
+    if (ImGui::GetIO().WantCaptureMouse) {
+        return MouseRegion::None;
+    }
+
     float dirs[5] = {
         1.0f - mouseRegionSize,
         -mousePosition.x,
