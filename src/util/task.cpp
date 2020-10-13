@@ -2,9 +2,7 @@
 
 #include "util/taskscheduler.h"
 
-#if TASKSCHEDULER_ENABLE_DEBUG_OUTPUT
 #include "spdlog/spdlog.h"
-#endif
 
 namespace util {
 
@@ -20,21 +18,30 @@ void Task::setFunction(const std::function<void(TaskScheduler &)> &newFunc) {
 void Task::addDependency(Task &dep) {
     // Says dep must run before this
 
-    std::lock_guard<SpinLock> lock(dependentsMutex);
+    spdlog::info("{} {} addDep {} pre-lock", reinterpret_cast<std::uintptr_t>(this), depCounter, reinterpret_cast<std::uintptr_t>(&dep));
 
-    if (!dep.isDone()) {
-        depCounter++;
-    }
+    std::lock_guard<SpinLock> lock(dep.dependentsMutex);
+
+    spdlog::info("{} {} addDep {} post-lock", reinterpret_cast<std::uintptr_t>(this), depCounter, reinterpret_cast<std::uintptr_t>(&dep));
 
     dep.dependents.push_back(this);
+
+    if (!dep.isDone()) {
+        addDependency();
+    }
 }
 
 void Task::addDependency() {
-    depCounter++;
+    spdlog::info("{} {} addDep pre-inc", reinterpret_cast<std::uintptr_t>(this), depCounter);
+    unsigned int prevValue = depCounter++;
+    spdlog::info("{} {} addDep post-inc", reinterpret_cast<std::uintptr_t>(this), depCounter);
+    assert(prevValue > 0);
 }
 
 void Task::finishDependency(TaskScheduler &scheduler) {
+    spdlog::info("{} {} finDep pre-dec", reinterpret_cast<std::uintptr_t>(this), depCounter);
     unsigned int prevValue = depCounter--;
+    spdlog::info("{} {} finDep post-dec", reinterpret_cast<std::uintptr_t>(this), depCounter);
     assert(prevValue != 0);
     assert(prevValue != static_cast<unsigned int>(-1));
     if (prevValue == 1) {
@@ -76,14 +83,19 @@ void Task::call(TaskScheduler &scheduler) {
     double durationSeconds = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count();
     selfDuration = durationSeconds;
 
+    spdlog::info("{} {} call pre-lock", reinterpret_cast<std::uintptr_t>(this), depCounter);
     std::lock_guard<SpinLock> lock(dependentsMutex);
+    spdlog::info("{} {} call post-lock", reinterpret_cast<std::uintptr_t>(this), depCounter);
 
     unsigned int prevValue = depCounter--;
+    spdlog::info("{} {} call post-dec", reinterpret_cast<std::uintptr_t>(this), depCounter);
     assert(prevValue == 0);
 
     for (Task *dep : dependents) {
         dep->finishDependency(scheduler);
     }
+
+    spdlog::info("{} {} call post-loop", reinterpret_cast<std::uintptr_t>(this), depCounter);
 }
 
 double Task::getOrdering() const {

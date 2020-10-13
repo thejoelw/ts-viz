@@ -3,6 +3,7 @@
 #include <variant>
 
 #include "series/dataseries.h"
+#include "series/finitecompseries.h"
 #include "render/seriesrenderer.h"
 
 namespace program {
@@ -32,6 +33,8 @@ typedef std::variant<
     double,
     series::DataSeries<float> *,
     series::DataSeries<double> *,
+    series::FiniteCompSeries<float> *,
+    series::FiniteCompSeries<double> *,
     render::SeriesRenderer *
 > ProgObj;
 
@@ -44,6 +47,8 @@ static std::string progObjTypeNames[] = {
     "double",
     "TS<float>",
     "TS<double>",
+    "FS<float>",
+    "FS<double>",
     "TS_renderer"
 };
 

@@ -15,10 +15,8 @@ public:
         (void) name;
     }
 
-    std::string getName() const override { return "input"; }
-
     std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
-        this->activeComputingChunk->getTask().addDependency();
+        activeTask->addDependency();
 
         return [](ElementType *dst) {
             (void) dst;

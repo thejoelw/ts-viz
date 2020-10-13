@@ -69,80 +69,85 @@ void declBinaryOp(program::Resolver *resolver, app::AppContext &context, const c
 
 template <typename RealType>
 auto windowRect(app::AppContext &context, RealType width) {
-    auto op = [width](RealType *dst, std::size_t begin, std::size_t end) {
-        std::fill_n(dst, end - begin, 1.0 / width);
-    };
-
-    return new series::FiniteCompSeries<RealType, decltype(op)>(context, op, width);
+    std::vector<RealType> data;
+    data.resize(width, 1.0 / width);
+    return new series::FiniteCompSeries<RealType>(context, std::move(data));
 }
 
 template <typename RealType>
 auto windowSimple(app::AppContext &context, RealType scale_0) {
-    auto op = [scale_0](RealType *dst, std::size_t begin, std::size_t end) {
-        double sum = 0.0;
-        for (std::size_t i = begin; i < end; i++) {
-            double t = i / scale_0;
-            t = std::exp(-t * t);
-            dst[i - begin] = t;
-            sum += t;
-        }
-        for (std::size_t i = begin; i < end; i++) {
-            dst[i - begin] /= sum;
-        }
-    };
-
     std::size_t width = std::sqrt(-std::log(1e-9)) * scale_0 + 1.0;
-    return new series::FiniteCompSeries<RealType, decltype(op)>(context, op, width);
+
+    std::vector<RealType> data;
+    data.resize(width);
+
+    double sum = 0.0;
+    for (std::size_t i = 0; i < width; i++) {
+        double t = i / scale_0;
+        t = std::exp(-t * t);
+        data[i] = t;
+        sum += t;
+    }
+    for (std::size_t i = 0; i < width; i++) {
+        data[i] /= sum;
+    }
+
+    return new series::FiniteCompSeries<RealType>(context, std::move(data));
 }
 
 template <typename RealType>
-auto windowSmooth(app::AppContext &context, RealType scale_0, RealType scale_1) {
-    auto op = [scale_0, scale_1](RealType *dst, std::size_t begin, std::size_t end) {
-        double sum = 0.0;
-        for (std::size_t i = begin; i < end; i++) {
-            double head = i / scale_0;
-            head = std::exp(-head * head);
-            double tail = i / scale_1;
-            tail = std::exp(-tail * tail);
-            double t = head - tail;
-            dst[i - begin] = t;
-            sum += t;
-        }
-        for (std::size_t i = begin; i < end; i++) {
-            dst[i - begin] /= sum;
-        }
-    };
-
+auto windowSmooth(app::AppContext &context, RealType scale_0, RealType scale_1_mult = 2.0) {
+    RealType scale_1 = scale_0 * scale_1_mult;
     std::size_t width = std::sqrt(-std::log(1e-9)) * std::max(scale_0, scale_1) + 1.0;
-    return new series::FiniteCompSeries<RealType, decltype(op)>(context, op, width);
+
+    std::vector<RealType> data;
+    data.resize(width);
+
+    double sum = 0.0;
+    for (std::size_t i = 0; i < width; i++) {
+        double head = i / scale_0;
+        head = std::exp(-head * head);
+        double tail = i / scale_1;
+        tail = std::exp(-tail * tail);
+        double t = head - tail;
+        data[i] = t;
+        sum += t;
+    }
+    for (std::size_t i = 0; i < width; i++) {
+        data[i] /= sum;
+    }
+
+    return new series::FiniteCompSeries<RealType>(context, std::move(data));
 }
 
 template <typename RealType>
-auto windowDelta(app::AppContext &context, RealType scale_0, RealType scale_1) {
-    auto op = [scale_0, scale_1](RealType *dst, std::size_t begin, std::size_t end) {
-        static thread_local std::vector<RealType> tmp;
-        tmp.resize(end - begin);
-
-        double headSum = 0.0;
-        double tailSum = 0.0;
-        for (std::size_t i = begin; i < end; i++) {
-            double head = i / scale_0;
-            head = std::exp(-head * head);
-            dst[i - begin] = head;
-            headSum += head;
-
-            double tail = i / scale_1;
-            tail = std::exp(-tail * tail);
-            tmp[i - begin] = tail;
-            tailSum += tail;
-        }
-        for (std::size_t i = begin; i < end; i++) {
-            dst[i - begin] = dst[i - begin] / headSum + tmp[i - begin] / tailSum;
-        }
-    };
-
+auto windowDelta(app::AppContext &context, RealType scale_0, RealType scale_1_mult = 2.0) {
+    RealType scale_1 = scale_0 * scale_1_mult;
     std::size_t width = std::sqrt(-std::log(1e-9)) * std::max(scale_0, scale_1) + 1.0;
-    return new series::FiniteCompSeries<RealType, decltype(op)>(context, op, width);
+
+    std::vector<RealType> data;
+    data.resize(width);
+    static thread_local std::vector<RealType> tmp;
+    tmp.resize(width);
+
+    double headSum = 0.0;
+    double tailSum = 0.0;
+    for (std::size_t i = 0; i < width; i++) {
+        double head = i / scale_0;
+        head = std::exp(-head * head);
+        data[i] = head;
+        headSum += head;
+
+        double tail = i / scale_1;
+        tail = std::exp(-tail * tail);
+        tmp[i] = tail;
+        tailSum += tail;
+    }
+    for (std::size_t i = 0; i < width; i++) {
+        data[i] = data[i] / headSum + tmp[i] / tailSum;
+    }
+
+    return new series::FiniteCompSeries<RealType>(context, std::move(data));
 }
 
 template <typename RealType>
@@ -217,8 +222,8 @@ Resolver::Resolver(app::AppContext &context)
     decl("window_delta", [&context](float scale_0, float scale_1){return windowDelta(context, scale_0, scale_1);});
     decl("window_delta", [&context](double scale_0, double scale_1){return windowDelta(context, scale_0, scale_1);});
 
-    decl("conv", [&context](series::DataSeries<float> *kernel, series::DataSeries<float> *ts){return new series::ConvSeries<float>(context, *kernel, *ts);});
-    decl("conv", [&context](series::DataSeries<double> *kernel, series::DataSeries<double> *ts){return new series::ConvSeries<double>(context, *kernel, *ts);});
+    decl("conv", [&context](series::FiniteCompSeries<float> *kernel, series::DataSeries<float> *ts){return new series::ConvSeries<float>(context, *kernel, *ts);});
+    decl("conv", [&context](series::FiniteCompSeries<double> *kernel, series::DataSeries<double> *ts){return new series::ConvSeries<double>(context, *kernel, *ts);});
 
     decl("seq", [&context](float scale){return sequence(context, scale);});
     decl("seq", [&context](double scale){return sequence(context, scale);});

@@ -91,7 +91,9 @@ src/render/renderer.h
 src/render/seriesrenderer.h
 src/render/shaders.cpp
 src/render/shaders.h
+src/series/convseries.cpp
 src/series/convseries.h
+src/series/dataseries.cpp
 src/series/dataseries.h
 src/series/finitecompseries.h
 src/series/infcompseries.h

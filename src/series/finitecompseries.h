@@ -1,45 +1,30 @@
 #pragma once
 
-#include "jw_util/hash.h"
+#include <vector>
 
-#include "series/dataseries.h"
+namespace app { class AppContext; }
 
 namespace series {
 
-template <typename ElementType, typename OperatorType>
-class FiniteCompSeries : public DataSeries<ElementType> {
+template <typename ElementType>
+class FiniteCompSeries {
 public:
-    FiniteCompSeries(app::AppContext &context, OperatorType op, std::size_t width)
-        : DataSeries<ElementType>(context)
-        , op(op)
-        , width(width)
-    {}
-
-    std::string getName() const override { return "static"; }
-
-    std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
-        return [this, chunkIndex](ElementType *dst) {
-            static constexpr std::size_t size = DataSeries<ElementType>::Chunk::size;
-            std::size_t begin = chunkIndex * size;
-            std::size_t end = (chunkIndex + 1) * size;
-            if (width < begin) {
-                std::fill_n(dst, size, NAN);
-                return;
-            } else if (width < end) {
-                std::fill(dst + width - begin, dst + size, NAN);
-                end = width;
-            }
-            op(dst, begin, end);
-        };
+    FiniteCompSeries(app::AppContext &context, std::vector<ElementType> &&data)
+        : data(std::move(data))
+    {
+        (void) context;
     }
 
-    std::size_t getStaticWidth() const override {
-        return width;
+    std::size_t getSize() const {
+        return data.size();
+    }
+
+    const ElementType *getData() const {
+        return data.data();
     }
 
 private:
-    OperatorType op;
-    std::size_t width;
+    std::vector<ElementType> data;
 };
 
 }

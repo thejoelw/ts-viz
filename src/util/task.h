@@ -7,8 +7,6 @@
 
 #include "jw_util/baseexception.h"
 
-#include "defs/TASKSCHEDULER_ENABLE_DEBUG_OUTPUT.h"
-
 #include "util/spinlock.h"
 
 namespace util {
@@ -52,18 +50,6 @@ private:
 
     double getOrdering() const;
     double getCriticalPathDuration();
-
-#if TASKSCHEDULER_ENABLE_DEBUG_OUTPUT
-public:
-    void setName(const std::string &newName) {
-        name = newName;
-    }
-
-private:
-    std::string name;
-#else
-    void setName(const std::string &) {}
-#endif
 };
 
 }

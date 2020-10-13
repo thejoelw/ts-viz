@@ -13,8 +13,6 @@ public:
         , args(args...)
     {}
 
-    std::string getName() const override { return "parallel"; }
-
     std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
         auto chunks = std::apply([chunkIndex](auto &... x){return std::make_tuple(x.getChunk(chunkIndex)...);}, args);
         return [this, chunks](ElementType *dst) {

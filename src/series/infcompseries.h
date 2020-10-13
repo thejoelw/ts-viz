@@ -14,8 +14,6 @@ public:
         , op(op)
     {}
 
-    std::string getName() const override { return "static"; }
-
     std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
         return [this, chunkIndex](ElementType *dst) {
             static constexpr std::size_t size = DataSeries<ElementType>::Chunk::size;

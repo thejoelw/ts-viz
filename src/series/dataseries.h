@@ -11,20 +11,16 @@
 
 #include "defs/CHUNK_SIZE_LOG2.h"
 
+// TODO: REMOVE
+#include "spdlog/spdlog.h"
+
 namespace series {
+
+extern thread_local util::Task *activeTask;
 
 template <typename ElementType>
 class DataSeries {
 public:
-    class DynamicWidthException : public jw_util::BaseException {
-        friend class DataSeries<ElementType>;
-
-    private:
-        DynamicWidthException(const std::string &msg)
-            : BaseException(msg)
-        {}
-    };
-
     class Chunk {
         friend class DataSeries<ElementType>;
 
@@ -32,16 +28,17 @@ public:
         static constexpr std::size_t size = (static_cast<std::size_t>(1) << CHUNK_SIZE_LOG2) / sizeof(ElementType);
 
         Chunk(DataSeries<ElementType> *series, std::size_t index) {
-            task.setName(series->getName() + "[" + std::to_string(index) + "]");
+            jw_util::Thread::assert_main_thread();
 
-            Chunk *prevActiveComputingChunk = activeComputingChunk;
-            activeComputingChunk = this;
+            util::Task *prevActiveTask = activeTask;
+            activeTask = &task;
 
             auto func = series->getChunkGenerator(index);
-            task.setFunction([this, func](util::TaskScheduler &){func(data);});
 
-            assert(activeComputingChunk == this);
-            activeComputingChunk = prevActiveComputingChunk;
+            assert(activeTask == &task);
+            activeTask = prevActiveTask;
+
+            task.setFunction([this, func](util::TaskScheduler &){func(data);});
         }
 
         bool isDone() const {
@@ -50,6 +47,9 @@ public:
 
         ElementType *getData() {
             unsigned int ref;
+            if (!task.isDone(ref)) {
+                spdlog::info("{} fail", reinterpret_cast<std::uintptr_t>(&task));
+            }
             assert(task.isDone(ref));
             return data;
         }
@@ -74,12 +74,6 @@ public:
         jw_util::Thread::set_main_thread();
     }
 
-    virtual std::string getName() const = 0;
-
-    virtual std::size_t getStaticWidth() const {
-        throw DynamicWidthException("Cannot get static width for series");
-    }
-
     Chunk *getChunk(std::size_t chunkIndex) {
         jw_util::Thread::assert_main_thread();
 
@@ -90,8 +84,8 @@ public:
             chunks[chunkIndex] = makeChunk(chunkIndex);
         }
 
-        if (activeComputingChunk) {
-            activeComputingChunk->task.addDependency(chunks[chunkIndex]->task);
+        if (activeTask != 0) {
+            activeTask->addDependency(chunks[chunkIndex]->task);
         }
 
         return chunks[chunkIndex];
@@ -101,8 +95,6 @@ public:
 
 protected:
     app::AppContext &context;
-
-    static inline thread_local Chunk *activeComputingChunk;
 
 private:
     std::vector<Chunk *> chunks;

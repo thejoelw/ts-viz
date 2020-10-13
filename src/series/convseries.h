@@ -3,6 +3,7 @@
 #include <fftw3.h>
 
 #include "series/dataseries.h"
+#include "series/finitecompseries.h"
 
 namespace {
 
@@ -53,11 +54,11 @@ template<> struct fftwx_impl<double> {
     static void destroy_plan(Plan plan) { fftw_destroy_plan(plan); }
 };
 
-std::mutex fftwMutex;
-
 }
 
 namespace series {
+
+extern std::mutex fftwMutex;
 
 template <typename ElementType>
 class ConvSeries : public DataSeries<ElementType> {
@@ -69,11 +70,11 @@ private:
     typedef fftwx_impl<ElementType> fftwx;
 
 public:
-    ConvSeries(app::AppContext &context, DataSeries<ElementType> &kernel, DataSeries<ElementType> &ts)
+    ConvSeries(app::AppContext &context, FiniteCompSeries<ElementType> &kernel, DataSeries<ElementType> &ts)
         : DataSeries<ElementType>(context)
         , kernel(kernel)
         , ts(ts)
-        , kernelBack(kernel.getStaticWidth() - 1)
+        , kernelBack(kernel.getSize() - 1)
         , sourceSize(kernelBack + chunkSize)
         , planSize(nextPow2(sourceSize))
     {
@@ -95,8 +96,6 @@ public:
         fftwx::destroy_plan(planFwd);
     }
 
-    std::string getName() const override { return "conv"; }
-
     std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
         std::size_t begin = chunkIndex * chunkSize;
         std::size_t end = (chunkIndex + 1) * chunkSize;
@@ -106,20 +105,14 @@ public:
             };
         }
 
-        std::size_t numKernelChunks = kernelBack / chunkSize + 1;
-        typename DataSeries<ElementType>::Chunk **kernelChunks = new typename DataSeries<ElementType>::Chunk *[numKernelChunks];
-        for (std::size_t i = 0; i < numKernelChunks; i++) {
-            kernelChunks[i] = kernel.getChunk(i);
-        }
-
         std::size_t numTsChunks = std::min((sourceSize - 1) / chunkSize, chunkIndex) + 1;
         typename DataSeries<ElementType>::Chunk **tsChunks = new typename DataSeries<ElementType>::Chunk *[numTsChunks];
         for (std::size_t i = 0; i < numTsChunks; i++) {
             tsChunks[i] = ts.getChunk(chunkIndex - numTsChunks + i + 1);
         }
 
-        return [this, begin, end, numKernelChunks, kernelChunks, numTsChunks, tsChunks](ElementType *dst) {
-            PlanIO planIO = requestPlanIO(numKernelChunks, kernelChunks);
+        return [this, begin, end, numTsChunks, tsChunks](ElementType *dst) {
+            PlanIO planIO = requestPlanIO();
 
             assert(numTsChunks <= planSize / chunkSize);
             assert(numTsChunks * chunkSize <= planSize);
@@ -148,7 +141,6 @@ public:
 
             releasePlanIO(planIO);
 
-            delete[] kernelChunks;
             delete[] tsChunks;
 
             assert(kernelBack < end);
@@ -160,7 +152,7 @@ public:
     }
 
 private:
-    DataSeries<ElementType> &kernel;
+    FiniteCompSeries<ElementType> &kernel;
     DataSeries<ElementType> &ts;
 
     std::size_t kernelBack;
@@ -180,10 +172,10 @@ private:
     };
     std::vector<PlanIO> planIOs;
 
-    PlanIO requestPlanIO(std::size_t numKernelChunks, typename DataSeries<ElementType>::Chunk **kernelChunks) {
+    PlanIO requestPlanIO() {
         std::unique_lock<std::mutex> lock(fftwMutex);
         if (!hasPlan) {
-            processKernel(numKernelChunks, kernelChunks);
+            processKernel();
             hasPlan = true;
         }
 
@@ -209,7 +201,7 @@ private:
         planIOs.push_back(planIO);
     }
 
-    void processKernel(std::size_t numKernelChunks, typename DataSeries<ElementType>::Chunk **kernelChunks) {
+    void processKernel() {
         ElementType *tmpIn = fftwx::alloc_real(planSize);
         typename fftwx::Complex *tmpFft = fftwx::alloc_complex(planSize);
 
@@ -217,12 +209,8 @@ private:
         planBwd = fftwx::plan_dft_c2r_1d(planSize, tmpFft, tmpIn, FFTW_ESTIMATE | FFTW_DESTROY_INPUT);
 
         ElementType invPlanSize = static_cast<ElementType>(1.0) / planSize;
-        for (std::size_t i = 0; i < numKernelChunks; i++) {
-            ElementType *src = kernelChunks[i]->getData();
-            ElementType *dst = tmpIn + i * chunkSize;
-            for (std::size_t j = 0; j < chunkSize; j++) {
-                dst[j] = src[j] * invPlanSize;
-            }
+        for (std::size_t i = 0; i < kernel.getSize(); i++) {
+            tmpIn[i] = kernel.getData()[i] * invPlanSize;
         }
         std::fill(tmpIn + kernelBack + 1, tmpIn + planSize, static_cast<ElementType>(0.0));
         fftwx::execute(planFwd);
