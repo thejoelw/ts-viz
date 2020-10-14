@@ -144,7 +144,7 @@ auto windowDelta(app::AppContext &context, RealType scale_0, RealType scale_1_mu
         tailSum += tail;
     }
     for (std::size_t i = 0; i < width; i++) {
-        data[i] = data[i] / headSum + tmp[i] / tailSum;
+        data[i] = data[i] / headSum - tmp[i] / tailSum;
     }
 
     return new series::FiniteCompSeries<RealType>(context, std::move(data));

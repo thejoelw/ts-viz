@@ -18,16 +18,28 @@ const colors = [
 let nextColor = 0;
 const selectColor = () => colors[nextColor++ % colors.length];
 
+const input = (name) => ['input', name];
+
 const f = (num) => ['cast_float', num];
 const d = (num) => ['cast_double', num];
-const input = (name) => ['input', name];
+
+const sgn = (a) => ['sgn', a];
+const abs = (a) => ['abs', a];
+const square = (a) => ['square', a];
+const sqrt = (a) => ['sqrt', a];
+const exp = (a) => ['exp', a];
+const log = (a) => ['log', a];
+
 const add = (a, b) => ['add', a, b];
 const sub = (a, b) => ['sub', a, b];
 const mul = (a, b) => ['mul', a, b];
 const div = (a, b) => ['div', a, b];
-// const filter = (data, mask) => ['filter', data, mask];
-
-const seq = (w) => ['seq', w];
+const mod = (a, b) => ['mod', a, b];
+const lt = (a, b) => ['lt', a, b];
+const gt = (a, b) => ['gt', a, b];
+const min = (a, b) => ['min', a, b];
+const max = (a, b) => ['max', a, b];
+const shrink = (a, b) => ['shrink', a, b];
 
 const windowRect = (scale_0) => ['window_rect', scale_0];
 const windowSimple = (scale_0) => ['window_simple', scale_0];
@@ -43,6 +55,8 @@ const windowDelta = (scale_0, scale_1_mult = f(2)) => [
 ];
 const conv = (a, b) => ['conv', a, b];
 
+const seq = (w) => ['seq', w];
+
 const ps = [];
 const plot = (values, name, color) =>
 	ps.push([
@@ -52,17 +66,14 @@ const plot = (values, name, color) =>
 		...chroma(color || selectColor()).gl(),
 	]);
 
-const prg = () => {
+const main = () => {
 	const mid = input('bin_com.btcusdc.log_mid');
 	plot(mid, 'mid price');
 
 	plot(conv(windowRect(f(1000)), f(mid)));
 	plot(conv(windowSimple(f(1000)), f(mid)));
-	plot(conv(windowSmooth(f(1000)), f(mid)));
-	plot(conv(windowSmooth(f(1000), f(4)), f(mid)));
-
-	// plot(windowSimple(f(1000)));
-	// plot(conv(windowRect(f(100)), mid));
+	plot(conv(windowSmooth(f(500)), f(mid)));
+	plot(add(f(9.3384), conv(windowDelta(f(500)), f(mid))));
 };
 
-console.log(JSON.stringify(prg() || ps));
+console.log(JSON.stringify(main() || ps));

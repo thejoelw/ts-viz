@@ -46,10 +46,26 @@ void Camera::tickOpen(app::TickerContext &tickerContext) {
 
     scale = 2.0f / (max - min);
     offset = -1.0f - scale * min;
+
+    if (ImGui::Begin("Mouse")) {
+        glm::vec2 pos = min + (mousePosition + glm::vec2(1.0f, -1.0f)) * (max - min) * glm::vec2(0.5f, -0.5f);
+        ImGui::Text("(%f, %f)", pos.x, pos.y);
+    }
+    ImGui::End();
 }
 
 void Camera::tickClose(app::TickerContext &tickerContext) {
+    static constexpr std::uint32_t axisColor = 0x88000000;
+
     drawMouseRegion();
+
+    if (!ImGui::GetIO().WantCaptureMouse) {
+        app::Window &window = context.get<app::Window>();
+        float vx = (mousePosition.x + 1.0f) * window.dimensions.width * 0.25f;
+        float vy = (mousePosition.y + 1.0f) * window.dimensions.height * 0.25f;
+        ImGui::GetForegroundDrawList()->AddLine(ImVec2(vx, 0.0f), ImVec2(vx, window.dimensions.height), axisColor);
+        ImGui::GetForegroundDrawList()->AddLine(ImVec2(0.0f, vy), ImVec2(window.dimensions.width, vy), axisColor);
+    }
 }
 
 glm::vec2 Camera::computeDelta() const {
