@@ -44,8 +44,14 @@ void DataSeriesRenderer<ElementType>::draw(std::size_t begin, std::size_t end, s
             max = center + 1e-9;
         }
 
-        context.get<render::Camera>().getMin().y = min;
-        context.get<render::Camera>().getMax().y = max;
+        assert(min != max);
+
+        if (min != std::numeric_limits<float>::infinity()) {
+            context.get<render::Camera>().getMin().y = min;
+        }
+        if (max != -std::numeric_limits<float>::infinity()) {
+            context.get<render::Camera>().getMax().y = max;
+        }
     }
 
     vao.bind();

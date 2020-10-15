@@ -99,6 +99,7 @@ src/series/finitecompseries.h
 src/series/infcompseries.h
 src/series/inputseries.h
 src/series/parallelopseries.h
+src/series/scannedseries.h
 src/shaders/Tupfile
 src/shaders/fill.frag.glsl
 src/shaders/fill.vert.glsl

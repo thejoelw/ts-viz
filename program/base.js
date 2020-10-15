@@ -43,12 +43,12 @@ const shrink = (a, b) => ['shrink', a, b];
 
 const windowRect = (scale_0) => ['window_rect', scale_0];
 const windowSimple = (scale_0) => ['window_simple', scale_0];
-const windowSmooth = (scale_0, scale_1_mult = f(2)) => [
+const windowSmooth = (scale_0, scale_1_mult) => [
 	'window_smooth',
 	scale_0,
 	scale_1_mult,
 ];
-const windowDelta = (scale_0, scale_1_mult = f(2)) => [
+const windowDelta = (scale_0, scale_1_mult) => [
 	'window_delta',
 	scale_0,
 	scale_1_mult,
@@ -57,23 +57,38 @@ const conv = (a, b) => ['conv', a, b];
 
 const seq = (w) => ['seq', w];
 
-const ps = [];
-const plot = (values, name, color) =>
-	ps.push([
-		'plot',
-		values,
-		name || selectName(),
-		...chroma(color || selectColor()).gl(),
-	]);
+const plot = (values, name, color) => [
+	'plot',
+	values,
+	name || selectName(),
+	...chroma(color || selectColor()).gl(),
+];
 
-const main = () => {
-	const mid = input('bin_com.btcusdc.log_mid');
-	plot(mid, 'mid price');
-
-	plot(conv(windowRect(f(1000)), f(mid)));
-	plot(conv(windowSimple(f(1000)), f(mid)));
-	plot(conv(windowSmooth(f(500)), f(mid)));
-	plot(add(f(9.3384), conv(windowDelta(f(500)), f(mid))));
+module.exports = {
+	input,
+	f,
+	d,
+	sgn,
+	abs,
+	square,
+	sqrt,
+	exp,
+	log,
+	add,
+	sub,
+	mul,
+	div,
+	mod,
+	lt,
+	gt,
+	min,
+	max,
+	shrink,
+	windowRect,
+	windowSimple,
+	windowSmooth,
+	windowDelta,
+	conv,
+	seq,
+	plot,
 };
-
-console.log(JSON.stringify(main() || ps));
