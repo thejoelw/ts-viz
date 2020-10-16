@@ -24,7 +24,7 @@ public:
             auto sources = std::apply([](auto ... x){return std::make_tuple(x->getData()...);}, chunks);
             ElementType value = prevValue;
             for (std::size_t i = 0; i < DataSeries<ElementType>::Chunk::size; i++) {
-                value = std::apply([this](auto *&... s){return op(value, *s++...);}, sources);
+                value = std::apply([this, value](auto *&... s){return op(value, *s++...);}, sources);
                 *dst++ = value;
             }
             prevValue = value;

@@ -95,6 +95,7 @@ src/series/convseries.cpp
 src/series/convseries.h
 src/series/dataseries.cpp
 src/series/dataseries.h
+src/series/deltaseries.h
 src/series/finitecompseries.h
 src/series/infcompseries.h
 src/series/inputseries.h

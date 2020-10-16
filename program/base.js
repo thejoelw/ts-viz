@@ -41,6 +41,12 @@ const min = (a, b) => ['min', a, b];
 const max = (a, b) => ['max', a, b];
 const shrink = (a, b) => ['shrink', a, b];
 
+const cumsum = (a) => ['cumsum', a];
+const cumprod = (a) => ['cumprod', a];
+const fwdFillZero = (a, init) => ['fwd_fill_zero', a, init];
+const subDelta = (a) => ['sub_delta', a];
+const divDelta = (a) => ['div_delta', a];
+
 const windowRect = (scale_0) => ['window_rect', scale_0];
 const windowSimple = (scale_0) => ['window_simple', scale_0];
 const windowSmooth = (scale_0, scale_1_mult) => [
@@ -84,6 +90,11 @@ module.exports = {
 	min,
 	max,
 	shrink,
+	cumsum,
+	cumprod,
+	fwdFillZero,
+	subDelta,
+	divDelta,
 	windowRect,
 	windowSimple,
 	windowSmooth,

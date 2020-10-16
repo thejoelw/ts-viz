@@ -5,6 +5,7 @@
 #include "series/infcompseries.h"
 #include "series/parallelopseries.h"
 #include "series/scannedseries.h"
+#include "series/deltaseries.h"
 #include "series/convseries.h"
 #include "render/dataseriesrenderer.h"
 
@@ -23,6 +24,17 @@ template <typename RealType> struct FuncMod { RealType operator()(RealType a, Re
 template <typename RealType> struct FuncMinimum { RealType operator()(RealType a, RealType b) const { return std::min(a, b); } };
 template <typename RealType> struct FuncMaximum { RealType operator()(RealType a, RealType b) const { return std::max(a, b); } };
 template <typename RealType> struct FuncShrink { RealType operator()(RealType a, RealType b) const { return a > b ? a - b : a < -b ? a + b : 0; } };
+
+template <template <typename> typename Operator> struct FuncSafeBinaryOp {
+    template <typename RealType>
+    struct type : private Operator<RealType> {
+        RealType operator()(RealType a, RealType b) const {
+            if (std::isnan(a)) { a = static_cast<RealType>(0.0); }
+            if (std::isnan(b)) { b = static_cast<RealType>(0.0); }
+            return Operator<RealType>::operator()(a, b);
+        }
+    };
+};
 
 template <template <typename> typename Operator>
 void declUnaryOp(program::Resolver *resolver, app::AppContext &context, const char *funcName) {
@@ -75,6 +87,25 @@ void declScanOp(program::Resolver *resolver, app::AppContext &context, const cha
         return new series::ScannedSeries<double, Operator<double>, series::DataSeries<double>>(context, Operator<double>(), initialValue, *a);
     });
 }
+
+template <typename RealType>
+auto declFwdFillZero(program::Resolver *resolver, app::AppContext &context) {
+    resolver->decl("fwd_fill_zero", [&context](series::DataSeries<RealType> *a, RealType initialValue){
+        auto op = [](RealType prev, RealType a) {return a == static_cast<RealType>(0.0) || !std::isfinite(a) ? prev : a;};
+        return new series::ScannedSeries<RealType, decltype(op), series::DataSeries<RealType>>(context, op, initialValue, *a);
+    });
+}
+
+template <template <typename> typename Operator>
+void declDeltaOp(program::Resolver *resolver, app::AppContext &context, const char *funcName) {
+    resolver->decl(funcName, [&context](series::DataSeries<float> *a){
+        return new series::DeltaSeries<float, Operator<float>, series::DataSeries<float>>(context, Operator<float>(), *a);
+    });
+    resolver->decl(funcName, [&context](series::DataSeries<double> *a){
+        return new series::DeltaSeries<double, Operator<double>, series::DataSeries<double>>(context, Operator<double>(), *a);
+    });
+}
+
 
 template <typename RealType>
 auto windowRect(app::AppContext &context, RealType width) {
@@ -219,8 +250,14 @@ Resolver::Resolver(app::AppContext &context)
     declBinaryOp<FuncMaximum>(this, context, "max");
     declBinaryOp<FuncShrink>(this, context, "shrink");
 
-    declScanOp<std::plus>(this, context, "cumsum", 0.0);
-    declScanOp<std::multiplies>(this, context, "cumprod", 1.0);
+    declScanOp<FuncSafeBinaryOp<std::plus>::type>(this, context, "cumsum", 0.0);
+    declScanOp<FuncSafeBinaryOp<std::multiplies>::type>(this, context, "cumprod", 1.0);
+
+    declFwdFillZero<float>(this, context);
+    declFwdFillZero<double>(this, context);
+
+    declDeltaOp<std::minus>(this, context, "sub_delta");
+    declDeltaOp<std::divides>(this, context, "div_delta");
 
     decl("window_rect", [&context](float scale_0){return windowRect(context, scale_0);});
     decl("window_rect", [&context](double scale_0){return windowRect(context, scale_0);});
