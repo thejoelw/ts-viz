@@ -9,34 +9,6 @@
 #include "jw_util/hash.h"
 #include "util/hashforwarder.h"
 
-namespace {
-
-template <typename> struct tag {};
-
-template <typename T, typename V>
-struct get_variant_index;
-
-template <typename T, typename... Ts>
-struct get_variant_index<T, std::variant<Ts...>> : std::integral_constant<std::size_t, std::variant<tag<Ts>...>(tag<T>()).index()> {};
-
-template <typename T>
-struct function_traits : public function_traits<decltype(&T::operator())>
-{};
-
-template <typename ClassType, typename ReturnType, typename... Args>
-struct function_traits<ReturnType(ClassType::*)(Args...) const> {
-    enum { arity = sizeof...(Args) };
-
-    typedef ReturnType result_type;
-
-    template <std::size_t i>
-    struct arg {
-        typedef typename std::tuple_element<i, std::tuple<Args...>>::type type;
-    };
-};
-
-}
-
 namespace app { class AppContext; }
 
 namespace program {

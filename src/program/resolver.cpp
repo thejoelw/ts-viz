@@ -15,6 +15,8 @@ ProgObj Resolver::call(const std::string &name, const std::vector<ProgObj> &args
     if (foundValue.second) {
         auto foundImpl = declarations.find(Decl(name, Decl::calcArgTypeComb(args)));
         if (foundImpl == declarations.cend()) {
+            calls.erase(foundValue.first);
+
             std::string msg = "Unable to resolve " + name + "(";
 
             for (const ProgObj &obj : args) {
