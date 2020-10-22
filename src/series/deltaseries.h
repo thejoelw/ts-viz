@@ -23,10 +23,10 @@ public:
             if (chunkIndex == 0) {
                 *dst++ = NAN;
             } else {
-                auto prevSources = std::apply([](auto ... x){return std::make_tuple(x->getData() + (DataSeries<ElementType>::Chunk::size - 1)...);}, prevChunks);
+                auto prevSources = std::apply([](auto ... x){return std::make_tuple(x->getData() + (CHUNK_SIZE - 1)...);}, prevChunks);
                 *dst++ = std::apply([this](auto *... s){return op(*s...);}, std::tuple_cat(curSources, prevSources));
             }
-            for (std::size_t i = 1; i < DataSeries<ElementType>::Chunk::size; i++) {
+            for (std::size_t i = 1; i < CHUNK_SIZE; i++) {
                 *dst++ = std::apply([this](auto *&... s){
                     std::make_tuple(s++...);
                     return op(*s..., *(s - 1)...);

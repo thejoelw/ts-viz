@@ -4,17 +4,14 @@
 
 namespace util {
 
-void TestRunner::run(const SsProtocol::Config::TestRunner *config) {
-    (void) config;
+void TestRunner::run() {
+    app::AppContext context;
 
-    // Lets create a new test context
-    app::AppContext testContext;
-
-    for (std::size_t i = 0; i < gameTests.size(); i++) {
-        gameTests[i](testContext);
+    for (std::size_t i = 0; i < tests.size(); i++) {
+        tests[i](context);
     }
 
-    gameTests.clear();
+    tests.clear();
 }
 
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <fftw3.h>
+#include <complex>
 
 #include "series/dataseries.h"
 #include "series/finitecompseries.h"
@@ -34,6 +35,9 @@ template<> struct fftwx_impl<float> {
     static void execute_dft_c2r(Plan plan, Complex *in, float *out) { fftwf_execute_dft_c2r(plan, in, out); }
 
     static void destroy_plan(Plan plan) { fftwf_destroy_plan(plan); }
+
+    static std::complex<float> getComplex(Complex src) { return std::complex<float>(src[0], src[1]); }
+    static void setComplex(Complex dst, std::complex<float> src) { dst[0] = src.real(); dst[1] = src.imag(); }
 };
 
 template<> struct fftwx_impl<double> {
@@ -52,6 +56,9 @@ template<> struct fftwx_impl<double> {
     static void execute_dft_c2r(Plan plan, Complex *in, double *out) { fftw_execute_dft_c2r(plan, in, out); }
 
     static void destroy_plan(Plan plan) { fftw_destroy_plan(plan); }
+
+    static std::complex<double> getComplex(Complex src) { return std::complex<double>(src[0], src[1]); }
+    static void setComplex(Complex dst, std::complex<double> src) { dst[0] = src.real(); dst[1] = src.imag(); }
 };
 
 }
@@ -65,20 +72,19 @@ class ConvSeries : public DataSeries<ElementType> {
 private:
     static constexpr std::size_t fftSizeThreshold = 32;
 
-    static constexpr std::size_t chunkSize = DataSeries<ElementType>::Chunk::size;
-
     typedef fftwx_impl<ElementType> fftwx;
 
 public:
-    ConvSeries(app::AppContext &context, FiniteCompSeries<ElementType> &kernel, DataSeries<ElementType> &ts)
+    ConvSeries(app::AppContext &context, FiniteCompSeries<ElementType> &kernel, DataSeries<ElementType> &ts, ElementType derivativeOrder)
         : DataSeries<ElementType>(context)
         , kernel(kernel)
         , ts(ts)
         , kernelBack(kernel.getSize() - 1)
-        , sourceSize(kernelBack + chunkSize)
+        , sourceSize(kernelBack + CHUNK_SIZE)
         , planSize(nextPow2(sourceSize))
+        , derivativeOrder(derivativeOrder)
     {
-        assert(kernelBack != static_cast<std::size_t>(-1));
+        assert(kernel.getSize() > 0);
     }
 
     ~ConvSeries() {
@@ -97,15 +103,15 @@ public:
     }
 
     std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
-        std::size_t begin = chunkIndex * chunkSize;
-        std::size_t end = (chunkIndex + 1) * chunkSize;
+        std::size_t begin = chunkIndex * CHUNK_SIZE;
+        std::size_t end = (chunkIndex + 1) * CHUNK_SIZE;
         if (end <= kernelBack) {
             return [](ElementType *dst) {
-                std::fill_n(dst, chunkSize, NAN);
+                std::fill_n(dst, CHUNK_SIZE, NAN);
             };
         }
 
-        std::size_t numTsChunks = std::min((sourceSize - 1) / chunkSize, chunkIndex) + 1;
+        std::size_t numTsChunks = std::min((sourceSize - 1) / CHUNK_SIZE, chunkIndex) + 1;
         typename DataSeries<ElementType>::Chunk **tsChunks = new typename DataSeries<ElementType>::Chunk *[numTsChunks];
         for (std::size_t i = 0; i < numTsChunks; i++) {
             tsChunks[i] = ts.getChunk(chunkIndex - numTsChunks + i + 1);
@@ -114,30 +120,45 @@ public:
         return [this, begin, end, numTsChunks, tsChunks](ElementType *dst) {
             PlanIO planIO = requestPlanIO();
 
-            assert(numTsChunks <= planSize / chunkSize);
-            assert(numTsChunks * chunkSize <= planSize);
+            static_assert(sizeof(signed int) * CHAR_BIT > CHUNK_SIZE_LOG2, "CHUNK_SIZE_LOG2 is too big");
+            static thread_local std::vector<std::pair<signed int, signed int>> nans;
+            nans.clear();
+            nans.push_back(std::pair<signed int, signed int>(INT_MIN, INT_MIN));
+
+            assert(numTsChunks <= planSize / CHUNK_SIZE);
+            assert(numTsChunks * CHUNK_SIZE <= planSize);
             for (std::size_t i = 0; i < numTsChunks; i++) {
-                std::copy_n(tsChunks[i]->getData(), chunkSize, planIO.in + planSize - (numTsChunks - i) * chunkSize);
+                ElementType *src = tsChunks[i]->getData();
+                ElementType *dst = planIO.in + planSize - (numTsChunks - i) * CHUNK_SIZE;
+                for (std::size_t j = 0; j < CHUNK_SIZE; j++) {
+                    ElementType val = src[j];
+                    if (std::isnan(val)) {
+                        val = 0.0;
+
+                        signed int rangeBegin = j - (numTsChunks - i) * CHUNK_SIZE;
+                        signed int rangeEnd = rangeBegin + (kernelBack + 1);
+                        if (rangeBegin <= nans.back().second) {
+                            nans.back().second = rangeEnd;
+                        } else {
+                            nans.push_back(std::pair<signed int, signed int>(rangeBegin, rangeEnd));
+                        }
+                    }
+                    dst[j] = val;
+                }
             }
-            std::fill(planIO.in, planIO.in + planSize - std::min(sourceSize, numTsChunks * chunkSize), static_cast<ElementType>(0.0));
+            std::fill(planIO.in, planIO.in + planSize - std::min(sourceSize, numTsChunks * CHUNK_SIZE), static_cast<ElementType>(0.0));
 
             fftwx::execute_dft_r2c(planFwd, planIO.in, planIO.fft);
 
             // Elementwise multiply
             for (std::size_t i = 0; i < planSize; i++) {
-                ElementType *a = planIO.fft[i];
-                ElementType *b = kernelFft[i];
-
-                ElementType c = a[0] * b[0] - a[1] * b[1];
-                ElementType d = a[0] * b[1] + a[1] * b[0];
-                a[0] = c;
-                a[1] = d;
+                fftwx::setComplex(planIO.fft[i], fftwx::getComplex(planIO.fft[i]) * fftwx::getComplex(kernelFft[i]));
             }
 
             // Backward fft
             fftwx::execute_dft_c2r(planBwd, planIO.fft, planIO.out);
 
-            std::copy_n(planIO.out + planSize - chunkSize, chunkSize, dst);
+            std::copy_n(planIO.out + planSize - CHUNK_SIZE, CHUNK_SIZE, dst);
 
             releasePlanIO(planIO);
 
@@ -146,6 +167,15 @@ public:
             assert(kernelBack < end);
             if (begin < kernelBack) {
                 std::fill_n(dst, kernelBack - begin, NAN);
+            }
+
+            for (std::pair<signed int, signed int> range : nans) {
+                static constexpr signed int signedChunkSize = CHUNK_SIZE;
+                range.first = std::max(0, signedChunkSize + range.first);
+                range.second = std::min(signedChunkSize, signedChunkSize + range.second);
+                if (range.first < range.second) {
+                    std::fill(dst + range.first, dst + range.second, NAN);
+                }
             }
         };
 
@@ -158,6 +188,7 @@ private:
     std::size_t kernelBack;
     std::size_t sourceSize;
     std::size_t planSize;
+    ElementType derivativeOrder;
 
     bool hasPlan = false;
     typename fftwx::Plan planFwd;
@@ -216,6 +247,15 @@ private:
         fftwx::execute(planFwd);
 
         fftwx::free(tmpIn);
+
+        if (derivativeOrder != 0) {
+            for (std::size_t i = 0; i < planSize; i++) {
+                std::complex<ElementType> z(0.0, static_cast<ElementType>(i) / planSize);
+                std::complex<ElementType> f = std::pow(z, derivativeOrder);
+                fftwx::setComplex(tmpFft[i], fftwx::getComplex(tmpFft[i]) * f);
+            }
+        }
+
         kernelFft = tmpFft;
     }
 };

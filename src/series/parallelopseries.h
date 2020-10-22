@@ -17,7 +17,7 @@ public:
         auto chunks = std::apply([chunkIndex](auto &... x){return std::make_tuple(x.getChunk(chunkIndex)...);}, args);
         return [this, chunks](ElementType *dst) {
             auto sources = std::apply([](auto ... x){return std::make_tuple(x->getData()...);}, chunks);
-            for (std::size_t i = 0; i < DataSeries<ElementType>::Chunk::size; i++) {
+            for (std::size_t i = 0; i < CHUNK_SIZE; i++) {
                 *dst++ = std::apply([this](auto *&... s){return op(*s++...);}, sources);
             }
         };

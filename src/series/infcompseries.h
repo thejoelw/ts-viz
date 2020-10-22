@@ -16,9 +16,8 @@ public:
 
     std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
         return [this, chunkIndex](ElementType *dst) {
-            static constexpr std::size_t size = DataSeries<ElementType>::Chunk::size;
-            std::size_t begin = chunkIndex * size;
-            std::size_t end = (chunkIndex + 1) * size;
+            std::size_t begin = chunkIndex * CHUNK_SIZE;
+            std::size_t end = (chunkIndex + 1) * CHUNK_SIZE;
             op(dst, begin, end);
         };
     }

@@ -13,6 +13,16 @@ src/app/tickercontext.cpp
 src/app/tickercontext.h
 src/app/window.cpp
 src/app/window.h
+src/builder/binary.cpp
+src/builder/cast.cpp
+src/builder/conv.cpp
+src/builder/delta.cpp
+src/builder/inf.cpp
+src/builder/input.cpp
+src/builder/plot.cpp
+src/builder/scan.cpp
+src/builder/unary.cpp
+src/builder/window.cpp
 src/graphics/gl.cpp
 src/graphics/gl.h
 src/graphics/glbuffer.h
@@ -93,6 +103,7 @@ src/render/shaders.cpp
 src/render/shaders.h
 src/series/convseries.cpp
 src/series/convseries.h
+src/series/convseries.test.cpp
 src/series/dataseries.cpp
 src/series/dataseries.h
 src/series/deltaseries.h

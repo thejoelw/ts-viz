@@ -6,6 +6,7 @@ run awk '/^[^#]/ { print ": |> echo \"#define "$0"\" > %o |> src/defs/"$1".h $(R
 # Compile sources
 : foreach $(SRC_PATH)/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 : foreach $(SRC_PATH)/app/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
+: foreach $(SRC_PATH)/builder/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 : foreach $(SRC_PATH)/graphics/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 : foreach $(SRC_PATH)/graphics/type/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 : foreach $(SRC_PATH)/jw_util/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>

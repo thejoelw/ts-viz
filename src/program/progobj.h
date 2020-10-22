@@ -1,10 +1,12 @@
 #pragma once
 
 #include <variant>
+#include <string>
+#include <cmath>
 
-#include "series/dataseries.h"
-#include "series/finitecompseries.h"
-#include "render/seriesrenderer.h"
+namespace series { template <typename ElementType> class DataSeries; }
+namespace series { template <typename ElementType> class FiniteCompSeries; }
+namespace render { class SeriesRenderer; }
 
 namespace program {
 

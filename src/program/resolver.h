@@ -1,8 +1,8 @@
 #pragma once
 
 #include <typeindex>
-#include <variant>
-#include <type_traits>
+#include <vector>
+#include <unordered_map>
 
 #include "program/progobj.h"
 #include "jw_util/baseexception.h"
@@ -60,6 +60,8 @@ public:
     }
 
     ProgObj call(const std::string &name, const std::vector<ProgObj> &args);
+
+    static int registerBuilder(std::function<void (app::AppContext &, Resolver &)> func);
 
 private:
     template <typename ClassType, typename ReturnType, typename... ArgTypes>
@@ -164,6 +166,8 @@ private:
 
     std::unordered_map<Decl, std::unique_ptr<Invokable>, util::HashForwarder<Decl>> declarations;
     std::unordered_map<Call, ProgObj, util::HashForwarder<Call>> calls;
+
+    static std::vector<std::function<void(app::AppContext &, Resolver &)>> builders;
 
     template <typename ReturnType, typename... ArgTypes>
     static ProgObj invokeStub(void (*cbPtr)(), const std::vector<ProgObj> &args) {

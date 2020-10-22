@@ -12,6 +12,7 @@
 #include "stream/jsonunwrapper.h"
 #include "program/programmanager.h"
 #include "stream/inputmanager.h"
+#include "util/testrunner.h"
 
 int main(int argc, char **argv)
 {
@@ -27,6 +28,9 @@ int main(int argc, char **argv)
     std::cout << "A pointer is " << (sizeof(void*) * CHAR_BIT) << " bits" << std::endl;
     std::cout << "An unsigned int is " << (sizeof(unsigned int) * CHAR_BIT) << " bits" << std::endl;
 #endif
+
+    context.get<spdlog::logger>().info("Running tests...");
+    util::TestRunner::getInstance().run();
 
     context.get<spdlog::logger>().info("Starting...");
 

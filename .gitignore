@@ -1,20 +1,6 @@
 *.creator.*
 
-build/
 node_modules/
-
-html/
-latex/
-local/
-doxygen_*
-
-blob_planet
-test
-
-*.blend1
-*.blend2
-*.blend3
-*.blend4
 
 .tup/
 build-debug/*
@@ -31,8 +17,6 @@ imgui.ini
 *.gen.c
 *.gen.cpp
 
-recording_*
-
 third_party/flatbuffers/
 third_party/imgui/
 third_party/readerwriterqueue/
@@ -40,6 +24,4 @@ third_party/spdlog/
 third_party/Static-Sort/
 third_party/THST/
 
-raycastlookuptable_cache.bin
-
-__pycache__/
+program/
