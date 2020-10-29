@@ -28,28 +28,26 @@ void DataSeriesRenderer<ElementType>::draw(std::size_t begin, std::size_t end, s
         ElementType max = -std::numeric_limits<float>::infinity();
 
         for (ElementType val : sample) {
-            if (!isnan(val)) {
+            if (!std::isnan(val)) {
                 if (val < min) { min = val; }
                 if (val > max) { max = val; }
             }
         }
 
-        ElementType center = (min + max) * 0.5f;
-        min += (min - center) * 0.1f;
-        max += (max - center) * 0.1f;
-        if (min > center - 1e-9) {
-            min = center - 1e-9;
-        }
-        if (max < center + 1e-9) {
-            max = center + 1e-9;
-        }
+        if (min != std::numeric_limits<float>::infinity() && max != -std::numeric_limits<float>::infinity()) {
+            ElementType center = (min + max) * 0.5f;
+            min += (min - center) * 0.1f;
+            max += (max - center) * 0.1f;
+            if (min > center - 1e-9) {
+                min = center - 1e-9;
+            }
+            if (max < center + 1e-9) {
+                max = center + 1e-9;
+            }
 
-        assert(min != max);
+            assert(min < max);
 
-        if (min != std::numeric_limits<float>::infinity()) {
             context.get<render::Camera>().getMin().y = min;
-        }
-        if (max != -std::numeric_limits<float>::infinity()) {
             context.get<render::Camera>().getMax().y = max;
         }
     }

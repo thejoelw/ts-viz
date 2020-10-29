@@ -7,8 +7,8 @@ template <template <typename> typename Operator> struct FuncSafeBinaryOp {
     template <typename RealType>
     struct type : private Operator<RealType> {
         RealType operator()(RealType a, RealType b) const {
-            if (std::isnan(a) || std::isfinite(a)) { a = static_cast<RealType>(0.0); }
-            if (std::isnan(b) || std::isfinite(b)) { b = static_cast<RealType>(0.0); }
+            if (std::isnan(a) || !std::isfinite(a)) { a = static_cast<RealType>(0.0); }
+            if (std::isnan(b) || !std::isfinite(b)) { b = static_cast<RealType>(0.0); }
             return Operator<RealType>::operator()(a, b);
         }
     };

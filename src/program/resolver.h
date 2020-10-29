@@ -16,9 +16,7 @@ namespace program {
 class Resolver {
 public:
     class UnresolvedCallException : public jw_util::BaseException {
-        friend class Resolver;
-
-    private:
+    public:
         UnresolvedCallException(const std::string &msg)
             : BaseException(msg)
         {}
@@ -64,6 +62,8 @@ private:
 
         template <std::size_t... Indices>
         ProgObj invokeSeq(const std::vector<ProgObj>& args, std::index_sequence<Indices...>) {
+            assert(args.size() == sizeof...(ArgTypes));
+            assert(args.size() == sizeof...(Indices));
             return func(std::get<typename std::remove_cv<typename std::remove_reference<ArgTypes>::type>::type>(args[Indices])...);
         }
     };
@@ -141,15 +141,7 @@ private:
 
     static std::vector<std::function<void(app::AppContext &, Resolver &)>> builders;
 
-    template <typename ReturnType, typename... ArgTypes>
-    static ProgObj invokeStub(void (*cbPtr)(), const std::vector<ProgObj> &args) {
-        ReturnType (*cb)(ArgTypes...) = static_cast<ReturnType (*)(ArgTypes...)>(cbPtr);
-        return invokeSeq(cb, args, std::make_index_sequence<sizeof...(ArgTypes)>());
-    }
-    template <typename ReturnType, typename... ArgTypes, std::size_t... Indices>
-    static ProgObj invokeSeq(ReturnType (*cb)(ArgTypes...), const std::vector<ProgObj>& args, std::index_sequence<Indices...>) {
-        return cb(std::get<ArgTypes>(args[Indices])...);
-    }
+    ProgObj execDecl(const std::string &name, const std::vector<ProgObj> &args);
 };
 
 }
