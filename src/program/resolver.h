@@ -22,6 +22,13 @@ public:
         {}
     };
 
+    class AssertionFailureException : public jw_util::BaseException {
+    public:
+        AssertionFailureException(const std::string &msg)
+            : BaseException(msg)
+        {}
+    };
+
     Resolver(app::AppContext &context);
 
     template <typename FuncType>

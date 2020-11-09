@@ -18,9 +18,8 @@ void Task::addDependency(Task &dep) {
 
     std::lock_guard<SpinLock> lock(dep.dependentsMutex);
 
-    dep.dependents.push_back(this);
-
     if (!dep.isDone()) {
+        dep.dependents.push_back(this);
         addDependency();
     }
 }
@@ -57,6 +56,7 @@ void Task::call(TaskScheduler &scheduler) {
     for (Task *dep : dependents) {
         dep->finishDependency(scheduler);
     }
+//    dependents.clear();
 }
 
 double Task::getOrdering() const {

@@ -7,18 +7,17 @@
 
 #include "jw_util/hash.h"
 
+#include "rapidjson/include/rapidjson/document.h"
+
 namespace series { template <typename ElementType> class DataSeries; }
 namespace series { template <typename ElementType> class FiniteCompSeries; }
 namespace render { class SeriesRenderer; }
 
 namespace program {
 
-struct UncastNumber {
-    UncastNumber()
-        : value(std::nan(""))
-    {}
-
-    UncastNumber(double value)
+class UncastNumber {
+public:
+    UncastNumber(double value = NAN)
         : value(value)
     {}
 
@@ -39,6 +38,7 @@ typedef std::variant<
     UncastNumber,
     float,
     double,
+    std::int64_t,
     series::DataSeries<float> *,
     series::DataSeries<double> *,
     series::FiniteCompSeries<float> *,
@@ -73,15 +73,22 @@ static std::string progObjTypeNames[] = {
     "null",
     "string",
     "bool",
-    "uncast_number",
+    "UncastNumber",
     "float",
     "double",
+    "int64",
     "TS<float>",
     "TS<double>",
     "FS<float>",
     "FS<double>",
+    "Array<float>",
+    "Array<double>",
+    "Array<TS<float>>",
+    "Array<TS<double>>",
     "TS_renderer"
 };
+
+static_assert(std::variant_size<ProgObj>::value == sizeof(progObjTypeNames) / sizeof(std::string), "ProgObj size doesn't match progObjTypeNames size");
 
 }
 

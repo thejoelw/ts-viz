@@ -37,7 +37,7 @@ bool testConv(app::AppContext &context, const std::vector<ElementType> kernel, c
         std::copy(ts.data() + begin, ts.data() + end, dst);
     };
     series::InfCompSeries<ElementType, decltype(op)> inf(context, op);
-    series::ConvSeries<ElementType> conv(context, fin, inf, 0.0);
+    series::ConvSeries<ElementType> conv(context, fin, inf, 0.0, false);
 
     std::size_t checkChunks = ts.size() / CHUNK_SIZE + 2;
 

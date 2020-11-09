@@ -75,7 +75,7 @@ private:
     typedef fftwx_impl<ElementType> fftwx;
 
 public:
-    ConvSeries(app::AppContext &context, FiniteCompSeries<ElementType> &kernel, DataSeries<ElementType> &ts, ElementType derivativeOrder)
+    ConvSeries(app::AppContext &context, FiniteCompSeries<ElementType> &kernel, DataSeries<ElementType> &ts, ElementType derivativeOrder, bool backfillZeros)
         : DataSeries<ElementType>(context)
         , kernel(kernel)
         , ts(ts)
@@ -83,6 +83,7 @@ public:
         , sourceSize(kernelBack + CHUNK_SIZE)
         , planSize(nextPow2(sourceSize))
         , derivativeOrder(derivativeOrder)
+        , backfillZeros(backfillZeros)
     {
         assert(kernel.getSize() > 0);
     }
@@ -105,7 +106,7 @@ public:
     std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
         std::size_t begin = chunkIndex * CHUNK_SIZE;
         std::size_t end = (chunkIndex + 1) * CHUNK_SIZE;
-        if (end <= kernelBack) {
+        if (!backfillZeros && end <= kernelBack) {
             return [](ElementType *dst) {
                 std::fill_n(dst, CHUNK_SIZE, NAN);
             };
@@ -164,9 +165,8 @@ public:
 
             delete[] tsChunks;
 
-            assert(kernelBack < end);
-            if (begin < kernelBack) {
-                std::fill_n(dst, kernelBack - begin, NAN);
+            if (!backfillZeros && begin < kernelBack) {
+                std::fill_n(dst, std::min(kernelBack, end) - begin, NAN);
             }
 
             for (std::pair<signed int, signed int> range : nans) {
@@ -189,6 +189,7 @@ private:
     std::size_t sourceSize;
     std::size_t planSize;
     ElementType derivativeOrder;
+    bool backfillZeros;
 
     bool hasPlan = false;
     typename fftwx::Plan planFwd;

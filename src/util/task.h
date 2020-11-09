@@ -17,6 +17,12 @@ class Task {
     friend class TaskScheduler;
 
 public:
+    ~Task() {
+        std::lock_guard<SpinLock> lock(dependentsMutex);
+//        assert(dependents.empty());
+        assert(isDone());
+    }
+
     void addSimilarTask(Task &similar);
     void setFunction(const std::function<void(TaskScheduler &)> &newFunc);
     void addDependency(Task &dep);

@@ -4,11 +4,17 @@
 template <typename RealType>
 void declConv(app::AppContext &context, program::Resolver &resolver) {
     resolver.decl("conv", [&context](series::FiniteCompSeries<RealType> *kernel, series::DataSeries<RealType> *ts){
-        return new series::ConvSeries<RealType>(context, *kernel, *ts, 0.0);
+        return new series::ConvSeries<RealType>(context, *kernel, *ts, 0.0, false);
+    });
+    resolver.decl("conv", [&context](series::FiniteCompSeries<RealType> *kernel, series::DataSeries<RealType> *ts, RealType derivativeOrder){
+        return new series::ConvSeries<RealType>(context, *kernel, *ts, derivativeOrder, false);
     });
 
-    resolver.decl("conv", [&context](series::FiniteCompSeries<RealType> *kernel, series::DataSeries<RealType> *ts, RealType derivativeOrder){
-        return new series::ConvSeries<RealType>(context, *kernel, *ts, derivativeOrder);
+    resolver.decl("conv", [&context](series::FiniteCompSeries<RealType> *kernel, series::DataSeries<RealType> *ts, bool backfillZeros){
+        return new series::ConvSeries<RealType>(context, *kernel, *ts, 0.0, backfillZeros);
+    });
+    resolver.decl("conv", [&context](series::FiniteCompSeries<RealType> *kernel, series::DataSeries<RealType> *ts, RealType derivativeOrder, bool backfillZeros){
+        return new series::ConvSeries<RealType>(context, *kernel, *ts, derivativeOrder, backfillZeros);
     });
 }
 

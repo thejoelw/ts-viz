@@ -1,5 +1,9 @@
 #include "resolver.h"
 
+#include "spdlog/logger.h"
+
+#include "app/appcontext.h"
+
 namespace program {
 
 Resolver::Resolver(app::AppContext &context)
@@ -8,6 +12,8 @@ Resolver::Resolver(app::AppContext &context)
     for (std::function<void (app::AppContext &, Resolver &)> &func : builders) {
         func(context, *this);
     }
+
+    context.get<spdlog::logger>().info("Registered {} declarations", declarations.size());
 }
 
 ProgObj Resolver::call(const std::string &name, const std::vector<ProgObj> &args) {
