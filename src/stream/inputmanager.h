@@ -15,6 +15,7 @@ public:
     InputManager(app::AppContext &context);
 
     void recvRecord(const rapidjson::Document &row);
+    void end();
 
 private:
     app::AppContext &context;

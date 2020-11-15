@@ -19,6 +19,7 @@ src/builder/check.cpp
 src/builder/conv.cpp
 src/builder/delay.cpp
 src/builder/delta.cpp
+src/builder/emit.cpp
 src/builder/inf.cpp
 src/builder/input.cpp
 src/builder/plot.cpp
@@ -120,11 +121,16 @@ src/shaders/fill.frag.glsl
 src/shaders/fill.vert.glsl
 src/shaders/main.frag.glsl
 src/shaders/main.vert.glsl
+src/stream/dataseriesemitter.cpp
+src/stream/dataseriesemitter.h
 src/stream/filepoller.cpp
 src/stream/filepoller.h
 src/stream/inputmanager.cpp
 src/stream/inputmanager.h
 src/stream/jsonunwrapper.h
+src/stream/outputmanager.cpp
+src/stream/outputmanager.h
+src/stream/seriesemitter.h
 src/util/hashforwarder.h
 src/util/pool.h
 src/util/reflist.h

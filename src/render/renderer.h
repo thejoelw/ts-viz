@@ -12,13 +12,13 @@ public:
     Renderer(app::AppContext &context);
 
     void clearSeries();
-    void addSeries(render::SeriesRenderer *renderer);
+    void addSeries(SeriesRenderer *renderer);
 
     void tickOpen(app::TickerContext &tickerContext);
     void tickClose(app::TickerContext &tickerContext);
 
 private:
-    std::vector<render::SeriesRenderer *> added;
+    std::vector<SeriesRenderer *> added;
 };
 
 }

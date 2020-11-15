@@ -20,6 +20,7 @@ public:
         File &file = files.emplace_back();
         file.path = path;
         file.lineDispatcher = &dispatchLine<ReceiverClass>;
+        file.endDispatcher = &dispatchEnd<ReceiverClass>;
         file.thread = std::thread(loop, this, std::ref(file));
     }
 
@@ -27,7 +28,15 @@ public:
 
 private:
     struct Message {
-        void (*lineDispatcher)(app::AppContext &context, const char *data, std::size_t size);
+        Message() {}
+
+        Message(void (*dispatch)(app::AppContext &context, const char *data, std::size_t size), const char *data, std::size_t size)
+            : dispatch(dispatch)
+            , data(data)
+            , size(size)
+        {}
+
+        void (*dispatch)(app::AppContext &context, const char *data, std::size_t size);
         const char *data;
         std::size_t size;
     };
@@ -35,6 +44,7 @@ private:
     struct File {
         std::string path;
         void (*lineDispatcher)(app::AppContext &context, const char *data, std::size_t size);
+        void (*endDispatcher)(app::AppContext &context, const char *data, std::size_t size);
 
         std::thread thread;
         moodycamel::ReaderWriterQueue<Message> messages;
@@ -46,6 +56,13 @@ private:
     template <typename ReceiverClass>
     static void dispatchLine(app::AppContext &context, const char *data, std::size_t size) {
         context.get<ReceiverClass>().recvLine(data, size);
+    }
+
+    template <typename ReceiverClass>
+    static void dispatchEnd(app::AppContext &context, const char *data, std::size_t size) {
+        (void) data;
+        (void) size;
+        context.get<ReceiverClass>().end();
     }
 
     static void freeer(app::AppContext &context, const char *data, std::size_t size) {

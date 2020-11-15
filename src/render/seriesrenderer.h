@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstdlib>
 #include <string>
 
 namespace app { class AppContext; }

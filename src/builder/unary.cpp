@@ -1,7 +1,13 @@
 #include "program/resolver.h"
 #include "series/parallelopseries.h"
 
-template <typename RealType> struct FuncSgn { RealType operator()(RealType a) const { return (RealType(0) < a) - (a < RealType(0)); } };
+template <typename RealType> struct FuncSgn {
+    RealType operator()(RealType a) const {
+        static_assert((static_cast<RealType>(0) < NAN) == (NAN < static_cast<RealType>(0)), "NaN behavior is unexpected");
+        return (static_cast<RealType>(0) < a) - (a < static_cast<RealType>(0));
+    }
+};
+
 template <typename RealType> struct FuncAbs { RealType operator()(RealType a) const { return std::abs(a); } };
 template <typename RealType> struct FuncSquare { RealType operator()(RealType a) const { return a * a; } };
 template <typename RealType> struct FuncSqrt { RealType operator()(RealType a) const { return std::sqrt(a); } };

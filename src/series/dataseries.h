@@ -12,6 +12,39 @@
 #include "defs/CHUNK_SIZE_LOG2.h"
 #define CHUNK_SIZE (static_cast<std::size_t>(1) << CHUNK_SIZE_LOG2)
 
+namespace {
+
+template <typename Type>
+struct ChunkAllocator {
+    typedef Type value_type;
+
+    ChunkAllocator() {}
+    template <typename Other> ChunkAllocator(const ChunkAllocator<Other> &other) {
+        (void) other;
+    };
+
+    Type *allocate(std::size_t n) {
+        return static_cast<Type *>(::operator new(n * sizeof(Type)));
+    }
+    void deallocate(Type *ptr, std::size_t n) {
+        ::operator delete(ptr);
+    }
+};
+
+template <typename T1, typename T2>
+bool operator==(const ChunkAllocator<T1> &a, const ChunkAllocator<T2> &b) {
+    (void) a;
+    (void) b;
+    return true;
+}
+
+template <typename T1, typename T2>
+bool operator!=(const ChunkAllocator<T1> &a, const ChunkAllocator<T2> &b) {
+    return !(a == b);
+}
+
+}
+
 namespace series {
 
 extern thread_local util::Task *activeTask;
@@ -34,7 +67,7 @@ public:
             assert(activeTask == &task);
             activeTask = prevActiveTask;
 
-            task.setFunction([this, func](util::TaskScheduler &){func(data);});
+            task.setFunction([this, func = std::move(func)](util::TaskScheduler &){func(data);});
         }
 
         bool isDone() const {
@@ -66,13 +99,13 @@ public:
         jw_util::Thread::set_main_thread();
     }
 
-    Chunk *getChunk(std::size_t chunkIndex) {
+    std::shared_ptr<Chunk> getChunk(std::size_t chunkIndex) {
         jw_util::Thread::assert_main_thread();
 
         if (chunks.size() <= chunkIndex) {
             chunks.resize(chunkIndex + 1, 0);
         }
-        if (chunks[chunkIndex] == 0) {
+        if (!chunks[chunkIndex]) {
             chunks[chunkIndex] = makeChunk(chunkIndex);
         }
 
@@ -89,23 +122,21 @@ protected:
     app::AppContext &context;
 
 private:
-    std::vector<Chunk *> chunks;
+    std::vector<std::shared_ptr<Chunk>> chunks;
 
-    util::Task *getNearbyTask(std::size_t index) {
-        return 0;
-
+    std::shared_ptr<Chunk> getNearbyChunk(std::size_t index) {
         for (std::size_t i = 1; i < 4; i++) {
             if (index >= i) {
-                Chunk *neighbor = chunks[index - i];
+                std::shared_ptr<Chunk> neighbor = chunks[index - i];
                 if (neighbor) {
-                    return &neighbor->task;
+                    return std::move(neighbor);
                 }
             }
 
             if (index + i < chunks.size()) {
-                Chunk *neighbor = chunks[index + i];
+                std::shared_ptr<Chunk> neighbor = chunks[index + i];
                 if (neighbor) {
-                    return &neighbor->task;
+                    return std::move(neighbor);
                 }
             }
         }
@@ -113,16 +144,17 @@ private:
         return 0;
     }
 
-    Chunk *makeChunk(std::size_t index) {
-        util::Task *nearbyTask = getNearbyTask(index);
-        Chunk *res = context.get<util::Pool<Chunk>>().alloc(this, index);
-        if (nearbyTask) {
-            res->task.addSimilarTask(*nearbyTask);
+    std::shared_ptr<Chunk> makeChunk(std::size_t index) {
+        std::shared_ptr<Chunk> res = std::make_shared<Chunk>(this, index);
+
+        std::shared_ptr<Chunk> nearbyChunk = getNearbyChunk(index);
+        if (nearbyChunk) {
+            res->task.addSimilarTask(nearbyChunk->task);
         }
 
         res->task.finishDependency(context.get<util::TaskScheduler>());
 
-        return res;
+        return std::move(res);
     }
 };
 

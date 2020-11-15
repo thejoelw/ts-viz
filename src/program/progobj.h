@@ -12,6 +12,7 @@
 namespace series { template <typename ElementType> class DataSeries; }
 namespace series { template <typename ElementType> class FiniteCompSeries; }
 namespace render { class SeriesRenderer; }
+namespace stream { class SeriesEmitter; }
 
 namespace program {
 
@@ -47,7 +48,8 @@ typedef std::variant<
     ProgObjArray<double>,
     ProgObjArray<series::DataSeries<float> *>,
     ProgObjArray<series::DataSeries<double> *>,
-    render::SeriesRenderer *
+    render::SeriesRenderer *,
+    stream::SeriesEmitter *
 > ProgObj;
 
 template <typename ItemType>
@@ -85,7 +87,8 @@ static std::string progObjTypeNames[] = {
     "Array<double>",
     "Array<TS<float>>",
     "Array<TS<double>>",
-    "TS_renderer"
+    "TS_renderer",
+    "TS_emitter"
 };
 
 static_assert(std::variant_size<ProgObj>::value == sizeof(progObjTypeNames) / sizeof(std::string), "ProgObj size doesn't match progObjTypeNames size");

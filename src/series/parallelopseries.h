@@ -15,7 +15,7 @@ public:
 
     std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
         auto chunks = std::apply([chunkIndex](auto &... x){return std::make_tuple(x.getChunk(chunkIndex)...);}, args);
-        return [this, chunks](ElementType *dst) {
+        return [this, chunks = std::move(chunks)](ElementType *dst) {
             auto sources = std::apply([](auto ... x){return std::make_tuple(x->getData()...);}, chunks);
             for (std::size_t i = 0; i < CHUNK_SIZE; i++) {
                 *dst++ = std::apply([this](auto *&... s){return op(*s++...);}, sources);

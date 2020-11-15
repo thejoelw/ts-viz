@@ -18,9 +18,7 @@ class Task {
 
 public:
     ~Task() {
-        std::lock_guard<SpinLock> lock(dependentsMutex);
-//        assert(dependents.empty());
-        assert(isDone());
+        assert(depCounter != 0);
     }
 
     void addSimilarTask(Task &similar);

@@ -28,6 +28,10 @@ public:
         }
     }
 
+    void end() {
+        context.get<ReceiverClass>().end();
+    }
+
 private:
     app::AppContext &context;
 };

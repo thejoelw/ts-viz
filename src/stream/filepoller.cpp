@@ -49,7 +49,7 @@ void FilePoller::tick(app::TickerContext &tickerContext) {
 
         Message msg;
         while (file.messages.try_dequeue(msg)) {
-            msg.lineDispatcher(context, msg.data, msg.size);
+            msg.dispatch(context, msg.data, msg.size);
 
             if (std::chrono::steady_clock::now() - start > std::chrono::milliseconds(10)) {
                 break;
@@ -88,11 +88,7 @@ void FilePoller::loop(FilePoller *filePoller, File &file) {
 
         for (std::size_t end = index + readBytes; index < end; index++) {
             if (data[index] == '\n') {
-                Message msg;
-                msg.lineDispatcher = file.lineDispatcher;
-                msg.data = data + lineStart;
-                msg.size = index - lineStart;
-                file.messages.enqueue(msg);
+                file.messages.enqueue(Message(file.lineDispatcher, data + lineStart, index - lineStart));
 
                 lineStart = index + 1;
             }
@@ -110,10 +106,7 @@ void FilePoller::loop(FilePoller *filePoller, File &file) {
             char *newData = new char[chunkSize];
             std::copy(data + lineStart, data + index, newData);
 
-            Message msg;
-            msg.lineDispatcher = &freeer;
-            msg.data = data;
-            file.messages.enqueue(msg);
+            file.messages.enqueue(Message(&freeer, data, 0));
 
             data = newData;
             index -= lineStart;
@@ -121,14 +114,13 @@ void FilePoller::loop(FilePoller *filePoller, File &file) {
         }
     }
 
-    Message msg;
-    msg.lineDispatcher = &freeer;
-    msg.data = data;
-    file.messages.enqueue(msg);
+    file.messages.enqueue(Message(&freeer, data, 0));
 
     if (file.path != "-") {
         close(fileNo);
     }
+
+    file.messages.enqueue(Message(file.endDispatcher, 0, 0));
 }
 
 }

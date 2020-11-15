@@ -5,6 +5,7 @@
 #include "rapidjson/include/rapidjson/writer.h"
 
 #include "render/renderer.h"
+#include "stream/outputmanager.h"
 #include "program/resolver.h"
 
 namespace {
@@ -25,7 +26,12 @@ ProgramManager::ProgramManager(app::AppContext &context)
 {}
 
 void ProgramManager::recvRecord(const rapidjson::Document &row) {
-    context.get<render::Renderer>().clearSeries();
+    if (context.has<render::Renderer>()) {
+        context.get<render::Renderer>().clearSeries();
+    }
+    if (context.has<stream::OutputManager>()) {
+        context.get<stream::OutputManager>().clearEmitters();
+    }
 
     if (!row.IsArray()) {
         context.get<spdlog::logger>().warn("Top-level node must be an array");
@@ -39,6 +45,8 @@ void ProgramManager::recvRecord(const rapidjson::Document &row) {
             ProgObj obj = makeProgObj("#/" + std::to_string(i), row[i], cache);
             if (std::holds_alternative<render::SeriesRenderer *>(obj)) {
                 context.get<render::Renderer>().addSeries(std::get<render::SeriesRenderer *>(obj));
+            } else if (std::holds_alternative<stream::SeriesEmitter *>(obj)) {
+                context.get<stream::OutputManager>().addEmitter(std::get<stream::SeriesEmitter *>(obj));
             } else if (std::holds_alternative<std::monostate>(obj)) {
                 // Do nothing
             } else {
@@ -48,6 +56,10 @@ void ProgramManager::recvRecord(const rapidjson::Document &row) {
             context.get<spdlog::logger>().warn("InvalidProgramException: {}", ex.what());
         }
     }
+}
+
+void ProgramManager::end() {
+
 }
 
 ProgObj ProgramManager::makeProgObj(const std::string &path, const rapidjson::Value &value, std::unordered_map<std::string, ProgObj> &cache) {

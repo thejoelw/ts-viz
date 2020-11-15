@@ -14,7 +14,7 @@ void DataSeriesRenderer<ElementType>::draw(std::size_t begin, std::size_t end, s
 
     for (std::size_t i = begin; i < end; i += stride) {
         typedef typename series::DataSeries<ElementType>::Chunk Chunk;
-        Chunk *chunk = data->getChunk(i / CHUNK_SIZE);
+        std::shared_ptr<Chunk> chunk = data->getChunk(i / CHUNK_SIZE);
         if (chunk->isDone()) {
             sample.push_back(chunk->getData()[i % CHUNK_SIZE]);
         } else {

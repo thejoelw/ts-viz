@@ -31,7 +31,7 @@ void Renderer::addSeries(SeriesRenderer *renderer) {
 }
 
 void Renderer::tickOpen(app::TickerContext &tickerContext) {
-    tickerContext.get<render::Camera::Ticker>();
+    tickerContext.get<Camera::Ticker>();
 }
 
 void Renderer::tickClose(app::TickerContext &tickerContext) {
@@ -43,7 +43,7 @@ void Renderer::tickClose(app::TickerContext &tickerContext) {
     std::size_t maxX = std::max(0.0f, std::ceilf(context.get<render::Camera>().getMax().x)) + 1;
     std::size_t stride = std::max(static_cast<std::size_t>(1), (maxX - minX) >> 12);
 
-    for (render::SeriesRenderer *renderer : added) {
+    for (SeriesRenderer *renderer : added) {
         renderer->draw(minX, maxX, stride);
     }
 }

@@ -30,12 +30,18 @@ void InputManager::recvRecord(const rapidjson::Document &row) {
         in->set(index, static_cast<INPUT_SERIES_ELEMENT_TYPE>(it->value.GetDouble()));
     }
 
-    render::Camera &cam = context.get<render::Camera>();
-    if (index <= cam.getMax().x && (index + 1) > cam.getMax().x) {
-        cam.getMax().x = index + 1;
+    if (context.has<render::Camera>()) {
+        render::Camera &cam = context.get<render::Camera>();
+        if (index <= cam.getMax().x && (index + 1) > cam.getMax().x) {
+            cam.getMax().x = index + 1;
+        }
     }
 
     index++;
+}
+
+void InputManager::end() {
+    // Not really much to do here
 }
 
 }

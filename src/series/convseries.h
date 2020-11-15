@@ -104,6 +104,8 @@ public:
     }
 
     std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
+        typedef typename DataSeries<ElementType>::Chunk Chunk;
+
         std::size_t begin = chunkIndex * CHUNK_SIZE;
         std::size_t end = (chunkIndex + 1) * CHUNK_SIZE;
         if (!backfillZeros && end <= kernelBack) {
@@ -113,7 +115,7 @@ public:
         }
 
         std::size_t numTsChunks = std::min((sourceSize - 1) / CHUNK_SIZE, chunkIndex) + 1;
-        typename DataSeries<ElementType>::Chunk **tsChunks = new typename DataSeries<ElementType>::Chunk *[numTsChunks];
+        std::shared_ptr<Chunk> *tsChunks = new std::shared_ptr<Chunk>[numTsChunks];
         for (std::size_t i = 0; i < numTsChunks; i++) {
             tsChunks[i] = ts.getChunk(chunkIndex - numTsChunks + i + 1);
         }
@@ -147,6 +149,9 @@ public:
                     dst[j] = val;
                 }
             }
+
+            delete[] tsChunks;
+
             std::fill(planIO.in, planIO.in + planSize - std::min(sourceSize, numTsChunks * CHUNK_SIZE), static_cast<ElementType>(0.0));
 
             fftwx::execute_dft_r2c(planFwd, planIO.in, planIO.fft);
@@ -163,18 +168,18 @@ public:
 
             releasePlanIO(planIO);
 
-            delete[] tsChunks;
-
             if (!backfillZeros && begin < kernelBack) {
                 std::fill_n(dst, std::min(kernelBack, end) - begin, NAN);
             }
 
-            for (std::pair<signed int, signed int> range : nans) {
-                static constexpr signed int signedChunkSize = CHUNK_SIZE;
-                range.first = std::max(0, signedChunkSize + range.first);
-                range.second = std::min(signedChunkSize, signedChunkSize + range.second);
-                if (range.first < range.second) {
-                    std::fill(dst + range.first, dst + range.second, NAN);
+            if (!backfillZeros) {
+                for (std::pair<signed int, signed int> range : nans) {
+                    static constexpr signed int signedChunkSize = CHUNK_SIZE;
+                    range.first = std::max(0, signedChunkSize + range.first);
+                    range.second = std::min(signedChunkSize, signedChunkSize + range.second);
+                    if (range.first < range.second) {
+                        std::fill(dst + range.first, dst + range.second, NAN);
+                    }
                 }
             }
         };

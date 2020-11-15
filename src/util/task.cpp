@@ -43,6 +43,7 @@ void Task::call(TaskScheduler &scheduler) {
 
     auto t1 = std::chrono::high_resolution_clock::now();
     func(scheduler);
+    func = std::function<void(TaskScheduler &)>();
     auto t2 = std::chrono::high_resolution_clock::now();
 
     double durationSeconds = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count();

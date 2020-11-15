@@ -5,6 +5,7 @@
 
 namespace {
 
+/*
 template <typename ElementType>
 class ChunkArrayIterator {
 public:
@@ -29,12 +30,10 @@ static std::vector<typename series::DataSeries<ElementType>::Chunk *> getChunk(p
     return res;
 }
 
-/*
-template <typename ElementType>
-static ElementType *getData(typename series::DataSeries<ElementType>::Chunk *chunk) {
-    return chunk->getData();
-}
-*/
+//template <typename ElementType>
+//static ElementType *getData(typename series::DataSeries<ElementType>::Chunk *chunk) {
+//    return chunk->getData();
+//}
 static float *getData(typename series::DataSeries<float>::Chunk *chunk) {
     return chunk->getData();
 }
@@ -45,6 +44,7 @@ template <typename ElementType>
 static ChunkArrayIterator<ElementType> getData(const std::vector<typename series::DataSeries<ElementType>::Chunk *> &chunkArr) {
     return ChunkArrayIterator(chunkArr);
 }
+*/
 
 }
 
@@ -66,8 +66,8 @@ public:
             this->getChunk(chunkIndex - 1);
         }
         auto chunks = std::apply([chunkIndex](auto &... x){return std::make_tuple(x.getChunk(chunkIndex)...);}, args);
-        return [this, chunks](ElementType *dst) {
-            auto sources = std::apply([](auto *... x){return std::make_tuple(x->getData()...);}, chunks);
+        return [this, chunks = std::move(chunks)](ElementType *dst) {
+            auto sources = std::apply([](auto ... x){return std::make_tuple(x->getData()...);}, chunks);
             ElementType value = prevValue;
             for (std::size_t i = 0; i < CHUNK_SIZE; i++) {
                 value = std::apply([this, value](auto *&... s){return op(value, *s++...);}, sources);

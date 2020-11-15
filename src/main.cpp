@@ -14,12 +14,16 @@
 #include "stream/inputmanager.h"
 #include "util/testrunner.h"
 
+#include "defs/CHUNK_SIZE_LOG2.h"
+
 int main(int argc, char **argv)
 {
     // Setup context
     app::AppContext context;
 
     // Add logger to context
+    spdlog::set_default_logger(nullptr);
+    spdlog::set_default_logger(spdlog::stderr_color_st(""));
     context.provideInstance(spdlog::default_logger().get());
 
     // Print some debug info
@@ -33,6 +37,8 @@ int main(int argc, char **argv)
     util::TestRunner::getInstance().run();
 
     context.get<spdlog::logger>().info("Starting...");
+
+    context.get<spdlog::logger>().debug("Chunk size log2 is: {}", CHUNK_SIZE_LOG2);
 
     // Parse command line options
     if (argc != 3) {

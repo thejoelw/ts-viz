@@ -22,18 +22,18 @@ void Axes::tickClose(app::TickerContext &tickerContext) {
     static constexpr std::uint32_t axisColor = 0x44000000;
     static constexpr std::uint32_t textColor = 0x88000000;
 
+    app::Window::Dimensions dims = context.get<app::Window>().dimensions;
+    dims.width /= 2.0;
+    dims.height /= 2.0;
+
     Camera &camera = context.get<Camera>();
 
     glm::vec2 min = camera.getMin();
     glm::vec2 max = camera.getMax();
     glm::vec2 range = max - min;
-    glm::vec2 ts(getBestTickSize(range.x / 8.0f), getBestTickSize(range.y / 8.0f));
+    glm::vec2 ts(getBestTickSize(range.x / (dims.width / 128.0f)), getBestTickSize(range.y / (dims.height / 128.0f)));
     glm::vec2 tb(std::floorf(min.x / ts.x) * ts.x, std::floorf(min.y / ts.y) * ts.y);
     glm::vec2 te(std::ceilf(max.x / ts.x) * ts.x, std::ceilf(max.y / ts.y) * ts.y);
-
-    app::Window::Dimensions dims = context.get<app::Window>().dimensions;
-    dims.width /= 2.0;
-    dims.height /= 2.0;
 
     for (float x = tb.x; x < te.x; x += ts.x) {
         std::stringstream stream;
