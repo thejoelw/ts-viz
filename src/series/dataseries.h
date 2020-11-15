@@ -92,6 +92,18 @@ public:
         util::Task task;
     };
 
+#if 0
+    typedef std::shared_ptr<Chunk> ChunkPtr;
+    ChunkPtr constructChunk(std::size_t index) {
+        return std::make_shared<Chunk>(this, index);
+    }
+#else
+    typedef Chunk *ChunkPtr;
+    ChunkPtr constructChunk(std::size_t index) {
+        return context.get<util::Pool<Chunk>>().alloc(this, index);
+    }
+#endif
+
 
     DataSeries(app::AppContext &context)
         : context(context)
@@ -99,7 +111,7 @@ public:
         jw_util::Thread::set_main_thread();
     }
 
-    std::shared_ptr<Chunk> getChunk(std::size_t chunkIndex) {
+    ChunkPtr getChunk(std::size_t chunkIndex) {
         jw_util::Thread::assert_main_thread();
 
         if (chunks.size() <= chunkIndex) {
@@ -122,19 +134,19 @@ protected:
     app::AppContext &context;
 
 private:
-    std::vector<std::shared_ptr<Chunk>> chunks;
+    std::vector<ChunkPtr> chunks;
 
-    std::shared_ptr<Chunk> getNearbyChunk(std::size_t index) {
+    ChunkPtr getNearbyChunk(std::size_t index) {
         for (std::size_t i = 1; i < 4; i++) {
             if (index >= i) {
-                std::shared_ptr<Chunk> neighbor = chunks[index - i];
+                ChunkPtr neighbor = chunks[index - i];
                 if (neighbor) {
                     return std::move(neighbor);
                 }
             }
 
             if (index + i < chunks.size()) {
-                std::shared_ptr<Chunk> neighbor = chunks[index + i];
+                ChunkPtr neighbor = chunks[index + i];
                 if (neighbor) {
                     return std::move(neighbor);
                 }
@@ -144,10 +156,10 @@ private:
         return 0;
     }
 
-    std::shared_ptr<Chunk> makeChunk(std::size_t index) {
-        std::shared_ptr<Chunk> res = std::make_shared<Chunk>(this, index);
+    ChunkPtr makeChunk(std::size_t index) {
+        ChunkPtr res = constructChunk(index);
 
-        std::shared_ptr<Chunk> nearbyChunk = getNearbyChunk(index);
+        ChunkPtr nearbyChunk = getNearbyChunk(index);
         if (nearbyChunk) {
             res->task.addSimilarTask(nearbyChunk->task);
         }

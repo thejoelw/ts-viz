@@ -14,12 +14,12 @@ public:
     {}
 
     std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
-        typedef typename DataSeries<ElementType>::Chunk Chunk;
+        typedef typename series::DataSeries<ElementType>::ChunkPtr ChunkPtr;
 
         std::size_t d0 = (delay + CHUNK_SIZE - 1) / CHUNK_SIZE;
         std::size_t d1 = delay / CHUNK_SIZE;
-        std::shared_ptr<Chunk> c0 = d0 <= chunkIndex ? arg.getChunk(chunkIndex - d0) : std::shared_ptr<Chunk>(0);
-        std::shared_ptr<Chunk> c1 = d1 <= chunkIndex ? arg.getChunk(chunkIndex - d1) : std::shared_ptr<Chunk>(0);
+        ChunkPtr c0 = d0 <= chunkIndex ? arg.getChunk(chunkIndex - d0) : ChunkPtr(0);
+        ChunkPtr c1 = d1 <= chunkIndex ? arg.getChunk(chunkIndex - d1) : ChunkPtr(0);
 
         return [this, c0 = std::move(c0), c1 = std::move(c1)](ElementType *dst) {
             dst = c0 ? std::copy_n(c0->getData() + (CHUNK_SIZE - delay), delay, dst) : std::fill_n(dst, delay, NAN);

@@ -104,7 +104,7 @@ public:
     }
 
     std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
-        typedef typename DataSeries<ElementType>::Chunk Chunk;
+        typedef typename series::DataSeries<ElementType>::ChunkPtr ChunkPtr;
 
         std::size_t begin = chunkIndex * CHUNK_SIZE;
         std::size_t end = (chunkIndex + 1) * CHUNK_SIZE;
@@ -115,7 +115,7 @@ public:
         }
 
         std::size_t numTsChunks = std::min((sourceSize - 1) / CHUNK_SIZE, chunkIndex) + 1;
-        std::shared_ptr<Chunk> *tsChunks = new std::shared_ptr<Chunk>[numTsChunks];
+        ChunkPtr *tsChunks = new ChunkPtr[numTsChunks];
         for (std::size_t i = 0; i < numTsChunks; i++) {
             tsChunks[i] = ts.getChunk(chunkIndex - numTsChunks + i + 1);
         }

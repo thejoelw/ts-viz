@@ -38,7 +38,7 @@ int main(int argc, char **argv)
 
     context.get<spdlog::logger>().info("Starting...");
 
-    context.get<spdlog::logger>().debug("Chunk size log2 is: {}", CHUNK_SIZE_LOG2);
+    context.get<spdlog::logger>().info("Chunk size log2 is: {}", CHUNK_SIZE_LOG2);
 
     // Parse command line options
     if (argc != 3) {

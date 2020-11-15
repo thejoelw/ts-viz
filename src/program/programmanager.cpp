@@ -50,7 +50,7 @@ void ProgramManager::recvRecord(const rapidjson::Document &row) {
             } else if (std::holds_alternative<std::monostate>(obj)) {
                 // Do nothing
             } else {
-                throw InvalidProgramException("Value for top-level entry at index " + std::to_string(i) + " is a " + progObjTypeNames[obj.index()] + ", but must be a series renderer");
+                throw InvalidProgramException("Value for top-level entry at index " + std::to_string(i) + " is a " + progObjTypeNames[obj.index()] + ", but must be a series renderer or an output emitter");
             }
         } catch (const InvalidProgramException &ex) {
             context.get<spdlog::logger>().warn("InvalidProgramException: {}", ex.what());
