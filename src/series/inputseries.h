@@ -15,19 +15,24 @@ public:
         (void) name;
     }
 
-    std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
-        (void) chunkIndex;
+    std::function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
+        (void) dst;
 
-        activeTask->addDependency();
+        return [this, chunkIndex](unsigned int computedCount) {
+            (void) computedCount;
 
-        return [](ElementType *dst) {
-            (void) dst;
+            std::size_t finishedChunks = nextIndex / CHUNK_SIZE;
+            if (chunkIndex < finishedChunks) {
+                return CHUNK_SIZE;
+            } else if (chunkIndex > finishedChunks) {
+                return 0;
+            } else {
+                return nextIndex % CHUNK_SIZE;
+            }
         };
     }
 
     void set(std::size_t index, ElementType value) {
-        std::size_t prevChunk = nextIndex / CHUNK_SIZE;
-
         assert(index >= nextIndex);
         while  (nextIndex < index) {
             this->getChunk(nextIndex / CHUNK_SIZE)->getVolatileData()[nextIndex % CHUNK_SIZE] = prevValue;
@@ -37,16 +42,11 @@ public:
         prevValue = value;
         this->getChunk(nextIndex / CHUNK_SIZE)->getVolatileData()[nextIndex % CHUNK_SIZE] = value;
         nextIndex++;
-
-        while (prevChunk < nextIndex / CHUNK_SIZE) {
-            this->getChunk(prevChunk)->getTask().finishDependency(this->context.template get<util::TaskScheduler>());
-            prevChunk++;
-        }
     }
 
 private:
     ElementType prevValue = NAN;
-    std::size_t nextIndex = 0;
+    std::atomic<std::size_t> nextIndex = 0;
 };
 
 }

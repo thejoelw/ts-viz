@@ -2,6 +2,6 @@
 
 namespace series {
 
-thread_local util::Task *activeTask = 0;
+thread_local ChunkBase *activeChunk = 0;
 
 }

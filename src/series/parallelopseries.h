@@ -13,13 +13,15 @@ public:
         , args(args...)
     {}
 
-    std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
+    std::function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
         auto chunks = std::apply([chunkIndex](auto &... x){return std::make_tuple(x.getChunk(chunkIndex)...);}, args);
-        return [this, chunks = std::move(chunks)](ElementType *dst) {
-            auto sources = std::apply([](auto ... x){return std::make_tuple(x->getData()...);}, chunks);
-            for (std::size_t i = 0; i < CHUNK_SIZE; i++) {
-                *dst++ = std::apply([this](auto *&... s){return op(*s++...);}, sources);
+        return [this, dst, chunks = std::move(chunks)](unsigned int computedCount) {
+            unsigned int count = std::apply([](auto ... x){return std::min({x->getComputedCount()...});}, chunks);
+            assert(count >= computedCount);
+            for (std::size_t i = computedCount; i < count; i++) {
+                dst[i] = std::apply([this, i](auto ... s){return op(s->getElement(i)...);}, chunks);
             }
+            return count;
         };
     }
 

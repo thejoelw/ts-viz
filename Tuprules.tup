@@ -20,7 +20,7 @@ ifeq (@(BUILD_TYPE),debug)
     CFLAGS += -O0 -g -fdebug-prefix-map=`pwd`=`pwd | sed 's/\/\.tup\/.*//'`
 endif
 ifeq (@(BUILD_TYPE),release)
-    CFLAGS += -O3 -ffast-math -fno-finite-math-only -DNDEBUG
+    CFLAGS += -O3 -march=native -ffast-math -fno-finite-math-only -DNDEBUG
 endif
 
 ifeq (@(TUP_PLATFORM),macosx)

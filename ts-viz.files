@@ -137,9 +137,6 @@ src/util/reflist.h
 src/util/refset.h
 src/util/smallvectormanager.h
 src/util/spinlock.h
-src/util/task.cpp
-src/util/task.h
-src/util/taskscheduler.cpp
 src/util/taskscheduler.h
 src/util/testrunner.cpp
 src/util/testrunner.h

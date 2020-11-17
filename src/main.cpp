@@ -16,8 +16,7 @@
 
 #include "defs/CHUNK_SIZE_LOG2.h"
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     // Setup context
     app::AppContext context;
 

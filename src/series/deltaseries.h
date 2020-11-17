@@ -13,14 +13,14 @@ public:
         , args(args...)
     {}
 
-    std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
+    std::function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
         typedef typename series::DataSeries<ElementType>::ChunkPtr ChunkPtr;
 
         auto prevChunks = std::apply([chunkIndex](auto &... x){
             return std::make_tuple((chunkIndex > 0 ? x.getChunk(chunkIndex - 1) : ChunkPtr(0))...);
         }, args);
         auto curChunks = std::apply([chunkIndex](auto &... x){return std::make_tuple(x.getChunk(chunkIndex)...);}, args);
-        return [this, chunkIndex, prevChunks = std::move(prevChunks), curChunks = std::move(curChunks)](ElementType *dst) {
+        return [this, chunkIndex, dst, prevChunks = std::move(prevChunks), curChunks = std::move(curChunks)](unsigned int computedCount) {
             auto curSources = std::apply([](auto ... x){return std::make_tuple(x->getData()...);}, curChunks);
             if (chunkIndex == 0) {
                 *dst++ = NAN;
