@@ -14,11 +14,15 @@ public:
         , op(op)
     {}
 
-    std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
-        return [this, chunkIndex](ElementType *dst) {
+    std::function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
+        return [this, chunkIndex, dst](unsigned int computedCount) -> unsigned int {
+            assert(computedCount == 0);
+
             std::size_t begin = chunkIndex * CHUNK_SIZE;
             std::size_t end = (chunkIndex + 1) * CHUNK_SIZE;
             op(dst, begin, end);
+
+            return CHUNK_SIZE;
         };
     }
 

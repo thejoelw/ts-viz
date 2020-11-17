@@ -56,31 +56,41 @@ public:
     ScannedSeries(app::AppContext &context, OperatorType op, ElementType initialValue, ArgTypes &... args)
         : DataSeries<ElementType>(context)
         , op(op)
-        , prevValue(initialValue)
+        , initialValue(initialValue)
         , args(args...)
     {}
 
-    std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
-        if (chunkIndex > 0) {
-            // All we gotta do is set it as a dependency, so the prevValue will be updated.
-            this->getChunk(chunkIndex - 1);
-        }
+    std::function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
+        typedef typename series::DataSeries<ElementType>::ChunkPtr ChunkPtr;
+
+        ChunkPtr prevChunk = chunkIndex > 0 ? this->getChunk(chunkIndex - 1) : ChunkPtr(0);
         auto chunks = std::apply([chunkIndex](auto &... x){return std::make_tuple(x.getChunk(chunkIndex)...);}, args);
-        return [this, chunks = std::move(chunks)](ElementType *dst) {
-            auto sources = std::apply([](auto ... x){return std::make_tuple(x->getData()...);}, chunks);
-            ElementType value = prevValue;
-            for (std::size_t i = 0; i < CHUNK_SIZE; i++) {
-                value = std::apply([this, value](auto *&... s){return op(value, *s++...);}, sources);
-                *dst++ = value;
+        return [this, dst, prevChunk = std::move(prevChunk), chunks = std::move(chunks)](unsigned int computedCount) -> unsigned int {
+            ElementType value;
+            if (prevChunk) {
+                if (prevChunk->getComputedCount() == CHUNK_SIZE) {
+                    value = prevChunk->getElement(CHUNK_SIZE - 1);
+                } else {
+                    return 0;
+                }
+            } else {
+                value = initialValue;
             }
-            prevValue = value;
+
+            unsigned int count = std::apply([](auto ... x){return std::min({x->getComputedCount()...});}, chunks);
+            for (std::size_t i = computedCount; i < count; i++) {
+                value = std::apply([this, value, i](auto ... s){return op(value, s->getElement(i)...);}, chunks);
+                dst[i] = value;
+            }
+
+            return count;
         };
     }
 
 private:
     OperatorType op;
 
-    ElementType prevValue;
+    ElementType initialValue;
     std::tuple<ArgTypes &...> args;
 };
 

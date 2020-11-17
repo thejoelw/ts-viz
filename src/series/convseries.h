@@ -103,14 +103,18 @@ public:
         fftwx::destroy_plan(planFwd);
     }
 
-    std::function<void(ElementType *)> getChunkGenerator(std::size_t chunkIndex) override {
+    std::function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
         typedef typename series::DataSeries<ElementType>::ChunkPtr ChunkPtr;
 
         std::size_t begin = chunkIndex * CHUNK_SIZE;
         std::size_t end = (chunkIndex + 1) * CHUNK_SIZE;
         if (!backfillZeros && end <= kernelBack) {
-            return [](ElementType *dst) {
+            return [dst](unsigned int computedCount) {
+                assert(computedCount == 0);
+
                 std::fill_n(dst, CHUNK_SIZE, NAN);
+
+                return CHUNK_SIZE;
             };
         }
 
@@ -120,7 +124,15 @@ public:
             tsChunks[i] = ts.getChunk(chunkIndex - numTsChunks + i + 1);
         }
 
-        return [this, begin, end, numTsChunks, tsChunks](ElementType *dst) {
+        return [this, begin, end, dst, numTsChunks, tsChunks](unsigned int computedCount) -> unsigned int {
+            // Hack: Can only calculate if all ts chunks are done
+            assert(computedCount == 0);
+            for (std::size_t i = 0; i < numTsChunks; i++) {
+                if (tsChunks[i]->getComputedCount() != CHUNK_SIZE) {
+                    return 0;
+                }
+            }
+
             PlanIO planIO = requestPlanIO();
 
             static_assert(sizeof(signed int) * CHAR_BIT > CHUNK_SIZE_LOG2, "CHUNK_SIZE_LOG2 is too big");
@@ -131,10 +143,10 @@ public:
             assert(numTsChunks <= planSize / CHUNK_SIZE);
             assert(numTsChunks * CHUNK_SIZE <= planSize);
             for (std::size_t i = 0; i < numTsChunks; i++) {
-                ElementType *src = tsChunks[i]->getData();
+                ChunkPtr src = tsChunks[i];
                 ElementType *dst = planIO.in + planSize - (numTsChunks - i) * CHUNK_SIZE;
                 for (std::size_t j = 0; j < CHUNK_SIZE; j++) {
-                    ElementType val = src[j];
+                    ElementType val = src->getElement(j);
                     if (std::isnan(val)) {
                         val = 0.0;
 
@@ -182,8 +194,9 @@ public:
                     }
                 }
             }
-        };
 
+            return CHUNK_SIZE;
+        };
     }
 
 private:

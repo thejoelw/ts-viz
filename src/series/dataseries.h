@@ -10,7 +10,8 @@
 #include "util/pool.h"
 
 #include "defs/CHUNK_SIZE_LOG2.h"
-#define CHUNK_SIZE (static_cast<std::size_t>(1) << CHUNK_SIZE_LOG2)
+static_assert(CHUNK_SIZE_LOG2 < sizeof(unsigned int) * CHAR_BIT, "Lots of things depend on an inter-chunk index fitting into an unsigned int");
+#define CHUNK_SIZE (static_cast<unsigned int>(1) << CHUNK_SIZE_LOG2)
 
 namespace {
 
@@ -132,9 +133,11 @@ public:
             // No notifies came in while we were computing.
             // Notifies is zero. The next notify() will relaunch exec().
 
-            std::lock_guard<util::SpinLock> lock(mutex);
-            for (ChunkBase *chunk : dependents) {
-                chunk->notify();
+            if (count != prevCount) {
+                std::lock_guard<util::SpinLock> lock(mutex);
+                for (ChunkBase *chunk : dependents) {
+                    chunk->notify();
+                }
             }
         } else {
             // One or more notifies came in while we were computing.

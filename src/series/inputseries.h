@@ -18,7 +18,7 @@ public:
     std::function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
         (void) dst;
 
-        return [this, chunkIndex](unsigned int computedCount) {
+        return [this, chunkIndex](unsigned int computedCount) -> unsigned int {
             (void) computedCount;
 
             std::size_t finishedChunks = nextIndex / CHUNK_SIZE;

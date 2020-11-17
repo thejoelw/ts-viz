@@ -20,20 +20,33 @@ public:
             return std::make_tuple((chunkIndex > 0 ? x.getChunk(chunkIndex - 1) : ChunkPtr(0))...);
         }, args);
         auto curChunks = std::apply([chunkIndex](auto &... x){return std::make_tuple(x.getChunk(chunkIndex)...);}, args);
-        return [this, chunkIndex, dst, prevChunks = std::move(prevChunks), curChunks = std::move(curChunks)](unsigned int computedCount) {
-            auto curSources = std::apply([](auto ... x){return std::make_tuple(x->getData()...);}, curChunks);
-            if (chunkIndex == 0) {
-                *dst++ = NAN;
-            } else {
-                auto prevSources = std::apply([](auto ... x){return std::make_tuple(x->getData() + (CHUNK_SIZE - 1)...);}, prevChunks);
-                *dst++ = std::apply([this](auto *... s){return op(*s...);}, std::tuple_cat(curSources, prevSources));
+        return [this, chunkIndex, dst, prevChunks = std::move(prevChunks), curChunks = std::move(curChunks)](unsigned int computedCount) -> unsigned int {
+            unsigned int count = std::apply([](auto ... x){return std::min({x->getComputedCount()...});}, curChunks);
+
+            if (count > 0) {
+                if (computedCount == 0) {
+                    if (chunkIndex == 0) {
+                        dst[0] = NAN;
+                    } else {
+                        bool allPrevComplete = std::apply([](auto ... x) {return (... && (x->getComputedCount() == CHUNK_SIZE));}, prevChunks);
+                        if (allPrevComplete) {
+                            auto curSources = std::apply([](auto ... x){return std::make_tuple(x->getElement(0)...);}, curChunks);
+                            auto prevSources = std::apply([](auto ... x){return std::make_tuple(x->getElement(CHUNK_SIZE - 1)...);}, prevChunks);
+                            dst[0] = std::apply([this](auto ... s){return op(s...);}, std::tuple_cat(curSources, prevSources));
+                        } else {
+                            return 0;
+                        }
+                    }
+                    computedCount++;
+                }
+
+                for (std::size_t i = computedCount; i < count; i++) {
+                    dst[i] = std::apply([this, i](auto ... x){
+                        return op(x->getElement(i)..., x->getElement(i - 1)...);
+                    }, curChunks);
+                }
             }
-            for (std::size_t i = 1; i < CHUNK_SIZE; i++) {
-                *dst++ = std::apply([this](auto *&... s){
-                    std::make_tuple(s++...);
-                    return op(*s..., *(s - 1)...);
-                }, curSources);
-            }
+            return count;
         };
     }
 

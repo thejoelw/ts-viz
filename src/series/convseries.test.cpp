@@ -55,7 +55,7 @@ bool testConv(app::AppContext &context, const std::vector<ElementType> kernel, c
     while (true) {
         bool done = true;
         for (std::size_t i = 0; i < checkChunks; i++) {
-            done &= conv.getChunk(i)->isDone();
+            done &= conv.getChunk(i)->getComputedCount() == CHUNK_SIZE;
         }
 
         if (done) {
@@ -68,7 +68,7 @@ bool testConv(app::AppContext &context, const std::vector<ElementType> kernel, c
     static thread_local std::vector<ElementType> actual;
     actual.resize(checkChunks * CHUNK_SIZE);
     for (std::size_t i = 0; i < checkChunks; i++) {
-        std::copy_n(conv.getChunk(i)->getData(), CHUNK_SIZE, actual.data() + i * CHUNK_SIZE);
+        std::copy_n(conv.getChunk(i)->getVolatileData(), CHUNK_SIZE, actual.data() + i * CHUNK_SIZE);
     }
 
     ElementType allowedError = ts.size() * std::pow(0.04, sizeof(ElementType));
