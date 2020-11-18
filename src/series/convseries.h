@@ -103,7 +103,7 @@ public:
         fftwx::destroy_plan(planFwd);
     }
 
-    std::function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
+    fu2::unique_function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
         typedef typename series::DataSeries<ElementType>::ChunkPtr ChunkPtr;
 
         std::size_t begin = chunkIndex * CHUNK_SIZE;
@@ -119,15 +119,41 @@ public:
         }
 
         std::size_t numTsChunks = std::min((sourceSize - 1) / CHUNK_SIZE, chunkIndex) + 1;
-        ChunkPtr *tsChunks = new ChunkPtr[numTsChunks];
+        std::vector<ChunkPtr> tsChunks;
+        tsChunks.reserve(numTsChunks);
         for (std::size_t i = 0; i < numTsChunks; i++) {
-            tsChunks[i] = ts.getChunk(chunkIndex - numTsChunks + i + 1);
+            // tsChunks[i] = ts.getChunk(chunkIndex - numTsChunks + i + 1);
+            tsChunks.emplace_back(ts.getChunk(chunkIndex - i));
         }
 
-        return [this, begin, end, dst, numTsChunks, tsChunks](unsigned int computedCount) -> unsigned int {
+        return [this, begin, end, dst, tsChunks = std::move(tsChunks)](unsigned int computedCount) -> unsigned int {
+            for (std::size_t i = 1; i < tsChunks.size(); i++) {
+                if (tsChunks[i]->getComputedCount() != CHUNK_SIZE) {
+                    return 0;
+                }
+            }
+
+            unsigned int count = tsChunks[0]->getComputedCount();
+            if (count == computedCount) {
+                return count;
+            }
+
+            // Pretty sure that larger FFT sizes only help if we're using them to generate larger blocks.
+            // However, with a block size fixed at N, a 2N sized FFT is plenty big.
+            // Still have to consider smaller windows, with which a smaller FFT could be beneficial.
+
+            assert(false);
+
+            if (computedCount == 0) {
+                // Multiply ffts
+
+            }
+
+
+
             // Hack: Can only calculate if all ts chunks are done
             assert(computedCount == 0);
-            for (std::size_t i = 0; i < numTsChunks; i++) {
+            for (std::size_t i = 0; i < tsChunks.size(); i++) {
                 if (tsChunks[i]->getComputedCount() != CHUNK_SIZE) {
                     return 0;
                 }
@@ -140,17 +166,17 @@ public:
             nans.clear();
             nans.push_back(std::pair<signed int, signed int>(INT_MIN, INT_MIN));
 
-            assert(numTsChunks <= planSize / CHUNK_SIZE);
-            assert(numTsChunks * CHUNK_SIZE <= planSize);
-            for (std::size_t i = 0; i < numTsChunks; i++) {
-                ChunkPtr src = tsChunks[i];
-                ElementType *dst = planIO.in + planSize - (numTsChunks - i) * CHUNK_SIZE;
+            assert(tsChunks.size() <= planSize / CHUNK_SIZE);
+            assert(tsChunks.size() * CHUNK_SIZE <= planSize);
+            for (std::size_t i = 0; i < tsChunks.size(); i++) {
+                const ChunkPtr &src = tsChunks[i];
+                ElementType *dst = planIO.in + planSize - (tsChunks.size() - i) * CHUNK_SIZE;
                 for (std::size_t j = 0; j < CHUNK_SIZE; j++) {
                     ElementType val = src->getElement(j);
                     if (std::isnan(val)) {
                         val = 0.0;
 
-                        signed int rangeBegin = j - (numTsChunks - i) * CHUNK_SIZE;
+                        signed int rangeBegin = j - (tsChunks.size() - i) * CHUNK_SIZE;
                         signed int rangeEnd = rangeBegin + (kernelBack + 1);
                         if (rangeBegin <= nans.back().second) {
                             nans.back().second = rangeEnd;
@@ -162,9 +188,7 @@ public:
                 }
             }
 
-            delete[] tsChunks;
-
-            std::fill(planIO.in, planIO.in + planSize - std::min(sourceSize, numTsChunks * CHUNK_SIZE), static_cast<ElementType>(0.0));
+            std::fill(planIO.in, planIO.in + planSize - std::min(sourceSize, tsChunks.size() * CHUNK_SIZE), static_cast<ElementType>(0.0));
 
             fftwx::execute_dft_r2c(planFwd, planIO.in, planIO.fft);
 

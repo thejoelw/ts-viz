@@ -15,7 +15,7 @@ public:
         (void) name;
     }
 
-    std::function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
+    fu2::unique_function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
         (void) dst;
 
         return [this, chunkIndex](unsigned int computedCount) -> unsigned int {
@@ -33,6 +33,8 @@ public:
     }
 
     void set(std::size_t index, ElementType value) {
+        std::size_t prevChunk = nextIndex / CHUNK_SIZE;
+
         assert(index >= nextIndex);
         while  (nextIndex < index) {
             this->getChunk(nextIndex / CHUNK_SIZE)->getVolatileData()[nextIndex % CHUNK_SIZE] = prevValue;
@@ -41,6 +43,12 @@ public:
 
         prevValue = value;
         this->getChunk(nextIndex / CHUNK_SIZE)->getVolatileData()[nextIndex % CHUNK_SIZE] = value;
+
+        while (prevChunk <= nextIndex / CHUNK_SIZE) {
+            this->getChunk(prevChunk)->notify();
+            prevChunk++;
+        }
+
         nextIndex++;
     }
 

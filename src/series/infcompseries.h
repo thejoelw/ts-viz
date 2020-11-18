@@ -14,7 +14,7 @@ public:
         , op(op)
     {}
 
-    std::function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
+    fu2::unique_function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
         return [this, chunkIndex, dst](unsigned int computedCount) -> unsigned int {
             assert(computedCount == 0);
 

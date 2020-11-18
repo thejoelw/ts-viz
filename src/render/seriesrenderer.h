@@ -8,10 +8,7 @@ namespace render {
 
 class SeriesRenderer {
 public:
-    SeriesRenderer(app::AppContext &context, const std::string &name)
-        : context(context)
-        , name(name)
-    {}
+    SeriesRenderer(app::AppContext &context, const std::string &name);
 
     virtual void draw(std::size_t begin, std::size_t end, std::size_t stride) = 0;
 

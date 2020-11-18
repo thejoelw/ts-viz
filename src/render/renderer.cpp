@@ -2,6 +2,7 @@
 
 #include "render/program/linestripprogram.h"
 #include "render/camera.h"
+#include "render/axes.h"
 
 namespace render {
 
@@ -20,6 +21,8 @@ Renderer::Renderer(app::AppContext &context)
     glPointSize(2.0f);
 
     graphics::GL::catchErrors();
+
+    context.get<Axes>();
 }
 
 void Renderer::clearSeries() {

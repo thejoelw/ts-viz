@@ -2,6 +2,8 @@
 
 #include <vector>
 
+#include "function2/include/function2/function2.hpp"
+
 #include "jw_util/thread.h"
 
 #include "app/appcontext.h"
@@ -28,6 +30,8 @@ struct ChunkAllocator {
         return static_cast<Type *>(::operator new(n * sizeof(Type)));
     }
     void deallocate(Type *ptr, std::size_t n) {
+        (void) n;
+
         ::operator delete(ptr);
     }
 };
@@ -55,6 +59,8 @@ ValueType atomicApply(std::atomic<ValueType> &atom, OpType op) {
 
 namespace series {
 
+class ChunkBase;
+
 class DataSeriesBase {
     friend class ChunkBase;
 
@@ -76,8 +82,59 @@ protected:
         });
     }
 
+    virtual void destroyChunk(ChunkBase *chunk) = 0;
+
 private:
     std::atomic<std::chrono::duration<float>> avgRunDuration;
+};
+
+class ChunkBase;
+
+class ChunkPtrBase {
+public:
+    ~ChunkPtrBase();
+
+    ChunkPtrBase(const ChunkPtrBase &) = delete;
+    ChunkPtrBase &operator=(const ChunkPtrBase &) = delete;
+
+    ChunkPtrBase(ChunkPtrBase &&other)
+        : target(std::move(other.target))
+    {
+        other.target = 0;
+    }
+
+    ChunkPtrBase &operator=(ChunkPtrBase &&other) {
+        target = std::move(other.target);
+        other.target = 0;
+        return *this;
+    }
+
+    ChunkBase *operator->() const {
+        assert(has());
+        return target;
+    }
+
+    bool has() const {
+        return target;
+    }
+
+    ChunkPtrBase clone() const {
+        return ChunkPtrBase(operator->());
+    }
+
+    static ChunkPtrBase null() {
+        return ChunkPtrBase(nullptr);
+    }
+
+protected:
+    ChunkPtrBase(ChunkBase *ptr);
+
+    ChunkPtrBase(std::nullptr_t)
+        : target(0)
+    {}
+
+private:
+    ChunkBase *target;
 };
 
 class ChunkBase {
@@ -89,9 +146,13 @@ public:
         jw_util::Thread::assert_main_thread();
     }
 
-    void addDependency(ChunkBase *dependency) {
-        std::lock_guard<util::SpinLock> lock(dependency->mutex);
-        dependency->dependents.push_back(this);
+    ~ChunkBase() {
+        assert(notifies == 0);
+    }
+
+    void addDependent(ChunkPtrBase dep) {
+        std::lock_guard<util::SpinLock> lock(mutex);
+        dependents.push_back(std::move(dep));
     }
 
     unsigned int getComputedCount() const {
@@ -105,7 +166,7 @@ public:
     std::chrono::duration<float> getCriticalPathDuration() const {
         if (std::isnan(followingDuration.count())) {
             followingDuration = std::chrono::duration<float>::zero();
-            for (ChunkBase *dep : dependents) {
+            for (const ChunkPtrBase &dep : dependents) {
                 std::chrono::duration<float> depDur = dep->getCriticalPathDuration();
                 if (depDur > followingDuration) {
                     followingDuration = depDur;
@@ -129,14 +190,20 @@ public:
         assert(count >= prevCount);
         computedCount = count;
 
-        if (notifies.exchange(0) == prevNotifies) {
+        if (notifies.exchange(0) == prevNotifies || count == CHUNK_SIZE) {
+            if (count == CHUNK_SIZE) {
+                // Destroy any smart_ptrs that the lambda had captured.
+                // This allows dependency chunks to be destroyed.
+                computer = fu2::unique_function<unsigned int (unsigned int)>();
+            }
+
             // No notifies came in while we were computing.
             // Notifies is zero. The next notify() will relaunch exec().
 
             if (count != prevCount) {
                 std::lock_guard<util::SpinLock> lock(mutex);
-                for (ChunkBase *chunk : dependents) {
-                    chunk->notify();
+                for (const ChunkPtrBase &dep : dependents) {
+                    dep->notify();
                 }
             }
         } else {
@@ -150,35 +217,50 @@ public:
         }
     }
 
-protected:
-    void setComputer(std::function<unsigned int (unsigned int computedCount)> &&func) {
-        computer = std::move(func);
-    }
-
     void notify() {
         if (notifies++ == 0) {
-            static constexpr std::chrono::duration<float> taskLengthThreshold = std::chrono::microseconds(20);
-            if (ds->avgRunDuration.load() > taskLengthThreshold) {
-                ds->context.get<util::TaskScheduler<ChunkBase>>().addTask(this);
+            if (computedCount == CHUNK_SIZE) {
+                notifies--;
             } else {
-                exec();
+                static constexpr std::chrono::duration<float> taskLengthThreshold = std::chrono::microseconds(20);
+                if (ds->avgRunDuration.load() > taskLengthThreshold) {
+                    ds->context.get<util::TaskScheduler<ChunkBase>>().addTask(this);
+                } else {
+                    exec();
+                }
             }
         }
     }
 
+    void incRefs() {
+        refs++;
+    }
+    void decRefs() {
+        if (--refs == 0) {
+            ds->destroyChunk(this);
+        }
+    }
+
+protected:
+    void setComputer(fu2::unique_function<unsigned int (unsigned int)> &&func) {
+        computer = std::move(func);
+    }
+
     DataSeriesBase *ds;
+
+    std::atomic<unsigned int> refs = 0;
 
     std::atomic<unsigned int> computedCount = 0;
     std::atomic<unsigned int> notifies = 0;
     util::SpinLock mutex;
-    std::vector<ChunkBase *> dependents;
+    std::vector<ChunkPtrBase> dependents;
 
     mutable std::chrono::duration<float> followingDuration;
 
-    std::function<unsigned int (unsigned int)> computer;
+    fu2::unique_function<unsigned int (unsigned int)> computer;
 };
 
-extern thread_local ChunkBase *activeChunk;
+extern thread_local ChunkPtrBase activeChunk;
 
 template <typename ElementType>
 class DataSeries : private DataSeriesBase {
@@ -190,13 +272,13 @@ public:
         Chunk(DataSeries<ElementType> *ds, std::size_t chunkIndex)
             : ChunkBase(ds)
         {
-            ChunkBase *prevActiveChunk = activeChunk;
-            activeChunk = this;
+            ChunkPtrBase prevActiveChunk = std::move(activeChunk);
+            activeChunk = ChunkPtr::construct(this);
 
             setComputer(ds->getChunkGenerator(chunkIndex, data));
 
-            assert(activeChunk == this);
-            activeChunk = prevActiveChunk;
+            assert(activeChunk.operator->() == this);
+            activeChunk = std::move(prevActiveChunk);
 
             notify();
         }
@@ -219,10 +301,48 @@ public:
     ChunkPtr constructChunk(std::size_t index) {
         return std::make_shared<Chunk>(this, index);
     }
-#else
+#elif 0
     typedef Chunk *ChunkPtr;
     ChunkPtr constructChunk(std::size_t index) {
         return context.get<util::Pool<Chunk>>().alloc(this, index);
+    }
+#elif 1
+    class ChunkPtr : public ChunkPtrBase {
+    public:
+        Chunk *operator->() const {
+            assert(has());
+            return static_cast<Chunk *>(ChunkPtrBase::operator->());
+        }
+
+        static ChunkPtr construct(Chunk *ptr) {
+            return ChunkPtr(ptr);
+        }
+
+        ChunkPtr clone() const {
+            return ChunkPtr(operator->());
+        }
+
+        static ChunkPtr null() {
+            return ChunkPtr(nullptr);
+        }
+
+    protected:
+        ChunkPtr(Chunk *ptr)
+            : ChunkPtrBase(ptr)
+        {
+            assert(ptr);
+        }
+
+        ChunkPtr(std::nullptr_t)
+            : ChunkPtrBase(nullptr)
+        {}
+    };
+
+    ChunkPtr createChunk(std::size_t index) {
+        return ChunkPtr::construct(context.get<util::Pool<Chunk>>().alloc(this, index));
+    }
+    void destroyChunk(ChunkBase *chunk) override {
+        context.get<util::Pool<Chunk>>().free(static_cast<Chunk *>(chunk));
     }
 #endif
 
@@ -236,21 +356,21 @@ public:
     ChunkPtr getChunk(std::size_t chunkIndex) {
         jw_util::Thread::assert_main_thread();
 
-        if (chunks.size() <= chunkIndex) {
-            chunks.resize(chunkIndex + 1, 0);
+        while (chunks.size() <= chunkIndex) {
+            chunks.emplace_back(ChunkPtr::null());
         }
-        if (!chunks[chunkIndex]) {
-            chunks[chunkIndex] = constructChunk(chunkIndex);
-        }
-
-        if (activeChunk != 0) {
-            activeChunk->addDependency(chunks[chunkIndex]);
+        if (!chunks[chunkIndex].has()) {
+            chunks[chunkIndex] = createChunk(chunkIndex);
         }
 
-        return chunks[chunkIndex];
+        if (activeChunk.has()) {
+            chunks[chunkIndex]->addDependent(activeChunk.clone());
+        }
+
+        return chunks[chunkIndex].clone();
     }
 
-    virtual std::function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) = 0;
+    virtual fu2::unique_function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) = 0;
 
 private:
     std::vector<ChunkPtr> chunks;

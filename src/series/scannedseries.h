@@ -60,14 +60,14 @@ public:
         , args(args...)
     {}
 
-    std::function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
-        typedef typename series::DataSeries<ElementType>::ChunkPtr ChunkPtr;
+    fu2::unique_function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
+        typedef typename DataSeries<ElementType>::ChunkPtr ChunkPtr;
 
-        ChunkPtr prevChunk = chunkIndex > 0 ? this->getChunk(chunkIndex - 1) : ChunkPtr(0);
+        auto prevChunk = chunkIndex > 0 ? this->getChunk(chunkIndex - 1) : ChunkPtr::null();
         auto chunks = std::apply([chunkIndex](auto &... x){return std::make_tuple(x.getChunk(chunkIndex)...);}, args);
         return [this, dst, prevChunk = std::move(prevChunk), chunks = std::move(chunks)](unsigned int computedCount) -> unsigned int {
             ElementType value;
-            if (prevChunk) {
+            if (prevChunk.has()) {
                 if (prevChunk->getComputedCount() == CHUNK_SIZE) {
                     value = prevChunk->getElement(CHUNK_SIZE - 1);
                 } else {
@@ -77,9 +77,9 @@ public:
                 value = initialValue;
             }
 
-            unsigned int count = std::apply([](auto ... x){return std::min({x->getComputedCount()...});}, chunks);
+            unsigned int count = std::apply([](auto &... x){return std::min({x->getComputedCount()...});}, chunks);
             for (std::size_t i = computedCount; i < count; i++) {
-                value = std::apply([this, value, i](auto ... s){return op(value, s->getElement(i)...);}, chunks);
+                value = std::apply([this, value, i](auto &... s){return op(value, s->getElement(i)...);}, chunks);
                 dst[i] = value;
             }
 

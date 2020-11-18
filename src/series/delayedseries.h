@@ -13,39 +13,46 @@ public:
         , delay(delay)
     {}
 
-    std::function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
-        typedef typename series::DataSeries<ElementType>::ChunkPtr ChunkPtr;
+    fu2::unique_function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
+        typedef typename DataSeries<ElementType>::ChunkPtr ChunkPtr;
 
         std::size_t d0 = (delay + CHUNK_SIZE - 1) / CHUNK_SIZE;
         std::size_t d1 = delay / CHUNK_SIZE;
-        ChunkPtr c0 = d0 <= chunkIndex ? arg.getChunk(chunkIndex - d0) : ChunkPtr(0);
-        ChunkPtr c1 = d1 <= chunkIndex ? arg.getChunk(chunkIndex - d1) : ChunkPtr(0);
+        auto c0 = d0 <= chunkIndex ? arg.getChunk(chunkIndex - d0) : ChunkPtr::null();
+        auto c1 = d1 <= chunkIndex ? arg.getChunk(chunkIndex - d1) : ChunkPtr::null();
 
-        return [this, dst, c0 = std::move(c0), c1 = std::move(c1)](unsigned int computedCount) -> unsigned int {
-            // TODO
-            /*
+        return std::move([this, dst, c0 = std::move(c0), c1 = std::move(c1)](unsigned int computedCount) -> unsigned int {
             unsigned int delayMod = delay % CHUNK_SIZE;
-            signed int index = computedCount;
 
-            signed int count = c0->getComputedCount() + delayMod - CHUNK_SIZE;
-            while (index < count) {
-                dst[index] = c0->getElement(index - delayMod);
-                index++;
+            while (computedCount < CHUNK_SIZE) {
+                if (computedCount < delayMod) {
+                    if (c0.has()) {
+                        unsigned int index = computedCount + CHUNK_SIZE - delayMod;
+                        if (index < c0->getComputedCount()) {
+                            dst[computedCount] = c0->getElement(index);
+                        } else {
+                            break;
+                        }
+                    } else {
+                        dst[computedCount] = NAN;
+                    }
+                } else {
+                    if (c1.has()) {
+                        unsigned int index = computedCount - delayMod;
+                        if (index < c1->getComputedCount()) {
+                            dst[computedCount] = c1->getElement(index);
+                        } else {
+                            break;
+                        }
+                    } else {
+                        dst[computedCount] = NAN;
+                    }
+                }
+                computedCount++;
             }
 
-
-
-            unsigned int count;
-            if (c0->getComputedCount() == CHUNK_SIZE) {
-                count = c1->getComputedCount() + delay % CHUNK_SIZE;
-            } else {
-
-            }
-            dst = c0 ? std::copy_n(c0->getVolatileData() + (CHUNK_SIZE - delay), delay, dst) : std::fill_n(dst, delay, NAN);
-            dst = c1 ? std::copy_n(c1->getVolatileData(), CHUNK_SIZE - delay, dst) : std::fill_n(dst, CHUNK_SIZE - delay, NAN);
-            */
-            return 0;
-        };
+            return computedCount;
+        });
     }
 
 private:

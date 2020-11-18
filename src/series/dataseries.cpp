@@ -2,6 +2,19 @@
 
 namespace series {
 
-thread_local ChunkBase *activeChunk = 0;
+thread_local ChunkPtrBase activeChunk = ChunkPtrBase::null();
+
+ChunkPtrBase::ChunkPtrBase(ChunkBase *ptr)
+   : target(ptr)
+{
+    assert(ptr);
+    target->incRefs();
+}
+
+ChunkPtrBase::~ChunkPtrBase() {
+   if (target) {
+       target->decRefs();
+   }
+}
 
 }
