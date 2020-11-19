@@ -6,9 +6,9 @@
 
 #include "jw_util/thread.h"
 
-#include "series/base/dataseriesbase.h"
-#include "series/base/chunkptr.h"
-#include "series/base/chunk.h"
+#include "series/dataseriesbase.h"
+#include "series/chunkptr.h"
+#include "series/chunk.h"
 
 namespace series {
 

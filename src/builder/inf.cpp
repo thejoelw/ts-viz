@@ -1,5 +1,5 @@
 #include "program/resolver.h"
-#include "series/infcompseries.h"
+#include "series/type/infcompseries.h"
 
 template <typename RealType>
 auto sequence(app::AppContext &context, RealType scale) {

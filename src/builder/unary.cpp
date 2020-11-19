@@ -1,5 +1,5 @@
 #include "program/resolver.h"
-#include "series/parallelopseries.h"
+#include "series/type/parallelopseries.h"
 
 template <typename RealType> struct FuncSgn {
     RealType operator()(RealType a) const {

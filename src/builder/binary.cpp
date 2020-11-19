@@ -1,5 +1,5 @@
 #include "program/resolver.h"
-#include "series/parallelopseries.h"
+#include "series/type/parallelopseries.h"
 
 template <typename RealType> struct FuncMod { RealType operator()(RealType a, RealType b) const { return std::fmod(a, b); } };
 template <typename RealType> struct FuncMinimum { RealType operator()(RealType a, RealType b) const { return std::min(a, b); } };

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "series/base/chunkbase.h"
-#include "series/base/chunksize.h"
-#include "series/base/chunkptr.h"
-#include "series/base/dataseriesbase.h"
+#include "series/chunkbase.h"
+#include "series/chunksize.h"
+#include "series/chunkptr.h"
+#include "series/dataseriesbase.h"
 
 namespace series {
 

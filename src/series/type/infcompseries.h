@@ -2,7 +2,7 @@
 
 #include "jw_util/hash.h"
 
-#include "series/base/dataseries.h"
+#include "series/dataseries.h"
 
 namespace series {
 

@@ -1,8 +1,8 @@
 #include "chunkbase.h"
 
 #include "app/appcontext.h"
-#include "series/base/chunksize.h"
-#include "series/base/dataseriesbase.h"
+#include "series/chunksize.h"
+#include "series/dataseriesbase.h"
 #include "util/taskscheduler.h"
 
 namespace series {

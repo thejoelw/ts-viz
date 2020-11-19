@@ -1,6 +1,6 @@
 #pragma once
 
-#include "series/base/dataseries.h"
+#include "series/dataseries.h"
 #include "program/progobj.h"
 
 namespace {

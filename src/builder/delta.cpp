@@ -1,5 +1,5 @@
 #include "program/resolver.h"
-#include "series/deltaseries.h"
+#include "series/type/deltaseries.h"
 
 template <template <typename> typename Operator>
 void declDeltaOp(app::AppContext &context, program::Resolver &resolver, const char *funcName) {

@@ -1,5 +1,5 @@
 #include "program/resolver.h"
-#include "series/convseries.h"
+#include "series/type/convseries.h"
 
 template <typename RealType>
 void declConv(app::AppContext &context, program::Resolver &resolver) {

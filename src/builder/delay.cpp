@@ -1,5 +1,5 @@
 #include "program/resolver.h"
-#include "series/delayedseries.h"
+#include "series/type/delayedseries.h"
 
 template <typename RealType>
 void declDelay(app::AppContext &context, program::Resolver &resolver) {

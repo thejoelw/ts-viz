@@ -1,5 +1,5 @@
 #include "program/resolver.h"
-#include "series/parallelopseries.h"
+#include "series/type/parallelopseries.h"
 
 static int _ = program::Resolver::registerBuilder([](app::AppContext &context, program::Resolver &resolver) {
     resolver.decl("cast_float", [](program::UncastNumber num){return static_cast<float>(num.value);});

@@ -4,8 +4,8 @@
 
 #include "spdlog/spdlog.h"
 
-#include "series/convseries.h"
-#include "series/infcompseries.h"
+#include "series/type/convseries.h"
+#include "series/type/infcompseries.h"
 
 #include "defs/TEST_KERNEL_MAX_SIZE_LOG2.h"
 #include "defs/TEST_TS_MAX_SIZE_LOG2.h"

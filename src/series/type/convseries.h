@@ -2,9 +2,9 @@
 
 #include <complex>
 
-#include "series/base/dataseries.h"
-#include "series/base/fftwx.h"
-#include "series/finitecompseries.h"
+#include "series/dataseries.h"
+#include "series/fftwx.h"
+#include "series/type/finitecompseries.h"
 
 namespace {
 

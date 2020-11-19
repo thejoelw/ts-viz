@@ -4,7 +4,7 @@
 
 #include "rapidjson/include/rapidjson/document.h"
 
-#include "series/inputseries.h"
+#include "series/type/inputseries.h"
 
 #include "defs/INPUT_SERIES_ELEMENT_TYPE.h"
 

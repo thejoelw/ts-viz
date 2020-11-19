@@ -1,6 +1,6 @@
 #include "chunkptrbase.h"
 
-#include "series/base/chunkbase.h"
+#include "series/chunkbase.h"
 
 namespace series {
 

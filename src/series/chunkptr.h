@@ -1,6 +1,6 @@
 #pragma once
 
-#include "series/base/chunkptrbase.h"
+#include "series/chunkptrbase.h"
 
 namespace series { template <typename ElementType> class Chunk; }
 

@@ -1,5 +1,5 @@
 #include "program/resolver.h"
-#include "series/scannedseries.h"
+#include "series/type/scannedseries.h"
 
 template <typename RealType> struct DecayingPlus {
     DecayingPlus(RealType decayRate)

@@ -1,5 +1,5 @@
 #include "program/resolver.h"
-#include "series/finitecompseries.h"
+#include "series/type/finitecompseries.h"
 
 template <typename RealType>
 auto windowRect(app::AppContext &context, RealType width) {

@@ -8,7 +8,7 @@
 
 #include "jw_util/thread.h"
 
-#include "series/base/chunkptrbase.h"
+#include "series/chunkptrbase.h"
 #include "util/spinlock.h"
 
 namespace series { class DataSeriesBase; }
