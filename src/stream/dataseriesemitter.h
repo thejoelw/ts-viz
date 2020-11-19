@@ -1,7 +1,7 @@
 #pragma once
 
 #include "stream/seriesemitter.h"
-#include "series/dataseries.h"
+#include "series/base/dataseries.h"
 
 namespace stream {
 

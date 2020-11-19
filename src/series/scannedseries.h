@@ -1,6 +1,6 @@
 #pragma once
 
-#include "series/dataseries.h"
+#include "series/base/dataseries.h"
 #include "program/progobj.h"
 
 namespace {
@@ -61,9 +61,7 @@ public:
     {}
 
     fu2::unique_function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
-        typedef typename DataSeries<ElementType>::ChunkPtr ChunkPtr;
-
-        auto prevChunk = chunkIndex > 0 ? this->getChunk(chunkIndex - 1) : ChunkPtr::null();
+        auto prevChunk = chunkIndex > 0 ? this->getChunk(chunkIndex - 1) : ChunkPtr<ElementType>::null();
         auto chunks = std::apply([chunkIndex](auto &... x){return std::make_tuple(x.getChunk(chunkIndex)...);}, args);
         return [this, dst, prevChunk = std::move(prevChunk), chunks = std::move(chunks)](unsigned int computedCount) -> unsigned int {
             ElementType value;

@@ -1,9 +1,9 @@
 #pragma once
 
-#include <fftw3.h>
 #include <complex>
 
-#include "series/dataseries.h"
+#include "series/base/dataseries.h"
+#include "series/base/fftwx.h"
 #include "series/finitecompseries.h"
 
 namespace {
@@ -16,56 +16,15 @@ static unsigned long long nextPow2(unsigned long long x) {
     return static_cast<unsigned long long>(1) << ceilLog2;
 }
 
-template <typename ElementType>
-struct fftwx_impl;
-
-template<> struct fftwx_impl<float> {
-    typedef fftwf_plan Plan;
-    typedef fftwf_complex Complex;
-
-    static float *alloc_real(std::size_t size) { return fftwf_alloc_real(size); }
-    static Complex *alloc_complex(std::size_t size) { return fftwf_alloc_complex(size); }
-    static void free(void *ptr) { return fftwf_free(ptr); }
-
-    static Plan plan_dft_r2c_1d(std::size_t size, float *in, Complex *out, unsigned flags) { return fftwf_plan_dft_r2c_1d(size, in, out, flags); }
-    static Plan plan_dft_c2r_1d(std::size_t size, Complex *in, float *out, unsigned flags) { return fftwf_plan_dft_c2r_1d(size, in, out, flags); }
-
-    static void execute(Plan plan) { fftwf_execute(plan); }
-    static void execute_dft_r2c(Plan plan, float *in, Complex *out) { fftwf_execute_dft_r2c(plan, in, out); }
-    static void execute_dft_c2r(Plan plan, Complex *in, float *out) { fftwf_execute_dft_c2r(plan, in, out); }
-
-    static void destroy_plan(Plan plan) { fftwf_destroy_plan(plan); }
-
-    static std::complex<float> getComplex(Complex src) { return std::complex<float>(src[0], src[1]); }
-    static void setComplex(Complex dst, std::complex<float> src) { dst[0] = src.real(); dst[1] = src.imag(); }
-};
-
-template<> struct fftwx_impl<double> {
-    typedef fftw_plan Plan;
-    typedef fftw_complex Complex;
-
-    static double *alloc_real(std::size_t size) { return fftw_alloc_real(size); }
-    static Complex *alloc_complex(std::size_t size) { return fftw_alloc_complex(size); }
-    static void free(void *ptr) { return fftw_free(ptr); }
-
-    static Plan plan_dft_r2c_1d(std::size_t size, double *in, Complex *out, unsigned flags) { return fftw_plan_dft_r2c_1d(size, in, out, flags); }
-    static Plan plan_dft_c2r_1d(std::size_t size, Complex *in, double *out, unsigned flags) { return fftw_plan_dft_c2r_1d(size, in, out, flags); }
-
-    static void execute(Plan plan) { fftw_execute(plan); }
-    static void execute_dft_r2c(Plan plan, double *in, Complex *out) { fftw_execute_dft_r2c(plan, in, out); }
-    static void execute_dft_c2r(Plan plan, Complex *in, double *out) { fftw_execute_dft_c2r(plan, in, out); }
-
-    static void destroy_plan(Plan plan) { fftw_destroy_plan(plan); }
-
-    static std::complex<double> getComplex(Complex src) { return std::complex<double>(src[0], src[1]); }
-    static void setComplex(Complex dst, std::complex<double> src) { dst[0] = src.real(); dst[1] = src.imag(); }
-};
-
 }
 
 namespace series {
 
 extern std::mutex fftwMutex;
+
+// Two types of FFT decompositions:
+//   1. Persistent - stored in a time series dependency, and always calculated (whether or not it's needed). Only ever calculated once.
+//   2. Transient - calculated when needed, and thrown away.
 
 template <typename ElementType>
 class ConvSeries : public DataSeries<ElementType> {
@@ -104,8 +63,6 @@ public:
     }
 
     fu2::unique_function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
-        typedef typename series::DataSeries<ElementType>::ChunkPtr ChunkPtr;
-
         std::size_t begin = chunkIndex * CHUNK_SIZE;
         std::size_t end = (chunkIndex + 1) * CHUNK_SIZE;
         if (!backfillZeros && end <= kernelBack) {
@@ -119,7 +76,7 @@ public:
         }
 
         std::size_t numTsChunks = std::min((sourceSize - 1) / CHUNK_SIZE, chunkIndex) + 1;
-        std::vector<ChunkPtr> tsChunks;
+        std::vector<ChunkPtr<ElementType>> tsChunks;
         tsChunks.reserve(numTsChunks);
         for (std::size_t i = 0; i < numTsChunks; i++) {
             // tsChunks[i] = ts.getChunk(chunkIndex - numTsChunks + i + 1);
@@ -169,7 +126,7 @@ public:
             assert(tsChunks.size() <= planSize / CHUNK_SIZE);
             assert(tsChunks.size() * CHUNK_SIZE <= planSize);
             for (std::size_t i = 0; i < tsChunks.size(); i++) {
-                const ChunkPtr &src = tsChunks[i];
+                const ChunkPtr<ElementType> &src = tsChunks[i];
                 ElementType *dst = planIO.in + planSize - (tsChunks.size() - i) * CHUNK_SIZE;
                 for (std::size_t j = 0; j < CHUNK_SIZE; j++) {
                     ElementType val = src->getElement(j);

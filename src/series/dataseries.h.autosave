@@ -9,44 +9,12 @@
 #include "app/appcontext.h"
 #include "util/taskscheduler.h"
 #include "util/spinlock.h"
-#include "util/pool.h"
 
 #include "defs/CHUNK_SIZE_LOG2.h"
 static_assert(CHUNK_SIZE_LOG2 < sizeof(unsigned int) * CHAR_BIT, "Lots of things depend on an inter-chunk index fitting into an unsigned int");
 #define CHUNK_SIZE (static_cast<unsigned int>(1) << CHUNK_SIZE_LOG2)
 
 namespace {
-
-template <typename Type>
-struct ChunkAllocator {
-    typedef Type value_type;
-
-    ChunkAllocator() {}
-    template <typename Other> ChunkAllocator(const ChunkAllocator<Other> &other) {
-        (void) other;
-    };
-
-    Type *allocate(std::size_t n) {
-        return static_cast<Type *>(::operator new(n * sizeof(Type)));
-    }
-    void deallocate(Type *ptr, std::size_t n) {
-        (void) n;
-
-        ::operator delete(ptr);
-    }
-};
-
-template <typename T1, typename T2>
-bool operator==(const ChunkAllocator<T1> &a, const ChunkAllocator<T2> &b) {
-    (void) a;
-    (void) b;
-    return true;
-}
-
-template <typename T1, typename T2>
-bool operator!=(const ChunkAllocator<T1> &a, const ChunkAllocator<T2> &b) {
-    return !(a == b);
-}
 
 template <typename ValueType, typename OpType>
 ValueType atomicApply(std::atomic<ValueType> &atom, OpType op) {
@@ -139,6 +107,9 @@ private:
 
 class ChunkBase {
 public:
+    typedef std::chrono::time_point<std::chrono::steady_clock, std::chrono::duration<float>> AccessInstant;
+    static_assert(sizeof(AccessInstant) == 4, "Unexpected sizeof(AccessInstant), expecting 4!");
+
     ChunkBase(DataSeriesBase *ds)
         : ds(ds)
         , followingDuration(NAN)
@@ -176,6 +147,21 @@ public:
         return ds->avgRunDuration.load() + followingDuration;
     }
 
+    void notify() {
+        if (notifies++ == 0) {
+            if (computedCount == CHUNK_SIZE) {
+                notifies--;
+            } else {
+                static constexpr std::chrono::duration<float> taskLengthThreshold = std::chrono::microseconds(20);
+                if (ds->avgRunDuration.load() > taskLengthThreshold) {
+                    ds->context.get<util::TaskScheduler<ChunkBase>>().addTask(this);
+                } else {
+                    exec();
+                }
+            }
+        }
+    }
+
     void exec() {
         assert(computedCount < CHUNK_SIZE);
 
@@ -201,10 +187,29 @@ public:
             // Notifies is zero. The next notify() will relaunch exec().
 
             if (count != prevCount) {
-                std::lock_guard<util::SpinLock> lock(mutex);
-                for (const ChunkPtrBase &dep : dependents) {
+                static thread_local std::vector<ChunkPtrBase> processingDeps;
+                std::size_t prevSize = processingDeps.size();
+
+                {
+                    std::lock_guard<util::SpinLock> lock(mutex);
+                    processingDeps.reserve(dependents.size());
+                    for (ChunkPtrBase &dep : dependents) {
+                        processingDeps.emplace_back(std::move(dep));
+                    }
+                }
+
+                for (const ChunkPtrBase &dep : processingDeps) {
                     dep->notify();
                 }
+
+                {
+                    std::lock_guard<util::SpinLock> lock(mutex);
+                    for (std::size_t i = prevSize; i < processingDeps.size(); i++) {
+                        dependents[i - prevSize] = std::move(processingDeps[i]);
+                    }
+                }
+
+                processingDeps.resize(prevSize);
             }
         } else {
             // One or more notifies came in while we were computing.
@@ -217,19 +222,11 @@ public:
         }
     }
 
-    void notify() {
-        if (notifies++ == 0) {
-            if (computedCount == CHUNK_SIZE) {
-                notifies--;
-            } else {
-                static constexpr std::chrono::duration<float> taskLengthThreshold = std::chrono::microseconds(20);
-                if (ds->avgRunDuration.load() > taskLengthThreshold) {
-                    ds->context.get<util::TaskScheduler<ChunkBase>>().addTask(this);
-                } else {
-                    exec();
-                }
-            }
-        }
+    void recordAccess() {
+        lastAccess = std::chrono::steady_clock::now();
+    }
+    AccessInstant getLastAccess() const {
+        return lastAccess;
     }
 
     void incRefs() {
@@ -248,6 +245,7 @@ protected:
 
     DataSeriesBase *ds;
 
+    AccessInstant lastAccess;
     std::atomic<unsigned int> refs = 0;
 
     std::atomic<unsigned int> computedCount = 0;
@@ -331,6 +329,7 @@ public:
             : ChunkPtrBase(ptr)
         {
             assert(ptr);
+            ptr->recordAccess();
         }
 
         ChunkPtr(std::nullptr_t)
@@ -339,10 +338,10 @@ public:
     };
 
     ChunkPtr createChunk(std::size_t index) {
-        return ChunkPtr::construct(context.get<util::Pool<Chunk>>().alloc(this, index));
+        return ChunkPtr::construct(new Chunk(this, index));
     }
     void destroyChunk(ChunkBase *chunk) override {
-        context.get<util::Pool<Chunk>>().free(static_cast<Chunk *>(chunk));
+        delete static_cast<Chunk *>(chunk);
     }
 #endif
 
@@ -373,6 +372,7 @@ public:
     virtual fu2::unique_function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) = 0;
 
 private:
+//    std::size_t offset = 0;
     std::vector<ChunkPtr> chunks;
 };
 

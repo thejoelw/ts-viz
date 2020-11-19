@@ -14,6 +14,7 @@ run awk '/^[^#]/ { print ": |> echo \"#define "$0"\" > %o |> src/defs/"$1".h $(R
 : foreach $(SRC_PATH)/render/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 : foreach $(SRC_PATH)/render/program/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 : foreach $(SRC_PATH)/series/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
+: foreach $(SRC_PATH)/series/base/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 : foreach $(SRC_PATH)/stream/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 : foreach $(SRC_PATH)/util/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 

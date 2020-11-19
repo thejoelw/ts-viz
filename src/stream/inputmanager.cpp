@@ -16,7 +16,7 @@ void InputManager::recvRecord(const rapidjson::Document &row) {
 
         std::string key(it->name.GetString(), it->name.GetStringLength());
         series::InputSeries<INPUT_SERIES_ELEMENT_TYPE> *&in = inputs[key];
-        if (in == 0) {
+        if (!in) {
             std::vector<program::ProgObj> args {
                 program::ProgObj(key)
             };

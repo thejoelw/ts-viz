@@ -1,6 +1,6 @@
 #pragma once
 
-#include "series/dataseries.h"
+#include "series/base/dataseries.h"
 
 namespace series {
 
@@ -14,12 +14,10 @@ public:
     {}
 
     fu2::unique_function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
-        typedef typename DataSeries<ElementType>::ChunkPtr ChunkPtr;
-
         std::size_t d0 = (delay + CHUNK_SIZE - 1) / CHUNK_SIZE;
         std::size_t d1 = delay / CHUNK_SIZE;
-        auto c0 = d0 <= chunkIndex ? arg.getChunk(chunkIndex - d0) : ChunkPtr::null();
-        auto c1 = d1 <= chunkIndex ? arg.getChunk(chunkIndex - d1) : ChunkPtr::null();
+        auto c0 = d0 <= chunkIndex ? arg.getChunk(chunkIndex - d0) : ChunkPtr<ElementType>::null();
+        auto c1 = d1 <= chunkIndex ? arg.getChunk(chunkIndex - d1) : ChunkPtr<ElementType>::null();
 
         return std::move([this, dst, c0 = std::move(c0), c1 = std::move(c1)](unsigned int computedCount) -> unsigned int {
             unsigned int delayMod = delay % CHUNK_SIZE;

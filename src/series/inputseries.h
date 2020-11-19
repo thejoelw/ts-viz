@@ -2,7 +2,7 @@
 
 #include "jw_util/hash.h"
 
-#include "series/dataseries.h"
+#include "series/base/dataseries.h"
 
 namespace series {
 
@@ -36,7 +36,7 @@ public:
         std::size_t prevChunk = nextIndex / CHUNK_SIZE;
 
         assert(index >= nextIndex);
-        while  (nextIndex < index) {
+        while (nextIndex < index) {
             this->getChunk(nextIndex / CHUNK_SIZE)->getVolatileData()[nextIndex % CHUNK_SIZE] = prevValue;
             nextIndex++;
         }

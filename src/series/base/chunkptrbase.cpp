@@ -1,8 +1,8 @@
-#include "dataseries.h"
+#include "chunkptrbase.h"
+
+#include "series/base/chunkbase.h"
 
 namespace series {
-
-thread_local ChunkPtrBase activeChunk = ChunkPtrBase::null();
 
 ChunkPtrBase::ChunkPtrBase(ChunkBase *ptr)
    : target(ptr)

@@ -4,7 +4,7 @@
 #include "graphics/glbuffer.h"
 #include "graphics/type/element.h"
 #include "render/program/linestripprogram.h"
-#include "series/dataseries.h"
+#include "series/base/dataseries.h"
 
 namespace render {
 
