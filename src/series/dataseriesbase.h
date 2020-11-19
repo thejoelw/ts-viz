@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <atomic>
+#include <vector>
 
 namespace app { class AppContext; }
 namespace series { class ChunkBase; }
@@ -23,6 +24,8 @@ public:
 
 protected:
     app::AppContext &context;
+
+    static thread_local std::vector<ChunkBase *> dependencyStack;
 
 private:
     std::atomic<std::chrono::duration<float>> avgRunDuration;

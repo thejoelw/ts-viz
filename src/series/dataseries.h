@@ -35,12 +35,15 @@ public:
             chunks.emplace_back(ChunkPtr<ElementType>::null());
         }
         if (!chunks[chunkIndex].has()) {
+            std::size_t depStackSize = dependencyStack.size();
             chunks[chunkIndex] = ChunkPtr<ElementType>::construct(createChunk(chunkIndex));
+            while (dependencyStack.size() > depStackSize) {
+                dependencyStack.back()->addDependent(chunks[chunkIndex]);
+                dependencyStack.pop_back();
+            }
         }
 
-        if (activeChunk.has()) {
-            chunks[chunkIndex]->addDependent(activeChunk.clone());
-        }
+        dependencyStack.push_back(chunks[chunkIndex]);
 
         return chunks[chunkIndex].clone();
     }
