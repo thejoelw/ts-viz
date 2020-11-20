@@ -20,8 +20,6 @@ static unsigned long long nextPow2(unsigned long long x) {
 
 namespace series {
 
-extern std::mutex fftwMutex;
-
 // Two types of FFT decompositions:
 //   1. Persistent - stored in a time series dependency, and always calculated (whether or not it's needed). Only ever calculated once.
 //   2. Transient - calculated when needed, and thrown away.
@@ -83,7 +81,8 @@ public:
             tsChunks.emplace_back(ts.getChunk(chunkIndex - i));
         }
 
-        return this->constructChunk([this, begin, end, tsChunks = std::move(tsChunks)](ElementType *dst, unsigned int computedCount) -> unsigned int {
+        unsigned int appliedConvs = 0;
+        return this->constructChunk([this, appliedConvs, begin, end, tsChunks = std::move(tsChunks)](ElementType *dst, unsigned int computedCount) mutable -> unsigned int {
             for (std::size_t i = 1; i < tsChunks.size(); i++) {
                 if (tsChunks[i]->getComputedCount() != CHUNK_SIZE) {
                     return 0;
@@ -101,10 +100,22 @@ public:
 
             assert(false);
 
+
             if (computedCount == 0) {
                 // Multiply ffts
-
             }
+
+            // To compute 0:
+            // Add k[0] conv t[0] to [0]
+
+            // To compute 1:
+            //
+
+            // When computing w/4-1:
+            // Add k[0:w/4] conv t[0:w/4] to [w/4-1 : w/2-1]
+            // We can either:
+            //   (1) handle this off-by-one logic, or
+            //   (2) use a special kernel type that has everything shifted down by one, and store the zero-element specially.
 
 
 
@@ -195,42 +206,6 @@ private:
     typename fftwx::Plan planBwd;
 
     typename fftwx::Complex *kernelFft;
-
-    struct PlanIO {
-        ElementType *in;
-        typename fftwx::Complex *fft;
-        ElementType *out;
-    };
-    std::vector<PlanIO> planIOs;
-
-    PlanIO requestPlanIO() {
-        std::unique_lock<std::mutex> lock(fftwMutex);
-        if (!hasPlan) {
-            processKernel();
-            hasPlan = true;
-        }
-
-        return makePlanIO();
-    }
-
-    PlanIO makePlanIO() {
-        if (planIOs.empty()) {
-            PlanIO res;
-            res.in = fftwx::alloc_real(planSize);
-            res.fft = fftwx::alloc_complex(planSize);
-            res.out = fftwx::alloc_real(planSize);
-            return res;
-        } else {
-            PlanIO res = planIOs.back();
-            planIOs.pop_back();
-            return res;
-        }
-    }
-
-    void releasePlanIO(PlanIO planIO) {
-        std::unique_lock<std::mutex> lock(fftwMutex);
-        planIOs.push_back(planIO);
-    }
 
     void processKernel() {
         ElementType *tmpIn = fftwx::alloc_real(planSize);

@@ -120,14 +120,15 @@ src/series/dataseries.decl.h
 src/series/dataseries.h
 src/series/dataseriesbase.cpp
 src/series/dataseriesbase.h
+src/series/fftwx.cpp
 src/series/fftwx.h
 src/series/garbagecollector.cpp
 src/series/garbagecollector.h
-src/series/type/convseries.cpp
 src/series/type/convseries.h
 src/series/type/convseries.test.cpp
 src/series/type/delayedseries.h
 src/series/type/deltaseries.h
+src/series/type/fftseries.h
 src/series/type/finitecompseries.h
 src/series/type/infcompseries.h
 src/series/type/inputseries.h

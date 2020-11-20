@@ -29,10 +29,11 @@ public:
         auto t1 = std::chrono::high_resolution_clock::now();
         unsigned int prevCount = computedCount;
         unsigned int count = compute(data, prevCount);
+        assert(count >= prevCount);
+        assert(count <= size);
         auto t2 = std::chrono::high_resolution_clock::now();
 
         // Set this first so the dependents we notify know what we've computed.
-        assert(count >= prevCount);
         computedCount = count;
 
         if (notifies.exchange(0) == prevNotifies || count == size) {
@@ -97,7 +98,8 @@ protected:
 private:
     std::atomic<unsigned int> computedCount = 0;
 
-    ElementType data[size];
+    // Align to 16-byte boundary for fftw
+    alignas(16) ElementType data[size];
 };
 
 }

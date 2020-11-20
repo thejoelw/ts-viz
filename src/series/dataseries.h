@@ -14,17 +14,10 @@
 
 namespace series {
 
-template <typename ElementType, std::size_t size>
+template <typename ElementType, std::size_t _size>
 class DataSeries : public DataSeriesBase {
 public:
-    /*
-    Chunk<ElementType> *createChunk(std::size_t index) {
-        return new Chunk<ElementType>(this, [this, index](ElementType *data) {return makeChunkComputer(index, data);});
-    }
-    void destroyChunk(ChunkBase *chunk) override {
-        delete static_cast<Chunk<ElementType> *>(chunk);
-    }
-    */
+    static constexpr std::size_t size = _size;
 
     DataSeries(app::AppContext &context)
         : DataSeriesBase(context)
@@ -32,7 +25,10 @@ public:
         jw_util::Thread::set_main_thread();
     }
 
+    template <std::size_t desiredSize = CHUNK_SIZE>
     ChunkPtr<ElementType, size> getChunk(std::size_t chunkIndex) {
+        static_assert(size == desiredSize, "DataSeries chunk size doesn't match desired size");
+
         jw_util::Thread::assert_main_thread();
 
         while (chunks.size() <= chunkIndex) {
