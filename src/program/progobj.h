@@ -9,7 +9,8 @@
 
 #include "rapidjson/include/rapidjson/document.h"
 
-namespace series { template <typename ElementType> class DataSeries; }
+#include "series/dataseries.decl.h"
+
 namespace series { template <typename ElementType> class FiniteCompSeries; }
 namespace render { class SeriesRenderer; }
 namespace stream { class SeriesEmitter; }

@@ -1,20 +1,21 @@
 #pragma once
 
 #include "series/chunkptrbase.h"
+#include "series/chunksize.h"
 
-namespace series { template <typename ElementType> class Chunk; }
+namespace series { template <typename ElementType, std::size_t dataSize> class Chunk; }
 
 namespace series {
 
-template <typename ElementType>
+template <typename ElementType, std::size_t size = CHUNK_SIZE>
 class ChunkPtr : public ChunkPtrBase {
 public:
-    Chunk<ElementType> *operator->() const {
+    Chunk<ElementType, size> *operator->() const {
         assert(has());
-        return static_cast<Chunk<ElementType> *>(ChunkPtrBase::operator->());
+        return static_cast<Chunk<ElementType, size> *>(ChunkPtrBase::operator->());
     }
 
-    static ChunkPtr construct(Chunk<ElementType> *ptr) {
+    static ChunkPtr construct(Chunk<ElementType, size> *ptr) {
         return ChunkPtr(ptr);
     }
 
@@ -27,7 +28,7 @@ public:
     }
 
 protected:
-    ChunkPtr(Chunk<ElementType> *ptr)
+    ChunkPtr(Chunk<ElementType, size> *ptr)
         : ChunkPtrBase(ptr)
     {
         assert(ptr);

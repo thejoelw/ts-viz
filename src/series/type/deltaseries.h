@@ -13,12 +13,12 @@ public:
         , args(args...)
     {}
 
-    fu2::unique_function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
+    Chunk<ElementType> *makeChunk(std::size_t chunkIndex) override {
         auto prevChunks = std::apply([chunkIndex](auto &... x){
             return std::make_tuple((chunkIndex > 0 ? x.getChunk(chunkIndex - 1) : ChunkPtr<ElementType>::null())...);
         }, args);
         auto curChunks = std::apply([chunkIndex](auto &... x){return std::make_tuple(x.getChunk(chunkIndex)...);}, args);
-        return [this, chunkIndex, dst, prevChunks = std::move(prevChunks), curChunks = std::move(curChunks)](unsigned int computedCount) -> unsigned int {
+        return this->constructChunk([this, chunkIndex, prevChunks = std::move(prevChunks), curChunks = std::move(curChunks)](ElementType *dst, unsigned int computedCount) -> unsigned int {
             unsigned int count = std::apply([](auto &... x){return std::min({x->getComputedCount()...});}, curChunks);
 
             if (count > 0) {
@@ -45,7 +45,7 @@ public:
                 }
             }
             return count;
-        };
+        });
     }
 
 private:

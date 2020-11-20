@@ -9,6 +9,8 @@ static ValueType atomicApply(std::atomic<ValueType> &atom, OpType op) {
 
 namespace series {
 
+thread_local std::vector<ChunkBase *> DataSeriesBase::dependencyStack;
+
 DataSeriesBase::DataSeriesBase(app::AppContext &context)
     : context(context)
     , avgRunDuration(std::chrono::duration<float>::zero())

@@ -14,8 +14,8 @@ public:
         , op(op)
     {}
 
-    fu2::unique_function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
-        return [this, chunkIndex, dst](unsigned int computedCount) -> unsigned int {
+    Chunk<ElementType> *makeChunk(std::size_t chunkIndex) override {
+        return this->constructChunk([this, chunkIndex](ElementType *dst, unsigned int computedCount) -> unsigned int {
             assert(computedCount == 0);
 
             std::size_t begin = chunkIndex * CHUNK_SIZE;
@@ -23,7 +23,7 @@ public:
             op(dst, begin, end);
 
             return CHUNK_SIZE;
-        };
+        });
     }
 
 private:

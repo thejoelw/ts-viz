@@ -15,10 +15,9 @@ public:
         (void) name;
     }
 
-    fu2::unique_function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
-        (void) dst;
-
-        return [this, chunkIndex](unsigned int computedCount) -> unsigned int {
+    Chunk<ElementType> *makeChunk(std::size_t chunkIndex) override {
+        return this->constructChunk([this, chunkIndex](ElementType *dst, unsigned int computedCount) -> unsigned int {
+            (void) dst;
             (void) computedCount;
 
             std::size_t finishedChunks = nextIndex / CHUNK_SIZE;
@@ -29,7 +28,7 @@ public:
             } else {
                 return nextIndex % CHUNK_SIZE;
             }
-        };
+        });
     }
 
     void set(std::size_t index, ElementType value) {

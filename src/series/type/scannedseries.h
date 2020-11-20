@@ -60,10 +60,10 @@ public:
         , args(args...)
     {}
 
-    fu2::unique_function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
+    Chunk<ElementType> *makeChunk(std::size_t chunkIndex) override {
         auto prevChunk = chunkIndex > 0 ? this->getChunk(chunkIndex - 1) : ChunkPtr<ElementType>::null();
         auto chunks = std::apply([chunkIndex](auto &... x){return std::make_tuple(x.getChunk(chunkIndex)...);}, args);
-        return [this, dst, prevChunk = std::move(prevChunk), chunks = std::move(chunks)](unsigned int computedCount) -> unsigned int {
+        return this->constructChunk([this, prevChunk = std::move(prevChunk), chunks = std::move(chunks)](ElementType *dst, unsigned int computedCount) -> unsigned int {
             ElementType value;
             if (prevChunk.has()) {
                 if (prevChunk->getComputedCount() == CHUNK_SIZE) {
@@ -82,7 +82,7 @@ public:
             }
 
             return count;
-        };
+        });
     }
 
 private:

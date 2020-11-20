@@ -20,8 +20,6 @@ public:
     void recordDuration(std::chrono::duration<float> duration);
     std::chrono::duration<float> getAvgRunDuration() const;
 
-    virtual void destroyChunk(ChunkBase *chunk) = 0;
-
 protected:
     app::AppContext &context;
 

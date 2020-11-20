@@ -109,12 +109,14 @@ src/series/chunk.cpp
 src/series/chunk.h
 src/series/chunkbase.cpp
 src/series/chunkbase.h
+src/series/chunkimpl.h
 src/series/chunkptr.cpp
 src/series/chunkptr.h
 src/series/chunkptrbase.cpp
 src/series/chunkptrbase.h
 src/series/chunksize.h
 src/series/dataseries.cpp
+src/series/dataseries.decl.h
 src/series/dataseries.h
 src/series/dataseriesbase.cpp
 src/series/dataseriesbase.h

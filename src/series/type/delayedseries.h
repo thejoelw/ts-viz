@@ -13,13 +13,13 @@ public:
         , delay(delay)
     {}
 
-    fu2::unique_function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
+    Chunk<ElementType> *makeChunk(std::size_t chunkIndex) override {
         std::size_t d0 = (delay + CHUNK_SIZE - 1) / CHUNK_SIZE;
         std::size_t d1 = delay / CHUNK_SIZE;
         auto c0 = d0 <= chunkIndex ? arg.getChunk(chunkIndex - d0) : ChunkPtr<ElementType>::null();
         auto c1 = d1 <= chunkIndex ? arg.getChunk(chunkIndex - d1) : ChunkPtr<ElementType>::null();
 
-        return std::move([this, dst, c0 = std::move(c0), c1 = std::move(c1)](unsigned int computedCount) -> unsigned int {
+        return this->constructChunk([this, c0 = std::move(c0), c1 = std::move(c1)](ElementType *dst, unsigned int computedCount) -> unsigned int {
             unsigned int delayMod = delay % CHUNK_SIZE;
 
             while (computedCount < CHUNK_SIZE) {

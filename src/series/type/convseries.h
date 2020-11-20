@@ -62,17 +62,17 @@ public:
         fftwx::destroy_plan(planFwd);
     }
 
-    fu2::unique_function<unsigned int (unsigned int)> getChunkGenerator(std::size_t chunkIndex, ElementType *dst) override {
+    Chunk<ElementType> *makeChunk(std::size_t chunkIndex) override {
         std::size_t begin = chunkIndex * CHUNK_SIZE;
         std::size_t end = (chunkIndex + 1) * CHUNK_SIZE;
         if (!backfillZeros && end <= kernelBack) {
-            return [dst](unsigned int computedCount) {
+            return this->constructChunk([](ElementType *dst, unsigned int computedCount) {
                 assert(computedCount == 0);
 
                 std::fill_n(dst, CHUNK_SIZE, NAN);
 
                 return CHUNK_SIZE;
-            };
+            });
         }
 
         std::size_t numTsChunks = std::min((sourceSize - 1) / CHUNK_SIZE, chunkIndex) + 1;
@@ -83,7 +83,7 @@ public:
             tsChunks.emplace_back(ts.getChunk(chunkIndex - i));
         }
 
-        return [this, begin, end, dst, tsChunks = std::move(tsChunks)](unsigned int computedCount) -> unsigned int {
+        return this->constructChunk([this, begin, end, tsChunks = std::move(tsChunks)](ElementType *dst, unsigned int computedCount) -> unsigned int {
             for (std::size_t i = 1; i < tsChunks.size(); i++) {
                 if (tsChunks[i]->getComputedCount() != CHUNK_SIZE) {
                     return 0;
@@ -177,7 +177,7 @@ public:
             }
 
             return CHUNK_SIZE;
-        };
+        });
     }
 
 private:

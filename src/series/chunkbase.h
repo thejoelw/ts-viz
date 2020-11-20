@@ -21,17 +21,15 @@ public:
     static_assert(sizeof(AccessInstant) == 4, "Unexpected sizeof(AccessInstant), expecting 4!");
 
     ChunkBase(DataSeriesBase *ds);
-    ~ChunkBase();
+    virtual ~ChunkBase();
 
     void addDependent(ChunkPtrBase dep);
-
-    unsigned int getComputedCount() const;
 
     std::chrono::duration<float> getOrdering() const;
     std::chrono::duration<float> getCriticalPathDuration() const;
 
     void notify();
-    void exec();
+    virtual void exec() = 0;
 
     void recordAccess();
     AccessInstant getLastAccess() const;
@@ -40,21 +38,17 @@ public:
     void decRefs();
 
 protected:
-    void setComputer(fu2::unique_function<unsigned int (unsigned int)> &&func);
-
     DataSeriesBase *ds;
 
     AccessInstant lastAccess;
+
     std::atomic<unsigned int> refs = 0;
 
-    std::atomic<unsigned int> computedCount = 0;
     std::atomic<unsigned int> notifies = 0;
     util::SpinLock mutex;
     std::vector<ChunkPtrBase> dependents;
 
     mutable std::chrono::duration<float> followingDuration;
-
-    fu2::unique_function<unsigned int (unsigned int)> computer;
 };
 
 }
