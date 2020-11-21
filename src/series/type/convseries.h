@@ -6,6 +6,8 @@
 #include "series/fftwx.h"
 #include "series/type/finitecompseries.h"
 
+#include "defs/FFT_CACHE_ABOVE_SIZE_LOG2.h"
+
 namespace {
 
 static unsigned long long nextPow2(unsigned long long x) {
@@ -15,6 +17,30 @@ static unsigned long long nextPow2(unsigned long long x) {
     unsigned int ceilLog2 = (sizeof(unsigned long long) * CHAR_BIT) - __builtin_clzll(x - 1);
     return static_cast<unsigned long long>(1) << ceilLog2;
 }
+
+template <template <unsigned int> typename CreateType, unsigned int count>
+class DispatchToTemplate;
+
+template <template <unsigned int> typename CreateType>
+class DispatchToTemplate<CreateType, 0> {
+    template <typename ReturnType, typename... ArgTypes>
+    ReturnType call(unsigned int value, ArgTypes &&...) {
+        (void) value;
+        assert(false);
+    }
+};
+
+template <template <unsigned int> typename CreateType, unsigned int count>
+class DispatchToTemplate {
+    template <typename ReturnType, typename... ArgTypes>
+    ReturnType call(unsigned int value, ArgTypes &&... args) {
+        if (value == count - 1) {
+            return CreateType<count - 1>(std::forward<ArgTypes>(args)...);
+        } else {
+            return DispatchToTemplate<CreateType, count - 1>::template call<ReturnType, ArgTypes...>(value, std::forward<ArgTypes>(args)...);
+        }
+    }
+};
 
 }
 
@@ -60,6 +86,20 @@ public:
         fftwx::destroy_plan(planFwd);
     }
 
+    template <unsigned int fillSizeLog2Plus1>
+    class Filler {
+    public:
+        static constexpr unsigned int fillSizeLog2 = fillSizeLog2Plus1 - 1;
+
+        void call(ElementType *dst, unsigned int computedCount) {
+            if (fillSizeLog2 >= FFT_CACHE_ABOVE_SIZE_LOG2) {
+
+            } else {
+
+            }
+        }
+    };
+
     Chunk<ElementType> *makeChunk(std::size_t chunkIndex) override {
         std::size_t begin = chunkIndex * CHUNK_SIZE;
         std::size_t end = (chunkIndex + 1) * CHUNK_SIZE;
@@ -89,9 +129,65 @@ public:
                 }
             }
 
-            unsigned int count = tsChunks[0]->getComputedCount();
-            if (count == computedCount) {
-                return count;
+            unsigned int endCount = tsChunks[0]->getComputedCount();
+            if (endCount == computedCount) {
+                return endCount;
+            }
+
+            while (computedCount < endCount) {
+                // Divide kernel into sections: [0:1, 1:2, 2:4, 4:8, 8:16, ...]
+                // Result is the convolution of each section with TS, added together
+                // [K x T -> R]
+                // For dst[0], we add [0:1 x 0:1 -> 0:1]
+                // For dst[1], we add [0:1 x 1:2 -> 1:2], [1:2 x 0:1 -> 1:2]
+                // For dst[2], we add [0:1 x 2:3 -> 2:3], [1:2 x 1:2 -> 2:3], [2:4 x 0:2 -> 2:4]
+                // For dst[3], we add [0:1 x 3:4 -> 3:4], [1:2 x 2:3 -> 3:4]
+
+                // We can jump. We could have processed dst[2:4] as:
+                // For dst[2:4], we add [0:2 x 2:4 -> 2:4], [2:4 x 0:2 -> 2:4]
+
+                /*
+                10010100 <- prev
+                10110110 <- targ
+                00000100 <- step
+
+                10011000 <- prev
+                10110110 <- targ
+                00001000 <- step
+
+                10100000 <- prev
+                10110110 <- targ
+                00010000 <- step
+
+                10110000 <- prev
+                10110110 <- targ
+                00000100 <- step
+
+                10110100 <- prev
+                10110110 <- targ
+                00000010 <- step
+                */
+
+                unsigned int countLsz = sizeof(unsigned int) * CHAR_BIT - 1 - __builtin_clz(computedCount ^ (computedCount - 1));
+                unsigned int maxStep = sizeof(unsigned int) * CHAR_BIT - 1 - __builtin_clz(endCount - computedCount);
+                unsigned int stepLog2 = std::min(countLsz, maxStep);
+
+                for (unsigned int i = stepLog2; i <= countLsz; i++) {
+                    unsigned int kernelBegin = 1u << i;
+                    unsigned int kernelEnd = 2u << i;
+
+                    // 2 behaviors for loading fft chunks:
+                    // For kernel, maybe just want to load the entire fft spectrum as one thing.
+                    // For ts, obviously want to just load what's needed.
+                    // Perhaps this means we should calculate the kernel fft spectrum inside ConvSeries?
+                }
+
+
+
+
+//                DispatchToTemplate<Filler, CHUNK_SIZE_LOG2>::call(fillSizeLog2Plus1, dst, computedCount);
+
+                computedCount++;
             }
 
             // Pretty sure that larger FFT sizes only help if we're using them to generate larger blocks.
@@ -111,11 +207,13 @@ public:
             // To compute 1:
             //
 
-            // When computing w/4-1:
-            // Add k[0:w/4] conv t[0:w/4] to [w/4-1 : w/2-1]
+            // I DON'T THINK THIS IS CORRECT:
+            // When computing w/2-1:
+            // Add k[0:w/2] conv t[0:w/2] to [w/2-1 : w-1]
             // We can either:
-            //   (1) handle this off-by-one logic, or
+            //   (1) handle this off-by-one logic, or <-- DO THIS. NO MORE TS TYPES
             //   (2) use a special kernel type that has everything shifted down by one, and store the zero-element specially.
+
 
 
 
@@ -168,7 +266,7 @@ public:
             // Backward fft
             fftwx::execute_dft_c2r(planBwd, planIO.fft, planIO.out);
 
-            std::copy_n(planIO.out + planSize - CHUNK_SIZE, CHUNK_SIZE, dst);
+            std::copy_n(planIO.out + (planSize - CHUNK_SIZE), CHUNK_SIZE, dst);
 
             releasePlanIO(planIO);
 

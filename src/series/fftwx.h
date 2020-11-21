@@ -1,6 +1,8 @@
 #pragma once
 
 #include <complex>
+#include <vector>
+#include <array>
 
 #include <fftw3.h>
 
@@ -107,6 +109,7 @@ public:
 
 private:
     static std::vector<FftwPlanIO> planIOs;
+    static std::array<typename fftwx::Plan, CHUNK_SIZE_LOG2 + 1> plans;
 };
 
 }

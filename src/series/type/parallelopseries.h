@@ -16,11 +16,11 @@ public:
     Chunk<ElementType> *makeChunk(std::size_t chunkIndex) override {
         auto chunks = std::apply([chunkIndex](auto &... x){return std::make_tuple(x.getChunk(chunkIndex)...);}, args);
         return this->constructChunk([this, chunks = std::move(chunks)](ElementType *dst, unsigned int computedCount) -> unsigned int {
-            unsigned int count = std::apply([](auto &... x){return std::min({x->getComputedCount()...});}, chunks);
-            for (std::size_t i = computedCount; i < count; i++) {
+            unsigned int endCount = std::apply([](auto &... x){return std::min({x->getComputedCount()...});}, chunks);
+            for (std::size_t i = computedCount; i < endCount; i++) {
                 dst[i] = std::apply([this, i](auto &... s){return op(s->getElement(i)...);}, chunks);
             }
-            return count;
+            return endCount;
         });
     }
 

@@ -75,13 +75,13 @@ public:
                 value = initialValue;
             }
 
-            unsigned int count = std::apply([](auto &... x){return std::min({x->getComputedCount()...});}, chunks);
-            for (std::size_t i = computedCount; i < count; i++) {
+            unsigned int endCount = std::apply([](auto &... x){return std::min({x->getComputedCount()...});}, chunks);
+            for (std::size_t i = computedCount; i < endCount; i++) {
                 value = std::apply([this, value, i](auto &... s){return op(value, s->getElement(i)...);}, chunks);
                 dst[i] = value;
             }
 
-            return count;
+            return endCount;
         });
     }
 

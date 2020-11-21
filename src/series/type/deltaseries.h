@@ -19,9 +19,9 @@ public:
         }, args);
         auto curChunks = std::apply([chunkIndex](auto &... x){return std::make_tuple(x.getChunk(chunkIndex)...);}, args);
         return this->constructChunk([this, chunkIndex, prevChunks = std::move(prevChunks), curChunks = std::move(curChunks)](ElementType *dst, unsigned int computedCount) -> unsigned int {
-            unsigned int count = std::apply([](auto &... x){return std::min({x->getComputedCount()...});}, curChunks);
+            unsigned int endCount = std::apply([](auto &... x){return std::min({x->getComputedCount()...});}, curChunks);
 
-            if (count > 0) {
+            if (endCount > 0) {
                 if (computedCount == 0) {
                     if (chunkIndex == 0) {
                         dst[0] = NAN;
@@ -38,13 +38,13 @@ public:
                     computedCount++;
                 }
 
-                for (std::size_t i = computedCount; i < count; i++) {
+                for (std::size_t i = computedCount; i < endCount; i++) {
                     dst[i] = std::apply([this, i](auto &... x){
                         return op(x->getElement(i)..., x->getElement(i - 1)...);
                     }, curChunks);
                 }
             }
-            return count;
+            return endCount;
         });
     }
 
