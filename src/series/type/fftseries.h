@@ -23,13 +23,13 @@ private:
     typedef fftwx_impl<ElementType> fftwx;
 
 public:
-    static FftSeries<ElementType, partitionSize> *create(app::AppContext &context, DataSeries<ElementType> &arg) {
+    static FftSeries<ElementType, partitionSize> &create(app::AppContext &context, DataSeries<ElementType> &arg) {
         static std::unordered_map<DataSeries<ElementType> *, FftSeries<ElementType, partitionSize> *> cache;
         auto foundValue = cache.emplace(&arg, 0);
         if (foundValue.second) {
             foundValue.first->second = new FftSeries<ElementType, partitionSize>(context, arg);
         }
-        return foundValue.first->second;
+        return *foundValue.first->second;
     }
 
 private:
@@ -44,7 +44,7 @@ public:
         fftwx::destroy_plan(planFwd);
     }
 
-    Chunk<ElementType> *makeChunk(std::size_t chunkIndex) override {
+    Chunk<ElementType, fftSize> *makeChunk(std::size_t chunkIndex) override {
         ChunkPtr<ElementType> chunk = arg.getChunk(chunkIndex * partitionSize / CHUNK_SIZE);
         unsigned int offset = chunkIndex * partitionSize % CHUNK_SIZE;
 

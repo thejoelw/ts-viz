@@ -5,8 +5,10 @@
 #include "series/dataseries.h"
 #include "series/fftwx.h"
 #include "series/type/finitecompseries.h"
+#include "series/type/fftseries.h"
 
 #include "defs/FFT_CACHE_ABOVE_SIZE_LOG2.h"
+#include "defs/FFT_NLOGN_ABOVE_SIZE_LOG2.h"
 
 namespace {
 
@@ -21,8 +23,8 @@ static unsigned long long nextPow2(unsigned long long x) {
 template <template <unsigned int> typename CreateType, unsigned int count>
 class DispatchToTemplate;
 
-template <template <unsigned int> typename CreateType>
-class DispatchToTemplate<CreateType, 0> {
+template <template <unsigned int> typename ClassType>
+class DispatchToTemplate<ClassType, 0> {
     template <typename ReturnType, typename... ArgTypes>
     ReturnType call(unsigned int value, ArgTypes &&...) {
         (void) value;
@@ -30,14 +32,14 @@ class DispatchToTemplate<CreateType, 0> {
     }
 };
 
-template <template <unsigned int> typename CreateType, unsigned int count>
+template <template <unsigned int> typename ClassType, unsigned int count>
 class DispatchToTemplate {
     template <typename ReturnType, typename... ArgTypes>
     ReturnType call(unsigned int value, ArgTypes &&... args) {
         if (value == count - 1) {
-            return CreateType<count - 1>(std::forward<ArgTypes>(args)...);
+            return ClassType<count - 1>()(std::forward<ArgTypes>(args)...);
         } else {
-            return DispatchToTemplate<CreateType, count - 1>::template call<ReturnType, ArgTypes...>(value, std::forward<ArgTypes>(args)...);
+            return DispatchToTemplate<ClassType, count - 1>::template call<ReturnType, ArgTypes...>(value, std::forward<ArgTypes>(args)...);
         }
     }
 };
@@ -51,10 +53,19 @@ namespace series {
 //   2. Transient - calculated when needed, and thrown away.
 
 template <typename ElementType>
+auto getFftChunks(app::AppContext &context, DataSeries<ElementType> &arg, std::size_t chunkIndex) {
+    return getFftChunks(context, arg, chunkIndex, std::make_index_sequence<CHUNK_SIZE_LOG2 - FFT_CACHE_ABOVE_SIZE_LOG2 + 1>{});
+}
+template <typename ElementType, std::size_t... is>
+auto getFftChunks(app::AppContext &context, DataSeries<ElementType> &arg, std::size_t chunkIndex, std::index_sequence<is...>) {
+#define NUMS (1u << (FFT_CACHE_ABOVE_SIZE_LOG2 + is))
+    return std::tuple<ChunkPtr<ElementType, NUMS * 2>...>(FftSeries<ElementType, NUMS>::create(context, arg).getChunk(chunkIndex)...);
+#undef NUMS
+}
+
+template <typename ElementType>
 class ConvSeries : public DataSeries<ElementType> {
 private:
-    static constexpr std::size_t fftSizeThreshold = 32;
-
     typedef fftwx_impl<ElementType> fftwx;
 
 public:
@@ -72,6 +83,7 @@ public:
     }
 
     ~ConvSeries() {
+        /*
         std::unique_lock<std::mutex> lock(fftwMutex);
 
         for (PlanIO planIO : planIOs) {
@@ -84,18 +96,38 @@ public:
 
         fftwx::destroy_plan(planBwd);
         fftwx::destroy_plan(planFwd);
+        */
     }
 
-    template <unsigned int fillSizeLog2Plus1>
-    class Filler {
-    public:
-        static constexpr unsigned int fillSizeLog2 = fillSizeLog2Plus1 - 1;
+    template <unsigned int fillSizeLog2>
+    struct KernelPartitionFiller {
+        void operator()(
+                ElementType *dst,
+                unsigned int computedCount,
+                const ChunkPtr<ElementType> &kernelChunk,
+                const ChunkPtr<ElementType> &tsChunk,
+                const typename std::result_of<decltype(&getFftChunks<ElementType>)>::type &kernelFftChunks,
+                bool kernelPartitionIndex // Either the first or second partition
+        ) {
+            static_assert(fillSizeLog2 <= CHUNK_SIZE_LOG2, "We should not be generating code to handle larger-than-chunk-size fills");
 
-        void call(ElementType *dst, unsigned int computedCount) {
+            static constexpr unsigned int fillSize = 1u << fillSizeLog2;
+            assert(computedCount % fillSize == 0);
+
             if (fillSizeLog2 >= FFT_CACHE_ABOVE_SIZE_LOG2) {
+                ChunkPtr<ElementType, 2u << fillSizeLog2> chunk = std::get<ChunkPtr<ElementType, 2u << fillSizeLog2>>(kernelFftChunks);
+            } else if (fillSizeLog2 >= FFT_NLOGN_ABOVE_SIZE_LOG2) {
 
             } else {
+                assert(fillSizeLog2 < CHUNK_SIZE_LOG2);
+                assert(computedCount + 1 >= fillSize);
 
+                for (unsigned int i = 0; i < fillSize; i++) {
+                    for (unsigned int j = 0; j < fillSize; j++) {
+                        dst[computedCount] += kernelChunk->getElement(computedCount - fillSize + 1 + j) * tsChunk->getElement(computedCount - j);
+                    }
+                    computedCount++;
+                }
             }
         }
     };
@@ -121,8 +153,10 @@ public:
             tsChunks.emplace_back(ts.getChunk(chunkIndex - i));
         }
 
-        unsigned int appliedConvs = 0;
-        return this->constructChunk([this, appliedConvs, begin, end, tsChunks = std::move(tsChunks)](ElementType *dst, unsigned int computedCount) mutable -> unsigned int {
+        auto kernelFftChunks0 = getFftChunks(this->context, kernel, 0);
+        auto kernelFftChunks1 = getFftChunks(this->context, kernel, 1);
+
+        return this->constructChunk([this, begin, end, tsChunks = std::move(tsChunks), kernelFftChunks0 = std::move(kernelFftChunks0), kernelFftChunks1 = std::move(kernelFftChunks1)](ElementType *dst, unsigned int computedCount) -> unsigned int {
             for (std::size_t i = 1; i < tsChunks.size(); i++) {
                 if (tsChunks[i]->getComputedCount() != CHUNK_SIZE) {
                     return 0;
@@ -173,6 +207,8 @@ public:
                 unsigned int stepLog2 = std::min(countLsz, maxStep);
 
                 for (unsigned int i = stepLog2; i <= countLsz; i++) {
+                    DispatchToTemplate<KernelPartitionFiller, CHUNK_SIZE_LOG2 + 1>::call(i, dst, computedCount, kernelFftChunks1);
+
                     unsigned int kernelBegin = 1u << i;
                     unsigned int kernelEnd = 2u << i;
 
@@ -182,12 +218,9 @@ public:
                     // Perhaps this means we should calculate the kernel fft spectrum inside ConvSeries?
                 }
 
+                DispatchToTemplate<KernelPartitionFiller, CHUNK_SIZE_LOG2 + 1>::call(stepLog2, dst, computedCount, kernelFftChunks0);
 
-
-
-//                DispatchToTemplate<Filler, CHUNK_SIZE_LOG2>::call(fillSizeLog2Plus1, dst, computedCount);
-
-                computedCount++;
+                computedCount += 1u << stepLog2;
             }
 
             // Pretty sure that larger FFT sizes only help if we're using them to generate larger blocks.
@@ -195,6 +228,7 @@ public:
             // Still have to consider smaller windows, with which a smaller FFT could be beneficial.
 
             assert(false);
+            /*
 
 
             if (computedCount == 0) {
@@ -284,6 +318,7 @@ public:
                     }
                 }
             }
+            */
 
             return CHUNK_SIZE;
         });
@@ -299,6 +334,7 @@ private:
     ElementType derivativeOrder;
     bool backfillZeros;
 
+    /*
     bool hasPlan = false;
     typename fftwx::Plan planFwd;
     typename fftwx::Plan planBwd;
@@ -331,6 +367,7 @@ private:
 
         kernelFft = tmpFft;
     }
+    */
 };
 
 }
