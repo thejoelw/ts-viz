@@ -7,9 +7,9 @@
 namespace series {
 
 template <typename ElementType, typename OperatorType>
-class InfCompSeries : public DataSeries<ElementType> {
+class CompSeries : public DataSeries<ElementType> {
 public:
-    InfCompSeries(app::AppContext &context, OperatorType op)
+    CompSeries(app::AppContext &context, OperatorType op)
         : DataSeries<ElementType>(context)
         , op(op)
     {}
@@ -18,9 +18,9 @@ public:
         return this->constructChunk([this, chunkIndex](ElementType *dst, unsigned int computedCount) -> unsigned int {
             assert(computedCount == 0);
 
-            std::size_t begin = chunkIndex * CHUNK_SIZE;
-            std::size_t end = (chunkIndex + 1) * CHUNK_SIZE;
-            op(dst, begin, end);
+            for (std::size_t i = 0; i < CHUNK_SIZE; i++) {
+                dst[i] = op(chunkIndex * CHUNK_SIZE + i);
+            }
 
             return CHUNK_SIZE;
         });

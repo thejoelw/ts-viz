@@ -81,7 +81,11 @@ public:
         }
     }
 
-    ElementType *getVolatileData() {
+    const ElementType *getData() const {
+        assert(computedCount == size);
+        return data;
+    }
+    ElementType *getMutableData() {
         return data;
     }
 

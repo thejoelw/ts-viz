@@ -25,7 +25,6 @@ src/builder/input.cpp
 src/builder/plot.cpp
 src/builder/scan.cpp
 src/builder/unary.cpp
-src/builder/window.cpp
 src/graphics/gl.cpp
 src/graphics/gl.h
 src/graphics/glbuffer.h
@@ -125,12 +124,12 @@ src/series/fftwx.h
 src/series/garbagecollector.cpp
 src/series/garbagecollector.h
 src/series/invalidparameterexception.h
+src/series/type/compseries.h
 src/series/type/convseries.h
 src/series/type/convseries.test.cpp
 src/series/type/delayedseries.h
 src/series/type/deltaseries.h
 src/series/type/fftseries.h
-src/series/type/infcompseries.h
 src/series/type/inputseries.h
 src/series/type/normalizedseries.h
 src/series/type/parallelopseries.h

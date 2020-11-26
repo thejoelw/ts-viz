@@ -17,8 +17,6 @@ enum class PaddingType {
     PriorChunk,
 };
 
-// TODO: Do we still need to store double-size ffts, or can we truncate it?
-
 template <typename ElementType, std::size_t partitionSize, PaddingType paddingType>
 class FftSeries : public DataSeries<typename fftwx_impl<ElementType>::Complex, partitionSize * 2> {
     static_assert(partitionSize <= CHUNK_SIZE, "FftSeries doesn't support calculating ffts on multiple chunks");

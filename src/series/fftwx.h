@@ -81,7 +81,7 @@ public:
     struct IO {
         ElementType *in;
         typename fftwx::Complex *fft;
-        ElementType *out;
+        ElementType *out; // TODO: Do we really only need this, or just a real array and a complex array?
     };
 
     FftwPlanner() = delete;
@@ -105,6 +105,9 @@ public:
     }
 
     static const IO request() {
+        // TODO: Just allocate these on the stack?
+        // TODO: Or even better, just allocate in a static thread_local variable?
+
         std::unique_lock<std::mutex> lock(fftwMutex);
 
         IO res;
@@ -122,6 +125,7 @@ public:
 
     static void release(const IO io) {
         std::unique_lock<std::mutex> lock(fftwMutex);
+        assert(std::find(ios.cbegin(), ios.cend(), io) == ios.cend());
         ios.emplace_back(io);
     }
 
@@ -183,7 +187,7 @@ public:
 private:
     inline static bool isInit;
     inline static std::vector<IO> ios;
-    inline static std::array<typename fftwx::Plan, CHUNK_SIZE_LOG2 + 1> planFwds;
+    inline static std::array<typename fftwx::Plan, CHUNK_SIZE_LOG2 + 1 /* this will probably have to become 2 */> planFwds;
     inline static std::array<typename fftwx::Plan, CHUNK_SIZE_LOG2 + 1> planBwds;
 };
 

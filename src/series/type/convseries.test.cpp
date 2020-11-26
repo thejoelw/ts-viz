@@ -5,7 +5,7 @@
 #include "spdlog/spdlog.h"
 
 #include "series/type/convseries.h"
-#include "series/type/infcompseries.h"
+#include "series/type/compseries.h"
 
 #include "defs/TEST_KERNEL_MAX_SIZE_LOG2.h"
 #include "defs/TEST_TS_MAX_SIZE_LOG2.h"
@@ -36,7 +36,7 @@ bool testConv(app::AppContext &context, const std::vector<ElementType> kernel, c
         }
         std::copy(ts.data() + begin, ts.data() + end, dst);
     };
-    series::InfCompSeries<ElementType, decltype(op)> inf(context, op);
+    series::CompSeries<ElementType, decltype(op)> inf(context, op);
     series::ConvSeries<ElementType> conv(context, fin, inf, 0.0, false);
 
     std::size_t checkChunks = ts.size() / CHUNK_SIZE + 2;
