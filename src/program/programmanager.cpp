@@ -7,6 +7,7 @@
 #include "render/renderer.h"
 #include "stream/outputmanager.h"
 #include "program/resolver.h"
+#include "series/invalidparameterexception.h"
 
 namespace {
 
@@ -105,6 +106,8 @@ ProgObj ProgramManager::makeProgObj(const std::string &path, const rapidjson::Va
                 throw InvalidProgramException(std::string("UnresolvedCallException: ") + ex.what());
             } catch (const Resolver::AssertionFailureException &ex) {
                 throw InvalidProgramException(std::string("AssertionFailureException: ") + ex.what());
+            } catch (const series::InvalidParameterException &ex) {
+                throw InvalidProgramException(std::string("InvalidParameterException: ") + ex.what());
             }
         }
     }

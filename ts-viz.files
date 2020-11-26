@@ -124,14 +124,15 @@ src/series/fftwx.cpp
 src/series/fftwx.h
 src/series/garbagecollector.cpp
 src/series/garbagecollector.h
+src/series/invalidparameterexception.h
 src/series/type/convseries.h
 src/series/type/convseries.test.cpp
 src/series/type/delayedseries.h
 src/series/type/deltaseries.h
 src/series/type/fftseries.h
-src/series/type/finitecompseries.h
 src/series/type/infcompseries.h
 src/series/type/inputseries.h
+src/series/type/normalizedseries.h
 src/series/type/parallelopseries.h
 src/series/type/scannedseries.h
 src/shaders/Tupfile

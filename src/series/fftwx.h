@@ -6,7 +6,19 @@
 
 #include <fftw3.h>
 
+#include "jw_util/thread.h"
+
 #include "series/chunksize.h"
+
+namespace {
+
+template <std::size_t x>
+constexpr unsigned int exactLog2() {
+    static_assert(x % 2 == 0, "Non-power-of-2");
+    return x == 1 ? 0 : 1 + exactLog2<x / 2>();
+}
+
+}
 
 namespace series {
 
@@ -30,6 +42,7 @@ template<> struct fftwx_impl<float> {
     static void execute_dft_c2r(Plan plan, Complex *in, float *out) { fftwf_execute_dft_c2r(plan, in, out); }
 
     static void destroy_plan(Plan plan) { fftwf_destroy_plan(plan); }
+    static void cleanup() { fftwf_cleanup(); }
 
     static std::complex<float> getComplex(Complex src) { return std::complex<float>(src[0], src[1]); }
     static void setComplex(Complex dst, std::complex<float> src) { dst[0] = src.real(); dst[1] = src.imag(); }
@@ -52,6 +65,7 @@ template<> struct fftwx_impl<double> {
     static void execute_dft_c2r(Plan plan, Complex *in, double *out) { fftw_execute_dft_c2r(plan, in, out); }
 
     static void destroy_plan(Plan plan) { fftw_destroy_plan(plan); }
+    static void cleanup() { fftw_cleanup(); }
 
     static std::complex<double> getComplex(Complex src) { return std::complex<double>(src[0], src[1]); }
     static void setComplex(Complex dst, std::complex<double> src) { dst[0] = src.real(); dst[1] = src.imag(); }
@@ -60,56 +74,117 @@ template<> struct fftwx_impl<double> {
 extern std::mutex fftwMutex;
 
 template <typename ElementType>
-class FftwPlanIO {
+class FftwPlanner {
     typedef fftwx_impl<ElementType> fftwx;
 
 public:
-    ElementType *in;
-    typename fftwx::Complex *fft;
-    ElementType *out;
+    struct IO {
+        ElementType *in;
+        typename fftwx::Complex *fft;
+        ElementType *out;
+    };
 
-    template <typename WithLockFunc>
-    static FftwPlanIO request(WithLockFunc &&withLock) {
+    FftwPlanner() = delete;
+
+    static_assert(sizeof(typename fftwx::Plan) == sizeof(void *), "Unexpected sizeof(fftwx::Plan)");
+
+    template <std::size_t planSize>
+    static typename fftwx::Plan getPlanFwd() {
+        assert(isInit);
+        static constexpr unsigned int planIndex = exactLog2<planSize>();
+        static_assert(planIndex < planFwds.size());
+        return planFwds[planIndex];
+    }
+
+    template <std::size_t planSize>
+    static typename fftwx::Plan getPlanBwd() {
+        assert(isInit);
+        static constexpr unsigned int planIndex = exactLog2<planSize>();
+        static_assert(planIndex < planBwds.size());
+        return planBwds[planIndex];
+    }
+
+    static const IO request() {
         std::unique_lock<std::mutex> lock(fftwMutex);
 
-        FftwPlanIO res;
-        if (planIOs.empty()) {
+        IO res;
+        if (ios.empty()) {
             res.in = fftwx::alloc_real(CHUNK_SIZE * 2);
             res.fft = fftwx::alloc_complex(CHUNK_SIZE * 2);
             res.out = fftwx::alloc_real(CHUNK_SIZE * 2);
         } else {
-            res = planIOs.back();
-            planIOs.pop_back();
+            res = ios.back();
+            ios.pop_back();
         }
-
-        withLock(res);
 
         return res;
     }
 
-    static void release(FftwPlanIO planIO) {
+    static void release(const IO io) {
         std::unique_lock<std::mutex> lock(fftwMutex);
-        planIOs.push_back(planIO);
+        ios.emplace_back(io);
     }
 
-    void checkAlignment(ElementType *ptr) {
-        assert(fftwx::alignment_of(ptr) == fftwx::alignment_of(in));
+    static void checkAlignment(ElementType *ptr) {
+#ifndef NDEBUG
+        static thread_local ElementType *authentic = fftwx::alloc_real(1);
+        assert(fftwx::alignment_of(ptr) == fftwx::alignment_of(authentic));
+#endif
     }
-    void checkAlignment(typename fftwx::Complex *ptr) {
-        assert(fftwx::alignment_of(ptr) == fftwx::alignment_of(fft));
+    static void checkAlignment(typename fftwx::Complex *ptr) {
+#ifndef NDEBUG
+        static thread_local typename fftwx::Complex *authentic = fftwx::alloc_complex(1);
+        assert(fftwx::alignment_of(ptr) == fftwx::alignment_of(authentic));
+#endif
+    }
+
+    static void init() {
+        jw_util::Thread::assert_main_thread();
+
+        if (isInit) {
+            return;
+        }
+        isInit = true;
+
+        IO io = request();
+        for (unsigned int i = 0; i < planFwds.size(); i++) {
+            planFwds[i] = fftwx::plan_dft_r2c_1d(1u << i, io.in, io.fft, FFTW_ESTIMATE | FFTW_DESTROY_INPUT);
+        }
+        for (unsigned int i = 0; i < planBwds.size(); i++) {
+            planBwds[i] = fftwx::plan_dft_c2r_1d(1u << i, io.fft, io.out, FFTW_ESTIMATE | FFTW_DESTROY_INPUT);
+        }
+        release(io);
     }
 
     static void cleanup() {
-        for (FftwPlanIO planIO : planIOs) {
-            fftwx::free(planIO.in);
-            fftwx::free(planIO.fft);
+        jw_util::Thread::assert_main_thread();
+
+        if (!isInit) {
+            return;
         }
-        planIOs.clear();
+        isInit = false;
+
+        for (typename fftwx::Plan plan : planFwds) {
+            fftwx::destroy_plan(plan);
+        }
+        for (typename fftwx::Plan plan : planBwds) {
+            fftwx::destroy_plan(plan);
+        }
+
+        for (IO io : ios) {
+            fftwx::free(io.in);
+            fftwx::free(io.fft);
+        }
+        ios.clear();
+
+        fftwx::cleanup();
     }
 
 private:
-    static std::vector<FftwPlanIO> planIOs;
-    static std::array<typename fftwx::Plan, CHUNK_SIZE_LOG2 + 1> plans;
+    inline static bool isInit;
+    inline static std::vector<IO> ios;
+    inline static std::array<typename fftwx::Plan, CHUNK_SIZE_LOG2 + 1> planFwds;
+    inline static std::array<typename fftwx::Plan, CHUNK_SIZE_LOG2 + 1> planBwds;
 };
 
 }

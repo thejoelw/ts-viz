@@ -4,21 +4,13 @@
 
 #include "series/dataseries.h"
 #include "series/fftwx.h"
-#include "series/type/finitecompseries.h"
 #include "series/type/fftseries.h"
 
-#include "defs/FFT_CACHE_ABOVE_SIZE_LOG2.h"
-#include "defs/FFT_NLOGN_ABOVE_SIZE_LOG2.h"
+#include "defs/CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2.h"
+#include "defs/CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2.h"
+#include "defs/CONV_USE_FFT_ABOVE_SIZE_LOG2.h"
 
 namespace {
-
-static unsigned long long nextPow2(unsigned long long x) {
-    if (x < 2) {
-        return 1;
-    }
-    unsigned int ceilLog2 = (sizeof(unsigned long long) * CHAR_BIT) - __builtin_clzll(x - 1);
-    return static_cast<unsigned long long>(1) << ceilLog2;
-}
 
 template <template <unsigned int> typename CreateType, unsigned int count>
 class DispatchToTemplate;
@@ -52,34 +44,60 @@ namespace series {
 //   1. Persistent - stored in a time series dependency, and always calculated (whether or not it's needed). Only ever calculated once.
 //   2. Transient - calculated when needed, and thrown away.
 
+
 template <typename ElementType>
-auto getFftChunks(app::AppContext &context, DataSeries<ElementType> &arg, std::size_t chunkIndex) {
-    return getFftChunks(context, arg, chunkIndex, std::make_index_sequence<CHUNK_SIZE_LOG2 - FFT_CACHE_ABOVE_SIZE_LOG2 + 1>{});
+auto getKernelFftChunks(app::AppContext &context, DataSeries<ElementType> &arg, std::size_t chunkIndex) {
+    static constexpr unsigned int begin = CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2;
+    static constexpr unsigned int end = CHUNK_SIZE_LOG2 + 1;
+    return getKernelFftChunks<ElementType, begin, end>(context, arg, chunkIndex, std::make_index_sequence<end - begin>{});
 }
-template <typename ElementType, std::size_t... is>
-auto getFftChunks(app::AppContext &context, DataSeries<ElementType> &arg, std::size_t chunkIndex, std::index_sequence<is...>) {
-#define NUMS (1u << (FFT_CACHE_ABOVE_SIZE_LOG2 + is))
-    return std::tuple<ChunkPtr<ElementType, NUMS * 2>...>(FftSeries<ElementType, NUMS>::create(context, arg).getChunk(chunkIndex)...);
+template <typename ElementType, std::size_t begin, std::size_t end, std::size_t... is>
+auto getKernelFftChunks(app::AppContext &context, DataSeries<ElementType> &arg, std::size_t chunkIndex, std::index_sequence<is...>) {
+#define NUMS (1u << (begin + is))
+    return std::tuple<ChunkPtr<typename fftwx_impl<ElementType>::Complex, NUMS * 2>...>(FftSeries<ElementType, NUMS>::create(context, arg).getChunk(chunkIndex)...);
 #undef NUMS
+}
+
+template <typename ElementType>
+auto getTsFftChunks(app::AppContext &context, DataSeries<ElementType> &arg, std::size_t offset) {
+    static constexpr unsigned int begin = CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2;
+    static constexpr unsigned int end = CHUNK_SIZE_LOG2 + 1;
+    return getTsFftChunks<ElementType, begin, end>(context, arg, offset, std::make_index_sequence<end - begin>{});
+}
+template <typename ElementType, std::size_t begin, std::size_t end, std::size_t... is>
+auto getTsFftChunks(app::AppContext &context, DataSeries<ElementType> &arg, std::size_t offset, std::index_sequence<is...>) {
+#define NUMS (1u << (begin + is))
+    return std::tuple<std::array<ChunkPtr<typename fftwx_impl<ElementType>::Complex, NUMS * 2>, CHUNK_SIZE / NUMS>...>(getTsFftArr(FftSeries<ElementType, NUMS>::create(context, arg), offset)...);
+#undef NUMS
+}
+template <typename ElementType, std::size_t partitionSize>
+auto getTsFftArr(FftSeries<ElementType, partitionSize> &tsFft, std::size_t offset) {
+    assert(offset % partitionSize == 0);
+
+    std::array<ChunkPtr<typename fftwx_impl<ElementType>::Complex, partitionSize * 2>, CHUNK_SIZE / partitionSize> res;
+    for (std::size_t i = 0; i < res.size(); i++) {
+        res[i] = tsFft.getChunk(offset / partitionSize + i);
+    }
+    return res;
 }
 
 template <typename ElementType>
 class ConvSeries : public DataSeries<ElementType> {
 private:
     typedef fftwx_impl<ElementType> fftwx;
+    typedef typename fftwx::Complex ComplexType;
 
 public:
-    ConvSeries(app::AppContext &context, FiniteCompSeries<ElementType> &kernel, DataSeries<ElementType> &ts, ElementType derivativeOrder, bool backfillZeros)
+    ConvSeries(app::AppContext &context, DataSeries<ElementType> &kernel, DataSeries<ElementType> &ts, std::size_t kernelSize, bool backfillZeros)
         : DataSeries<ElementType>(context)
         , kernel(kernel)
         , ts(ts)
-        , kernelBack(kernel.getSize() - 1)
-        , sourceSize(kernelBack + CHUNK_SIZE)
-        , planSize(nextPow2(sourceSize))
-        , derivativeOrder(derivativeOrder)
+        , kernelSize(kernelSize)
         , backfillZeros(backfillZeros)
     {
         assert(kernel.getSize() > 0);
+
+        FftwPlanner<ElementType>::init();
     }
 
     ~ConvSeries() {
@@ -99,64 +117,37 @@ public:
         */
     }
 
-    template <unsigned int fillSizeLog2>
-    struct KernelPartitionFiller {
-        void operator()(
-                ElementType *dst,
-                unsigned int computedCount,
-                const ChunkPtr<ElementType> &kernelChunk,
-                const ChunkPtr<ElementType> &tsChunk,
-                const typename std::result_of<decltype(&getFftChunks<ElementType>)>::type &kernelFftChunks,
-                bool kernelPartitionIndex // Either the first or second partition
-        ) {
-            static_assert(fillSizeLog2 <= CHUNK_SIZE_LOG2, "We should not be generating code to handle larger-than-chunk-size fills");
-
-            static constexpr unsigned int fillSize = 1u << fillSizeLog2;
-            assert(computedCount % fillSize == 0);
-
-            if (fillSizeLog2 >= FFT_CACHE_ABOVE_SIZE_LOG2) {
-                ChunkPtr<ElementType, 2u << fillSizeLog2> chunk = std::get<ChunkPtr<ElementType, 2u << fillSizeLog2>>(kernelFftChunks);
-            } else if (fillSizeLog2 >= FFT_NLOGN_ABOVE_SIZE_LOG2) {
-
-            } else {
-                assert(fillSizeLog2 < CHUNK_SIZE_LOG2);
-                assert(computedCount + 1 >= fillSize);
-
-                for (unsigned int i = 0; i < fillSize; i++) {
-                    for (unsigned int j = 0; j < fillSize; j++) {
-                        dst[computedCount] += kernelChunk->getElement(computedCount - fillSize + 1 + j) * tsChunk->getElement(computedCount - j);
-                    }
-                    computedCount++;
-                }
-            }
-        }
-    };
-
     Chunk<ElementType> *makeChunk(std::size_t chunkIndex) override {
-        std::size_t begin = chunkIndex * CHUNK_SIZE;
-        std::size_t end = (chunkIndex + 1) * CHUNK_SIZE;
-        if (!backfillZeros && end <= kernelBack) {
-            return this->constructChunk([](ElementType *dst, unsigned int computedCount) {
-                assert(computedCount == 0);
+        FftSeries<ElementType, CHUNK_SIZE> &kernelFft = FftSeries<ElementType, CHUNK_SIZE>::create(this->context, kernel);
+        FftSeries<ElementType, CHUNK_SIZE> &tsFft = FftSeries<ElementType, CHUNK_SIZE>::create(this->context, ts);
 
-                std::fill_n(dst, CHUNK_SIZE, NAN);
-
-                return CHUNK_SIZE;
-            });
+        std::size_t numKernelChunks = (kernelSize + CHUNK_SIZE - 1) / CHUNK_SIZE;
+        std::vector<std::pair<ChunkPtr<ElementType>, ChunkPtr<ComplexType, CHUNK_SIZE * 2>>> kernelChunks;
+        kernelChunks.reserve(numKernelChunks);
+        for (std::size_t i = 0; i < numKernelChunks; i++) {
+            kernelChunks.emplace_back(kernel.getChunk(i), kernelFft.getChunk(i));
         }
 
-        std::size_t numTsChunks = std::min((sourceSize - 1) / CHUNK_SIZE, chunkIndex) + 1;
-        std::vector<ChunkPtr<ElementType>> tsChunks;
+        std::size_t numTsChunks = std::min((kernelSize + CHUNK_SIZE - 2) / CHUNK_SIZE, chunkIndex) + 1;
+        std::vector<std::pair<ChunkPtr<ElementType>, ChunkPtr<ComplexType, CHUNK_SIZE * 2>>> tsChunks;
         tsChunks.reserve(numTsChunks);
         for (std::size_t i = 0; i < numTsChunks; i++) {
-            // tsChunks[i] = ts.getChunk(chunkIndex - numTsChunks + i + 1);
-            tsChunks.emplace_back(ts.getChunk(chunkIndex - i));
+            tsChunks.emplace_back(ts.getChunk(chunkIndex - i), kernelFft.getChunk(chunkIndex - i));
         }
 
-        auto kernelFftChunks0 = getFftChunks(this->context, kernel, 0);
-        auto kernelFftChunks1 = getFftChunks(this->context, kernel, 1);
+        auto kernelFftChunks0 = getKernelFftChunks<ElementType>(this->context, kernel, 0);
+        auto kernelFftChunks1 = getKernelFftChunks<ElementType>(this->context, kernel, 1);
 
-        return this->constructChunk([this, begin, end, tsChunks = std::move(tsChunks), kernelFftChunks0 = std::move(kernelFftChunks0), kernelFftChunks1 = std::move(kernelFftChunks1)](ElementType *dst, unsigned int computedCount) -> unsigned int {
+        auto tsFftChunks = getTsFftChunks<ElementType>(this->context, ts, chunkIndex * CHUNK_SIZE);
+
+        return this->constructChunk([
+            this,
+            kernelChunks = std::move(kernelChunks),
+            tsChunks = std::move(tsChunks),
+            kernelFftChunks0 = std::move(kernelFftChunks0),
+            kernelFftChunks1 = std::move(kernelFftChunks1),
+            tsFftChunks = std::move(tsFftChunks)
+        ](ElementType *dst, unsigned int computedCount) -> unsigned int {
             for (std::size_t i = 1; i < tsChunks.size(); i++) {
                 if (tsChunks[i]->getComputedCount() != CHUNK_SIZE) {
                     return 0;
@@ -166,6 +157,59 @@ public:
             unsigned int endCount = tsChunks[0]->getComputedCount();
             if (endCount == computedCount) {
                 return endCount;
+            }
+
+            if (computedCount == 0) {
+                typename fftwx::Plan planFwd = FftwPlanner<ElementType>::template getPlanFwd<fillSize>();
+                typename fftwx::Plan planBwd = FftwPlanner<ElementType>::template getPlanBwd<fillSize>();
+
+                const typename FftwPlanner<ElementType>::IO kernelPlanIO = fillSizeLog2 < CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2
+                        ? FftwPlanner<ElementType>::request() : FftwPlanner<ElementType>::IO();
+                const typename FftwPlanner<ElementType>::IO tsPlanIO = fillSizeLog2 < CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2
+                        ? FftwPlanner<ElementType>::request() : FftwPlanner<ElementType>::IO();
+                const typename FftwPlanner<ElementType>::IO eitherPlanIO =
+                        fillSizeLog2 < CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2 ? kernelPlanIO : fillSizeLog2 < CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2 ? tsPlanIO : FftwPlanner<ElementType>::request();
+
+                typename fftwx::Complex *kernelFft;
+                if (fillSizeLog2 >= CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2) {
+                    kernelFft = std::get<ChunkPtr<ElementType, 2u << fillSizeLog2>>(kernelFftChunks)->getVolatileData();
+                } else {
+                    std::copy_n(kernelChunk->getVolatileData() + kernelOffset, fillSize, kernelPlanIO.in);
+                    std::fill_n(kernelPlanIO.in, fillSize, static_cast<ElementType>(0.0));
+                    fftwx::execute_dft_r2c(planFwd, kernelPlanIO.in, kernelPlanIO.fft);
+                    kernelFft = kernelPlanIO.fft;
+                }
+
+                typename fftwx::Complex *tsFft;
+                if (fillSizeLog2 >= CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2) {
+
+                } else {
+                    std::copy_n(tsChunk->getVolatileData() + tsOffset, fillSize, tsPlanIO.in);
+                    std::fill_n(tsPlanIO.in, fillSize, static_cast<ElementType>(0.0));
+                    fftwx::execute_dft_r2c(planFwd, tsPlanIO.in, tsPlanIO.fft);
+                    tsFft = tsPlanIO.fft;
+                }
+
+                // Elementwise multiply
+                for (std::size_t i = 0; i < fillSize; i++) {
+                    fftwx::setComplex(eitherPlanIO.fft[i], fftwx::getComplex(kernelFft[i]) * fftwx::getComplex(tsFft[i]));
+                }
+
+                // Backward fft
+                FftwPlanner<ElementType>::checkAlignment(kernelPlanIO.fft);
+                FftwPlanner<ElementType>::checkAlignment(dst + computedCount);
+                fftwx::execute_dft_c2r(planBwd, kernelPlanIO.fft, dst + computedCount);
+
+                // Release stuff
+                if (fillSizeLog2 < CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2) {
+                    FftwPlanner<ElementType>::release(kernelPlanIO);
+                }
+                if (fillSizeLog2 < CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2) {
+                    FftwPlanner<ElementType>::release(tsPlanIO);
+                }
+                if (fillSizeLog2 >= CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2 && fillSizeLog2 >= CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2) {
+                    FftwPlanner<ElementType>::release(eitherPlanIO);
+                }
             }
 
             while (computedCount < endCount) {
@@ -324,14 +368,96 @@ public:
         });
     }
 
+    template <unsigned int fillSizeLog2>
+    struct KernelPartitionFiller {
+        void operator()(
+                ElementType *dst,
+                unsigned int computedCount,
+                const ChunkPtr<ElementType> &kernelChunk,
+                const ChunkPtr<ElementType> &tsChunk,
+                const typename std::result_of<decltype(&getKernelFftChunks<ElementType>)>::type &kernelFftChunks,
+                bool kernelPartitionIndex // Either the first or second partition
+        ) {
+            static_assert(fillSizeLog2 <= CHUNK_SIZE_LOG2, "We should not be generating code to handle larger-than-chunk-size fills");
+
+            static_assert((sizeof(ElementType) << CONV_USE_FFT_ABOVE_SIZE_LOG2) >= 16, "Data subscripts won't be aligned to 16-byte boundaries");
+
+            static constexpr unsigned int fillSize = 1u << fillSizeLog2;
+            assert(computedCount % fillSize == 0);
+
+            unsigned int kernelOffset = fillSize * kernelPartitionIndex;
+            unsigned int tsOffset = computedCount - fillSize * kernelPartitionIndex;
+
+            if (fillSizeLog2 >= CONV_USE_FFT_ABOVE_SIZE_LOG2) {
+                typename fftwx::Plan planFwd = FftwPlanner<ElementType>::template getPlanFwd<fillSize>();
+                typename fftwx::Plan planBwd = FftwPlanner<ElementType>::template getPlanBwd<fillSize>();
+
+                const typename FftwPlanner<ElementType>::IO kernelPlanIO = fillSizeLog2 < CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2
+                        ? FftwPlanner<ElementType>::request() : FftwPlanner<ElementType>::IO();
+                const typename FftwPlanner<ElementType>::IO tsPlanIO = fillSizeLog2 < CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2
+                        ? FftwPlanner<ElementType>::request() : FftwPlanner<ElementType>::IO();
+                const typename FftwPlanner<ElementType>::IO eitherPlanIO =
+                        fillSizeLog2 < CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2 ? kernelPlanIO : fillSizeLog2 < CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2 ? tsPlanIO : FftwPlanner<ElementType>::request();
+
+                typename fftwx::Complex *kernelFft;
+                if (fillSizeLog2 >= CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2) {
+                    kernelFft = std::get<ChunkPtr<ElementType, 2u << fillSizeLog2>>(kernelFftChunks)->getVolatileData();
+                } else {
+                    std::copy_n(kernelChunk->getVolatileData() + kernelOffset, fillSize, kernelPlanIO.in);
+                    std::fill_n(kernelPlanIO.in, fillSize, static_cast<ElementType>(0.0));
+                    fftwx::execute_dft_r2c(planFwd, kernelPlanIO.in, kernelPlanIO.fft);
+                    kernelFft = kernelPlanIO.fft;
+                }
+
+                typename fftwx::Complex *tsFft;
+                if (fillSizeLog2 >= CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2) {
+
+                } else {
+                    std::copy_n(tsChunk->getVolatileData() + tsOffset, fillSize, tsPlanIO.in);
+                    std::fill_n(tsPlanIO.in, fillSize, static_cast<ElementType>(0.0));
+                    fftwx::execute_dft_r2c(planFwd, tsPlanIO.in, tsPlanIO.fft);
+                    tsFft = tsPlanIO.fft;
+                }
+
+                // Elementwise multiply
+                for (std::size_t i = 0; i < fillSize; i++) {
+                    fftwx::setComplex(eitherPlanIO.fft[i], fftwx::getComplex(kernelFft[i]) * fftwx::getComplex(tsFft[i]));
+                }
+
+                // Backward fft
+                FftwPlanner<ElementType>::checkAlignment(kernelPlanIO.fft);
+                FftwPlanner<ElementType>::checkAlignment(dst + computedCount);
+                fftwx::execute_dft_c2r(planBwd, kernelPlanIO.fft, dst + computedCount);
+
+                // Release stuff
+                if (fillSizeLog2 < CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2) {
+                    FftwPlanner<ElementType>::release(kernelPlanIO);
+                }
+                if (fillSizeLog2 < CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2) {
+                    FftwPlanner<ElementType>::release(tsPlanIO);
+                }
+                if (fillSizeLog2 >= CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2 && fillSizeLog2 >= CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2) {
+                    FftwPlanner<ElementType>::release(eitherPlanIO);
+                }
+            } else {
+                assert(fillSizeLog2 < CHUNK_SIZE_LOG2);
+                assert(computedCount + 1 >= fillSize);
+
+                for (unsigned int i = 0; i < fillSize; i++) {
+                    for (unsigned int j = 0; j < fillSize; j++) {
+                        dst[computedCount] += kernelChunk->getElement(kernelOffset + j) * tsChunk->getElement(tsOffset + j);
+                    }
+                    computedCount++;
+                }
+            }
+        }
+    };
+
 private:
-    FiniteCompSeries<ElementType> &kernel;
+    DataSeries<ElementType> &kernel;
     DataSeries<ElementType> &ts;
 
-    std::size_t kernelBack;
-    std::size_t sourceSize;
-    std::size_t planSize;
-    ElementType derivativeOrder;
+    std::size_t kernelSize;
     bool backfillZeros;
 
     /*

@@ -21,7 +21,7 @@ ProgObj Resolver::call(const std::string &name, const std::vector<ProgObj> &args
     if (foundValue.second) {
         try {
             foundValue.first->second = execDecl(name, args);
-        } catch (const UnresolvedCallException &ex) {
+        } catch (const std::exception &ex) {
             calls.erase(foundValue.first);
             throw ex;
         }

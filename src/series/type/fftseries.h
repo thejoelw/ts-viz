@@ -12,7 +12,14 @@ namespace series {
 //   1. Persistent - stored in a time series dependency, and always calculated (whether or not it's needed). Only ever calculated once.
 //   2. Transient - calculated when needed, and thrown away.
 
-template <typename ElementType, std::size_t partitionSize>
+enum class PaddingType {
+    ZeroFill,
+    PriorChunk,
+};
+
+// TODO: Do we still need to store double-size ffts, or can we truncate it?
+
+template <typename ElementType, std::size_t partitionSize, PaddingType paddingType>
 class FftSeries : public DataSeries<typename fftwx_impl<ElementType>::Complex, partitionSize * 2> {
     static_assert(partitionSize <= CHUNK_SIZE, "FftSeries doesn't support calculating ffts on multiple chunks");
 
@@ -21,13 +28,14 @@ class FftSeries : public DataSeries<typename fftwx_impl<ElementType>::Complex, p
 
 private:
     typedef fftwx_impl<ElementType> fftwx;
+    typedef typename fftwx::Complex ComplexType;
 
 public:
-    static FftSeries<ElementType, partitionSize> &create(app::AppContext &context, DataSeries<ElementType> &arg) {
-        static std::unordered_map<DataSeries<ElementType> *, FftSeries<ElementType, partitionSize> *> cache;
+    static FftSeries<ElementType, partitionSize, paddingType> &create(app::AppContext &context, DataSeries<ElementType> &arg) {
+        static std::unordered_map<DataSeries<ElementType> *, FftSeries<ElementType, partitionSize, paddingType> *> cache;
         auto foundValue = cache.emplace(&arg, 0);
         if (foundValue.second) {
-            foundValue.first->second = new FftSeries<ElementType, partitionSize>(context, arg);
+            foundValue.first->second = new FftSeries<ElementType, partitionSize, paddingType>(context, arg);
         }
         return *foundValue.first->second;
     }
@@ -36,56 +44,52 @@ private:
     FftSeries(app::AppContext &context, DataSeries<ElementType> &arg)
         : DataSeries<ElementType>(context)
         , arg(arg)
-    {}
-
-public:
-    ~FftSeries() {
-        std::unique_lock<std::mutex> lock(fftwMutex);
-        fftwx::destroy_plan(planFwd);
+    {
+        FftwPlanner<ElementType>::init();
     }
 
-    Chunk<ElementType, fftSize> *makeChunk(std::size_t chunkIndex) override {
-        ChunkPtr<ElementType> chunk = arg.getChunk(chunkIndex * partitionSize / CHUNK_SIZE);
-        unsigned int offset = chunkIndex * partitionSize % CHUNK_SIZE;
+public:
+    Chunk<ComplexType, fftSize> *makeChunk(std::size_t chunkIndex) override {
+        ChunkPtr<ElementType> prevChunk = chunkIndex > 0 && paddingType == PaddingType::PriorChunk
+                ? arg.getChunk((chunkIndex - 1) * partitionSize / CHUNK_SIZE)
+                : ChunkPtr<ElementType>::null();
+        ChunkPtr<ElementType> curChunk = arg.getChunk(chunkIndex * partitionSize / CHUNK_SIZE);
 
-        return this->constructChunk([this, chunk = std::move(chunk), offset](ElementType *dst, unsigned int computedCount) -> unsigned int {
+        return this->constructChunk([this, chunkIndex, prevChunk = std::move(prevChunk), curChunk = std::move(curChunk)](ComplexType *dst, unsigned int computedCount) -> unsigned int {
+            unsigned int prevOffset = (chunkIndex - 1) * partitionSize % CHUNK_SIZE;
+            unsigned int curOffset = chunkIndex * partitionSize % CHUNK_SIZE;
+
             assert(computedCount == 0);
 
             // This is an all-or-nothing transform
-            if (chunk->getComputedCount() < offset + partitionSize) {
+            if (paddingType == PaddingType::PriorChunk && prevChunk.has() && prevChunk->getComputedCount() < prevOffset + partitionSize) {
+                return 0;
+            }
+            if (curChunk->getComputedCount() < curOffset + partitionSize) {
                 return 0;
             }
 
-            FftwPlanIO<ElementType> planIO = FftwPlanIO<ElementType>::request([this](FftwPlanIO<ElementType> planIO) {
-                if (!hasPlan) {
-                    planFwd = fftwx::plan_dft_r2c_1d(fftSize, planIO.in, planIO.fft, FFTW_ESTIMATE | FFTW_DESTROY_INPUT);
-                    hasPlan = true;
-                }
-            });
+            typename FftwPlanner<ElementType>::IO planIO = FftwPlanner<ElementType>::request();
+            typename fftwx::Plan plan = FftwPlanner<ElementType>::template getPlanFwd<fftSize>();
 
-            for (std::size_t i = 0; i < partitionSize; i++) {
-                ElementType val = chunk->getElement(offset + i);
-                if (std::isnan(val)) {
-                    val = 0.0;
-
-//                    signed int rangeBegin = j - (tsChunks.size() - i) * CHUNK_SIZE;
-//                    signed int rangeEnd = rangeBegin + (kernelBack + 1);
-//                    if (rangeBegin <= nans.back().second) {
-//                        nans.back().second = rangeEnd;
-//                    } else {
-//                        nans.push_back(std::pair<signed int, signed int>(rangeBegin, rangeEnd));
-//                    }
+            if (paddingType == PaddingType::PriorChunk && prevChunk.has()) {
+                for (std::size_t i = 0; i < partitionSize; i++) {
+                    ElementType val = prevChunk->getElement(prevOffset + i);
+                    planIO.in[i] = std::isnan(val) ? 0.0 : val;
                 }
-                planIO.in[i] = val;
+            } else {
+                std::fill_n(planIO.in, partitionSize, static_cast<ElementType>(0.0));
             }
 
-            std::fill_n(planIO.in + partitionSize, partitionSize, static_cast<ElementType>(0.0));
+            for (std::size_t i = 0; i < partitionSize; i++) {
+                ElementType val = curChunk->getElement(curOffset + i);
+                planIO.in[partitionSize + i] = std::isnan(val) ? 0.0 : val;
+            }
 
-            fftwx::execute_dft_r2c(planFwd, planIO.in, planIO.fft);
+            FftwPlanner<ElementType>::checkAlignment(dst);
+            fftwx::execute_dft_r2c(plan, planIO.in, dst);
 
-            std::copy_n(planIO.fft, fftSize, dst);
-
-            FftwPlanIO<ElementType>::release(planIO);
+            FftwPlanner<ElementType>::release(planIO);
 
             return fftSize;
         });
@@ -93,9 +97,6 @@ public:
 
 private:
     DataSeries<ElementType> &arg;
-
-    bool hasPlan = false;
-    typename fftwx::Plan planFwd;
 };
 
 }
