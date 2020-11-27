@@ -23,7 +23,7 @@ ProgObj Resolver::call(const std::string &name, const std::vector<ProgObj> &args
             foundValue.first->second = execDecl(name, args);
         } catch (const std::exception &ex) {
             calls.erase(foundValue.first);
-            throw ex;
+            throw;
         }
     }
     return foundValue.first->second;

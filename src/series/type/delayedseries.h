@@ -1,17 +1,22 @@
 #pragma once
 
 #include "series/dataseries.h"
+#include "series/invalidparameterexception.h"
 
 namespace series {
 
 template <typename ElementType>
 class DelayedSeries : public DataSeries<ElementType> {
 public:
-    DelayedSeries(app::AppContext &context, DataSeries<ElementType> &arg, std::size_t delay)
+    DelayedSeries(app::AppContext &context, DataSeries<ElementType> &arg, std::int64_t delay)
         : DataSeries<ElementType>(context)
         , arg(arg)
         , delay(delay)
-    {}
+    {
+        if (delay <= 0) {
+            throw series::InvalidParameterException("DelayedSeries: delay must be greater than zero");
+        }
+    }
 
     Chunk<ElementType> *makeChunk(std::size_t chunkIndex) override {
         std::size_t d0 = (delay + CHUNK_SIZE - 1) / CHUNK_SIZE;

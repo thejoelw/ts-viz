@@ -54,10 +54,6 @@ public:
 protected:
     template <typename ComputerType>
     Chunk<ElementType, size> *constructChunk(ComputerType &&computer) {
-#ifndef NDEBUG
-        std::size_t computerSize = sizeof(computer);
-        (void) computerSize;
-#endif
         return new ChunkImpl<ElementType, size, ComputerType>(this, std::move(computer));
     }
 

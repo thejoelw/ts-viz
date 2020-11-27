@@ -23,6 +23,12 @@ public:
     }
 
     unsigned int compute(ElementType *dst, unsigned int computedCount) const override {
+#ifndef NDEBUG
+        static constexpr std::size_t sizeofThis = sizeof(ChunkImpl<ElementType, size, ComputerType>);
+        static constexpr std::size_t sizeofComputer = sizeof(ComputerType);
+        assert(hasValue);
+#endif
+
         return computer(dst, computedCount);
     }
 
@@ -31,6 +37,7 @@ public:
         assert(hasValue);
         hasValue = false;
 #endif
+
         computer.~ComputerType();
     }
 

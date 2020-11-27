@@ -23,6 +23,8 @@ int main(int argc, char **argv) {
     // Add logger to context
     spdlog::set_default_logger(nullptr);
     spdlog::set_default_logger(spdlog::stderr_color_st(""));
+    spdlog::flush_on(spdlog::level::trace);
+    spdlog::flush_every(std::chrono::seconds(1));
     context.provideInstance(spdlog::default_logger().get());
 
     // Print some debug info

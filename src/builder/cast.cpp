@@ -25,4 +25,6 @@ static int _ = program::Resolver::registerBuilder([](app::AppContext &context, p
     });
 
     resolver.decl("cast_int64", [](program::UncastNumber num){return static_cast<std::int64_t>(num.value);});
+    resolver.decl("cast_int64", [](float num){return static_cast<std::int64_t>(num);});
+    resolver.decl("cast_int64", [](double num){return static_cast<std::int64_t>(num);});
 });

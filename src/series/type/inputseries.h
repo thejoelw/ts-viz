@@ -36,12 +36,12 @@ public:
 
         assert(index >= nextIndex);
         while (nextIndex < index) {
-            this->getChunk(nextIndex / CHUNK_SIZE)->getVolatileData()[nextIndex % CHUNK_SIZE] = prevValue;
+            this->getChunk(nextIndex / CHUNK_SIZE)->getMutableData()[nextIndex % CHUNK_SIZE] = prevValue;
             nextIndex++;
         }
 
         prevValue = value;
-        this->getChunk(nextIndex / CHUNK_SIZE)->getVolatileData()[nextIndex % CHUNK_SIZE] = value;
+        this->getChunk(nextIndex / CHUNK_SIZE)->getMutableData()[nextIndex % CHUNK_SIZE] = value;
 
         while (prevChunk <= nextIndex / CHUNK_SIZE) {
             this->getChunk(prevChunk)->notify();

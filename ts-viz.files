@@ -22,6 +22,7 @@ src/builder/delta.cpp
 src/builder/emit.cpp
 src/builder/inf.cpp
 src/builder/input.cpp
+src/builder/norm.cpp
 src/builder/plot.cpp
 src/builder/scan.cpp
 src/builder/unary.cpp

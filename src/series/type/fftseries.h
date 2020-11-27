@@ -31,7 +31,7 @@ private:
 public:
     static FftSeries<ElementType, partitionSize, paddingType> &create(app::AppContext &context, DataSeries<ElementType> &arg) {
         static std::unordered_map<DataSeries<ElementType> *, FftSeries<ElementType, partitionSize, paddingType> *> cache;
-        auto foundValue = cache.emplace(&arg, 0);
+        auto foundValue = cache.emplace(&arg, static_cast<FftSeries<ElementType, partitionSize, paddingType> *>(0));
         if (foundValue.second) {
             foundValue.first->second = new FftSeries<ElementType, partitionSize, paddingType>(context, arg);
         }
@@ -40,7 +40,7 @@ public:
 
 private:
     FftSeries(app::AppContext &context, DataSeries<ElementType> &arg)
-        : DataSeries<ElementType>(context)
+        : DataSeries<typename fftwx_impl<ElementType>::Complex, partitionSize * 2>(context)
         , arg(arg)
     {
         FftwPlanner<ElementType>::init();

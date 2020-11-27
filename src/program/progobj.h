@@ -11,7 +11,6 @@
 
 #include "series/dataseries.decl.h"
 
-namespace series { template <typename ElementType> class FiniteCompSeries; }
 namespace render { class SeriesRenderer; }
 namespace stream { class SeriesEmitter; }
 
@@ -43,8 +42,6 @@ typedef std::variant<
     std::int64_t,
     series::DataSeries<float> *,
     series::DataSeries<double> *,
-    series::FiniteCompSeries<float> *,
-    series::FiniteCompSeries<double> *,
     ProgObjArray<float>,
     ProgObjArray<double>,
     ProgObjArray<series::DataSeries<float> *>,
@@ -82,8 +79,6 @@ static std::string progObjTypeNames[] = {
     "int64",
     "TS<float>",
     "TS<double>",
-    "FS<float>",
-    "FS<double>",
     "Array<float>",
     "Array<double>",
     "Array<TS<float>>",
