@@ -1,7 +1,7 @@
 ROOT = $(TUP_CWD)
 DEFINES_CONFIG_FILE = $(ROOT)/defines.cfg
-SRC_PATH = $(ROOT)/src/
-THIRD_PARTY_PATH = $(ROOT)/third_party/
+SRC_PATH = $(ROOT)/src
+THIRD_PARTY_PATH = $(ROOT)/third_party
 
 BIN_TARGET = $(ROOT)/ts-viz
 
@@ -10,7 +10,7 @@ CXX = clang++
 
 CFLAGS += -std=c++17
 CFLAGS += -Wall -Werror -Wno-missing-braces -Wno-unused
-CFLAGS += -I$(SRC_PATH) -I$(THIRD_PARTY_PATH)
+CFLAGS += -I$(SRC_PATH) -I$(THIRD_PARTY_PATH) -I$(THIRD_PARTY_PATH)/spdlog/include -I$(THIRD_PARTY_PATH)/rapidjson/include
 CFLAGS += -DIMGUI_IMPL_OPENGL_LOADER_GLEW
 
 CFLAGS += -fsanitize=undefined,address

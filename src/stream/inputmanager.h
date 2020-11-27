@@ -2,7 +2,7 @@
 
 #include <unordered_map>
 
-#include "rapidjson/include/rapidjson/document.h"
+#include "rapidjson/document.h"
 
 #include "series/type/inputseries.h"
 

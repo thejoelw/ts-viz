@@ -2,8 +2,6 @@
 
 #include <vector>
 
-#include "function2/include/function2/function2.hpp"
-
 #include "jw_util/thread.h"
 
 #include "series/dataseries.decl.h"

@@ -1,8 +1,8 @@
 #include "programmanager.h"
 
 #include "spdlog/logger.h"
-#include "rapidjson/include/rapidjson/stringbuffer.h"
-#include "rapidjson/include/rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
+#include "rapidjson/writer.h"
 
 #include "render/renderer.h"
 #include "stream/outputmanager.h"

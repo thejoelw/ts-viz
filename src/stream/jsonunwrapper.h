@@ -3,8 +3,8 @@
 #include <cstdlib>
 
 #include "spdlog/logger.h"
-#include "rapidjson/include/rapidjson/document.h"
-#include "rapidjson/include/rapidjson/error/en.h"
+#include "rapidjson/document.h"
+#include "rapidjson/error/en.h"
 
 #include "app/appcontext.h"
 

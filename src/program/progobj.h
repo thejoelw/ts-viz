@@ -7,8 +7,6 @@
 
 #include "jw_util/hash.h"
 
-#include "rapidjson/include/rapidjson/document.h"
-
 #include "series/dataseries.decl.h"
 
 namespace render { class SeriesRenderer; }

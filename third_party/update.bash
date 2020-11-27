@@ -33,10 +33,5 @@ pushd rapidjson
 git checkout v1.1.0
 popd
 
-git clone git@github.com:Naios/function2.git
-pushd function2
-git checkout 4.1.0
-popd
-
 
 popd > /dev/null
