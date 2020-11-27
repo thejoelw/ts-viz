@@ -10,7 +10,7 @@ static_assert(ENABLE_GRAPHICS, "Should not be including graphics/gl.h if ENABLE_
 #include <GLFW/glfw3.h>
 #endif
 
-#include <assert.h>
+#include <cassert>
 #include <string>
 
 #include "jw_util/baseexception.h"

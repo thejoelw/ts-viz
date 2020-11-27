@@ -1,7 +1,7 @@
 #ifndef JWUTIL_MULTIDIMMATRIX_H
 #define JWUTIL_MULTIDIMMATRIX_H
 
-#include <assert.h>
+#include <cassert>
 #include <type_traits>
 #include <array>
 

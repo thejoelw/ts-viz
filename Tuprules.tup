@@ -5,8 +5,8 @@ THIRD_PARTY_PATH = $(ROOT)/third_party
 
 BIN_TARGET = $(ROOT)/ts-viz
 
-CC = clang
-CXX = clang++
+CC = gcc
+CXX = g++
 
 CFLAGS += -std=c++17
 CFLAGS += -Wall -Werror -Wno-missing-braces -Wno-unused

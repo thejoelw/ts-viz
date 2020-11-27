@@ -1,7 +1,7 @@
 #ifndef JWUTIL_RESIZABLESTORAGE_H
 #define JWUTIL_RESIZABLESTORAGE_H
 
-#include <assert.h>
+#include <cassert>
 #include <algorithm>
 
 namespace jw_util

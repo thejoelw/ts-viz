@@ -1,7 +1,7 @@
 #ifndef JWUTIL_SIGNAL_H
 #define JWUTIL_SIGNAL_H
 
-#include <assert.h>
+#include <cassert>
 #include <type_traits>
 #include <vector>
 #include <algorithm>

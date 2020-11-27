@@ -1,7 +1,7 @@
 #ifndef JWUTIL_LINEARFEEDBACKSHIFTREGISTER_H
 #define JWUTIL_LINEARFEEDBACKSHIFTREGISTER_H
 
-#include <assert.h>
+#include <cassert>
 
 namespace jw_util
 {

@@ -1,7 +1,7 @@
 #ifndef JWUTIL_ERASABLEUINTQUEUE_H
 #define JWUTIL_ERASABLEUINTQUEUE_H
 
-#include <assert.h>
+#include <cassert>
 #include <type_traits>
 #include <vector>
 #include <list>

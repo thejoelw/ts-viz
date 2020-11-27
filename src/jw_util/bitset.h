@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <limits.h>
 #include <type_traits>
-#include <assert.h>
+#include <cassert>
 
 namespace jw_util {
 

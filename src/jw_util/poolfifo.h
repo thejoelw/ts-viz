@@ -1,7 +1,7 @@
 #ifndef JWUTIL_POOLFIFO_H
 #define JWUTIL_POOLFIFO_H
 
-#include <assert.h>
+#include <cassert>
 
 namespace jw_util
 {

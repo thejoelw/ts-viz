@@ -4,7 +4,7 @@
 #include "intinverse.h"
 
 #include <cmath>
-#include <assert.h>
+#include <cassert>
 #include <type_traits>
 
 namespace jw_util

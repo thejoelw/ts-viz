@@ -2,7 +2,7 @@
 #define JWUTIL_INTERVALSET_H
 
 #include <set>
-#include <assert.h>
+#include <cassert>
 
 namespace jw_util
 {

@@ -1,7 +1,7 @@
 #ifndef JWUTIL_METHODCALLBACK_H
 #define JWUTIL_METHODCALLBACK_H
 
-#include <assert.h>
+#include <cassert>
 #include <utility>
 
 namespace jw_util

@@ -7,7 +7,7 @@
 #include <fstream>
 #endif
 #include <sstream>
-#include <assert.h>
+#include <cassert>
 #include "spdlog/logger.h"
 
 namespace {

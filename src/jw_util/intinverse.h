@@ -1,7 +1,7 @@
 #ifndef JWUTIL_INTINVERSE_H
 #define JWUTIL_INTINVERSE_H
 
-#include <assert.h>
+#include <cassert>
 #include <array>
 #include <type_traits>
 

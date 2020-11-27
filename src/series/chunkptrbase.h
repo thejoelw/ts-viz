@@ -1,6 +1,6 @@
 #pragma once
 
-#include <assert.h>
+#include <cassert>
 #include <utility>
 
 namespace series { class ChunkBase; }

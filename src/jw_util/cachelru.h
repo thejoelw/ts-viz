@@ -2,7 +2,7 @@
 #define JWUTIL_CACHELRU_H
 
 #include <unordered_map>
-#include <assert.h>
+#include <cassert>
 
 namespace jw_util
 {

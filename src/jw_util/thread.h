@@ -2,7 +2,7 @@
 #define JWUTIL_THREAD_H
 
 #include <thread>
-#include <assert.h>
+#include <cassert>
 
 namespace jw_util
 {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <typeindex>
+#include <cassert>
 #include <vector>
 #include <unordered_map>
 

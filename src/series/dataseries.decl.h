@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdlib>
+
 #include "series/chunksize.h"
 
 namespace series {

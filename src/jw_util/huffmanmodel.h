@@ -1,7 +1,7 @@
 #ifndef JWUTIL_HUFFMANMODEL_H
 #define JWUTIL_HUFFMANMODEL_H
 
-#include <assert.h>
+#include <cassert>
 #include <array>
 #include <queue>
 #include <limits.h>
