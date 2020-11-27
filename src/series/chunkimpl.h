@@ -29,6 +29,10 @@ public:
         assert(hasValue);
 #endif
 
+        if (sizeofComputer == 304) {
+            int a = 1;
+        }
+
         return computer(dst, computedCount);
     }
 

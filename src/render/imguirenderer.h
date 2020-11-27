@@ -16,6 +16,7 @@ public:
     void tickClose(app::TickerContext &tickerContext);
 
 private:
+#if ENABLE_GUI
     static void mouseButtonCallback(GLFWwindow *window, int button, int action, int mods);
     static void scrollCallback(GLFWwindow *window, double xoffset, double yoffset);
     static void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods);
@@ -25,6 +26,7 @@ private:
     static GLFWscrollfun prevScrollCallback;
     static GLFWkeyfun prevKeyCallback;
     static GLFWcharfun prevCharCallback;
+#endif
 };
 
 }

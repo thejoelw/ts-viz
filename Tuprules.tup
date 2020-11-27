@@ -13,8 +13,8 @@ CFLAGS += -Wall -Werror -Wno-missing-braces -Wno-unused
 CFLAGS += -I$(SRC_PATH) -I$(THIRD_PARTY_PATH)
 CFLAGS += -DIMGUI_IMPL_OPENGL_LOADER_GLEW
 
-# CFLAGS += -fsanitize=undefined,address
-# LDFLAGS += -fsanitize=undefined,address
+CFLAGS += -fsanitize=undefined,address
+LDFLAGS += -fsanitize=undefined,address
 
 ifeq (@(BUILD_TYPE),debug)
     CFLAGS += -O0 -g -fdebug-prefix-map=`pwd`=`pwd | sed 's/\/\.tup\/.*//'`

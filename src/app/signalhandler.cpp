@@ -16,12 +16,12 @@ void handleSignal(int signal) {
 
     if (stopFlag) {
         const char *msg = "Caught a second SIGINT; exiting...\n";
-        write(2, msg, strlen(msg));
+        write(2, msg, std::strlen(msg));
 
         std::_Exit(5);
     } else {
         const char *msg = "Caught SIGINT; setting stop flag...\n";
-        write(2, msg, strlen(msg));
+        write(2, msg, std::strlen(msg));
 
         stopFlag = true;
     }

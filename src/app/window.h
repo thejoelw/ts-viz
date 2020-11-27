@@ -4,10 +4,11 @@
 #include <string>
 
 #include "jw_util/baseexception.h"
-#include "jw_util/signal.h"
 
 #include "app/tickercontext.h"
 #include "graphics/gl.h"
+
+struct GLFWwindow;
 
 namespace app {
 
@@ -67,10 +68,6 @@ public:
     ~Window();
 
     Dimensions dimensions;
-
-    jw_util::Signal<MouseMoveEvent> onMouseMove;
-    jw_util::Signal<MouseButtonEvent> onMouseButton;
-    jw_util::Signal<KeyEvent> onKey;
 
     void tick(TickerContext &tickerContext);
     void updateFrame();

@@ -1,8 +1,11 @@
 #pragma once
 
 #include <GL/glew.h>
-#define GLFW_INCLUDE_GLU
+
+#include "defs/ENABLE_GUI.h"
+#if ENABLE_GUI
 #include <GLFW/glfw3.h>
+#endif
 
 #include <assert.h>
 #include <string>

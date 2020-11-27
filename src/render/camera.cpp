@@ -37,12 +37,14 @@ void Camera::tickOpen(app::TickerContext &tickerContext) {
         case MouseRegion::Bottom: min.x += delta.x; max += delta; break;
     }
 
+#if ENABLE_GUI
     if (window.isMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT) && !ImGui::GetIO().WantCaptureMouse) {
         glm::vec2 delta = mousePosition - prevMousePos;
         delta *= (max - min) * glm::vec2(-0.5f, 0.5f);
         max += delta;
         min += delta;
     }
+#endif
 
     scale = 2.0f / (max - min);
     offset = -1.0f - scale * min;
@@ -69,6 +71,7 @@ void Camera::tickClose(app::TickerContext &tickerContext) {
 }
 
 glm::vec2 Camera::computeDelta() const {
+#if ENABLE_GUI
     if (ImGui::GetIO().WantCaptureKeyboard) {
         return glm::vec2(0.0f, 0.0f);
     }
@@ -80,8 +83,10 @@ glm::vec2 Camera::computeDelta() const {
     delta.y = static_cast<float>(window.isKeyPressed(GLFW_KEY_UP)) - static_cast<float>(window.isKeyPressed(GLFW_KEY_DOWN));
     delta *= 0.02f;
     delta *= max - min;
-
     return delta;
+#else
+    return glm::vec2(0.0);
+#endif
 }
 
 Camera::MouseRegion Camera::computeMouseRegion() const {

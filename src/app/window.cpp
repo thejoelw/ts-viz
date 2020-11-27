@@ -15,6 +15,7 @@ Window::Window(AppContext &context)
     dimensions.width = 0;
     dimensions.height = 0;
 
+#if ENABLE_GUI
     context.get<spdlog::logger>().info("GLFW version: {}", glfwGetVersionString());
 
     glfwSetErrorCallback(&Window::errorCallback);
@@ -55,7 +56,6 @@ Window::Window(AppContext &context)
     if (glew_init != GLEW_OK) {
         throw Exception(fmt::format("glfwInit() error: {}", glewGetErrorString(glew_init)));
     }
-    // TODO: Take a look at glad instead of glew
 
     // For some reason, glewInit() causes a GL_INVALID_ENUM error.
     // https://www.opengl.org/wiki/OpenGL_Loading_Library
@@ -69,13 +69,11 @@ Window::Window(AppContext &context)
     glfwSetInputMode(glfwWindow, GLFW_STICKY_KEYS, GL_TRUE);
     glfwSetInputMode(glfwWindow, GLFW_STICKY_MOUSE_BUTTONS, GL_TRUE);
     setMouseVisible(true);
-
-    glfwSetCursorPosCallback(glfwWindow, mouseMoveCallback);
-    glfwSetMouseButtonCallback(glfwWindow, mouseButtonCallback);
-    glfwSetKeyCallback(glfwWindow, keyCallback);
+#endif
 }
 
 Window::~Window() {
+#if ENABLE_GUI
     // Cursor options:
     // GLFW_CURSOR_NORMAL, GLFW_CURSOR_HIDDEN, or GLFW_CURSOR_DISABLED
     glfwSetInputMode(glfwWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
@@ -84,6 +82,7 @@ Window::~Window() {
         glfwDestroyWindow(glfwWindow);
     }
     glfwTerminate();
+#endif
 }
 
 void Window::tick(TickerContext &tickerContext) {
@@ -95,10 +94,13 @@ void Window::tick(TickerContext &tickerContext) {
 
 void Window::updateFrame() {
     glFlush();
+#if ENABLE_GUI
     glfwSwapBuffers(glfwWindow);
+#endif
 }
 
 void Window::pollEvents() {
+#if ENABLE_GUI
     glfwPollEvents();
 
     Dimensions newDims;
@@ -110,6 +112,7 @@ void Window::pollEvents() {
 
         dimensions = newDims;
     }
+#endif
 
     if (shouldClose()) {
         throw QuitException();
@@ -117,92 +120,83 @@ void Window::pollEvents() {
 }
 
 bool Window::shouldClose() const {
+#if ENABLE_GUI
     return glfwWindowShouldClose(glfwWindow);
+#else
+    return false;
+#endif
 }
 
 bool Window::isKeyPressed(int key) const {
+#if ENABLE_GUI
     return glfwGetKey(glfwWindow, key) == GLFW_PRESS;
+#else
+    return false;
+#endif
 }
 
 bool Window::isMouseButtonPressed(int mouseButton) const {
+#if ENABLE_GUI
     return glfwGetMouseButton(glfwWindow, mouseButton) == GLFW_PRESS;
+#else
+    return false;
+#endif
 }
 
 Window::MousePosition Window::getMousePosition() const {
     MousePosition pos;
+#if ENABLE_GUI
     glfwGetCursorPos(glfwWindow, &pos.x, &pos.y);
+#else
+    pos.x = 0.0;
+    pos.y = 0.0;
+#endif
     return pos;
 }
 
 void Window::setMouseVisible(bool visible) {
+#if ENABLE_GUI
     glfwSetInputMode(glfwWindow, GLFW_CURSOR, visible ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
+#endif
 }
 
 void Window::errorCallback(int code, const char *str) {
     // We don't have a window reference here, so just call a singleton logger
 
+#if ENABLE_GUI
     switch (code)
     {
     case GLFW_NOT_INITIALIZED:
-        spdlog::get("main")->warn("GLFW has not been initialized.");
+        spdlog::warn("GLFW has not been initialized.");
         break;
     case GLFW_NO_CURRENT_CONTEXT:
-        spdlog::get("main")->warn("No context is current for this thread.");
+        spdlog::warn("No context is current for this thread.");
         break;
     case GLFW_INVALID_ENUM:
-        spdlog::get("main")->warn("One of the enum parameters for the function was given an invalid enum.");
+        spdlog::warn("One of the enum parameters for the function was given an invalid enum.");
         break;
     case GLFW_INVALID_VALUE:
-        spdlog::get("main")->warn("One of the parameters for the function was given an invalid value.");
+        spdlog::warn("One of the parameters for the function was given an invalid value.");
         break;
     case GLFW_OUT_OF_MEMORY:
-        spdlog::get("main")->warn("A memory allocation failed.");
+        spdlog::warn("A memory allocation failed.");
         break;
     case GLFW_API_UNAVAILABLE:
-        spdlog::get("main")->warn("GLFW could not find support for the requested client API on the system.");
+        spdlog::warn("GLFW could not find support for the requested client API on the system.");
         break;
     case GLFW_VERSION_UNAVAILABLE:
-        spdlog::get("main")->warn("The requested client API version is not available.");
+        spdlog::warn("The requested client API version is not available.");
         break;
     case GLFW_PLATFORM_ERROR:
-        spdlog::get("main")->warn("A platform-specific error occurred that does not match any of the more specific categories.");
+        spdlog::warn("A platform-specific error occurred that does not match any of the more specific categories.");
         break;
     case GLFW_FORMAT_UNAVAILABLE:
-        spdlog::get("main")->warn("The clipboard did not contain data in the requested format.");
+        spdlog::warn("The clipboard did not contain data in the requested format.");
         break;
     }
+#endif
 
-    spdlog::get("main")->warn(str);
-}
-
-void Window::mouseMoveCallback(GLFWwindow *glfwWindow, double x, double y) {
-    MouseMoveEvent event;
-    event.x = x;
-    event.y = y;
-
-    Window *thisWindow = static_cast<Window *>(glfwGetWindowUserPointer(glfwWindow));
-    thisWindow->onMouseMove.trigger(event);
-}
-
-void Window::mouseButtonCallback(GLFWwindow *glfwWindow, int button, int action, int mods) {
-    MouseButtonEvent event;
-    event.button = button;
-    event.action = action;
-    event.mods = mods;
-
-    Window *thisWindow = static_cast<Window *>(glfwGetWindowUserPointer(glfwWindow));
-    thisWindow->onMouseButton.trigger(event);
-}
-
-void Window::keyCallback(GLFWwindow *glfwWindow, int key, int scancode, int action, int mods) {
-    KeyEvent event;
-    event.key = key;
-    event.scancode = scancode;
-    event.action = action;
-    event.mods = mods;
-
-    Window *thisWindow = static_cast<Window *>(glfwGetWindowUserPointer(glfwWindow));
-    thisWindow->onKey.trigger(event);
+    spdlog::warn("GLFW error {}: {}", code, str);
 }
 
 GLFWwindow *Window::firstWindow = nullptr;
