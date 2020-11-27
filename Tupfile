@@ -9,6 +9,7 @@ run awk '/^[^#]/ { print ": |> echo \"#define "$0"\" > %o |> src/defs/"$1".h $(R
 : foreach $(SRC_PATH)/builder/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 : foreach $(SRC_PATH)/graphics/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 : foreach $(SRC_PATH)/graphics/type/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
+: foreach $(SRC_PATH)/imgui/*.cpp | $(ROOT)/<gen_headers> |> !cpp -I$(THIRD_PARTY_PATH)/imgui/ -I$(THIRD_PARTY_PATH)/imgui/examples/ |>
 : foreach $(SRC_PATH)/jw_util/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 : foreach $(SRC_PATH)/program/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 : foreach $(SRC_PATH)/render/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
@@ -17,11 +18,6 @@ run awk '/^[^#]/ { print ": |> echo \"#define "$0"\" > %o |> src/defs/"$1".h $(R
 : foreach $(SRC_PATH)/series/type/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 : foreach $(SRC_PATH)/stream/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 : foreach $(SRC_PATH)/util/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
-
-# : foreach $(THIRD_PARTY_PATH)/flatbuffers/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
-: foreach $(THIRD_PARTY_PATH)/imgui/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
-: $(THIRD_PARTY_PATH)/imgui/examples/imgui_impl_glfw.cpp | $(ROOT)/<gen_headers> |> !cpp -I$(THIRD_PARTY_PATH)/imgui/ |>
-: $(THIRD_PARTY_PATH)/imgui/examples/imgui_impl_opengl3.cpp | $(ROOT)/<gen_headers> |> !cpp -I$(THIRD_PARTY_PATH)/imgui/ |>
 
 # Link program
 # : | $(ROOT)/<src_objects> |> !link %<src_objects> |> $(BIN_TARGET)

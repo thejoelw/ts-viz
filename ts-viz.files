@@ -41,6 +41,12 @@ src/graphics/type/element.cpp
 src/graphics/type/element.h
 src/graphics/type/point.cpp
 src/graphics/type/point.h
+src/imgui/imgui.cpp
+src/imgui/imgui_demo.cpp
+src/imgui/imgui_draw.cpp
+src/imgui/imgui_impl_glfw.cpp
+src/imgui/imgui_impl_opengl3.cpp
+src/imgui/imgui_widgets.cpp
 src/jw_util/README.md
 src/jw_util/arraypool.h
 src/jw_util/baseexception.h

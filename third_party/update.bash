@@ -11,6 +11,9 @@ rm -rf imgui readerwriterqueue spdlog rapidjson
 git clone git@github.com:ocornut/imgui.git
 pushd imgui
 git checkout v1.75
+for filename in *.cpp examples/imgui_impl_glfw.cpp examples/imgui_impl_opengl3.cpp ; do
+	cat <(echo '#include "defs/ENABLE_GRAPHICS.h"') <(echo '#if ENABLE_GRAPHICS') <(echo) "$filename" <(echo) <(echo '#endif') > "../../src/imgui/$(basename $filename)"
+done
 popd
 
 git clone git@github.com:cameron314/readerwriterqueue.git
