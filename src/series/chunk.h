@@ -1,5 +1,7 @@
 #pragma once
 
+#include <mutex>
+
 #include "series/chunkbase.h"
 #include "series/chunkptr.h"
 #include "series/dataseriesbase.h"

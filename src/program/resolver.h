@@ -3,6 +3,8 @@
 #include <cassert>
 #include <vector>
 #include <unordered_map>
+#include <memory>
+#include <functional>
 
 #include "program/progobj.h"
 #include "jw_util/baseexception.h"

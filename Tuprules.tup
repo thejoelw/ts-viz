@@ -9,7 +9,7 @@ CC = gcc
 CXX = g++
 
 CFLAGS += -std=c++17
-CFLAGS += -Wall -Werror -Wno-missing-braces -Wno-unused
+CFLAGS += -Wall -Werror -Wno-missing-braces -Wno-unused -Wno-psabi
 CFLAGS += -I$(SRC_PATH) -I$(THIRD_PARTY_PATH) -I$(THIRD_PARTY_PATH)/spdlog/include -I$(THIRD_PARTY_PATH)/rapidjson/include
 CFLAGS += -DIMGUI_IMPL_OPENGL_LOADER_GLEW
 
