@@ -1,3 +1,6 @@
+#include "defs/ENABLE_GRAPHICS.h"
+#if ENABLE_GRAPHICS
+
 #include "camera.h"
 
 #include "graphics/imgui.h"
@@ -172,3 +175,5 @@ void Camera::drawMouseRegion() {
 }
 
 }
+
+#endif

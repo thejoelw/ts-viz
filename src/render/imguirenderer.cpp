@@ -1,3 +1,6 @@
+#include "defs/ENABLE_GRAPHICS.h"
+#if ENABLE_GRAPHICS
+
 #include "imguirenderer.h"
 
 #include "graphics/imgui.h"
@@ -171,3 +174,5 @@ GLFWcharfun ImguiRenderer::prevCharCallback;
 #endif
 
 }
+
+#endif

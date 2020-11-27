@@ -1,3 +1,6 @@
+#include "defs/ENABLE_GRAPHICS.h"
+#if ENABLE_GRAPHICS
+
 #include "fillprogram.h"
 
 #include "spdlog/logger.h"
@@ -48,3 +51,5 @@ void FillProgram::draw(std::size_t offsetIndex, std::size_t count, glm::vec4 col
 }
 
 }
+
+#endif

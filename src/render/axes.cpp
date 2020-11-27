@@ -1,3 +1,6 @@
+#include "defs/ENABLE_GRAPHICS.h"
+#if ENABLE_GRAPHICS
+
 #include "axes.h"
 
 #include <iomanip>
@@ -69,3 +72,5 @@ float Axes::getBestTickSize(float size) {
 }
 
 }
+
+#endif

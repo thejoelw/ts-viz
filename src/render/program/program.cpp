@@ -1,3 +1,6 @@
+#include "defs/ENABLE_GRAPHICS.h"
+#if ENABLE_GRAPHICS
+
 #include "program.h"
 
 namespace render {
@@ -48,3 +51,5 @@ void Program::linkProgram() {
 }
 
 }
+
+#endif

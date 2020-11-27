@@ -1,22 +1,29 @@
 #include "program/resolver.h"
+
+#include "defs/ENABLE_GRAPHICS.h"
+#if ENABLE_GRAPHICS
 #include "render/dataseriesrenderer.h"
+#endif
+
+#include "series/invalidparameterexception.h"
+
+template <typename RealType>
+void declPlot(app::AppContext &context, program::Resolver &resolver) {
+#if ENABLE_GRAPHICS
+    resolver.decl("plot", [&context](series::DataSeries<RealType> *s, const std::string &name, program::UncastNumber r, program::UncastNumber g, program::UncastNumber b, program::UncastNumber a){
+        render::DataSeriesRenderer<RealType> *res = new render::DataSeriesRenderer<RealType>(context, s, name);
+        res->getDrawStyle().color[0] = r.value;
+        res->getDrawStyle().color[1] = g.value;
+        res->getDrawStyle().color[2] = b.value;
+        res->getDrawStyle().color[3] = a.value;
+        return res;
+    });
+#else
+    throw series::InvalidParameterException("plot command is not available when ENABLE_GRAPHICS is false");
+#endif
+}
 
 static int _ = program::Resolver::registerBuilder([](app::AppContext &context, program::Resolver &resolver) {
-    resolver.decl("plot", [&context](series::DataSeries<float> *s, const std::string &name, program::UncastNumber r, program::UncastNumber g, program::UncastNumber b, program::UncastNumber a){
-        render::DataSeriesRenderer<float> *res = new render::DataSeriesRenderer<float>(context, s, name);
-        res->getDrawStyle().color[0] = r.value;
-        res->getDrawStyle().color[1] = g.value;
-        res->getDrawStyle().color[2] = b.value;
-        res->getDrawStyle().color[3] = a.value;
-        return res;
-    });
-
-    resolver.decl("plot", [&context](series::DataSeries<double> *s, const std::string &name, program::UncastNumber r, program::UncastNumber g, program::UncastNumber b, program::UncastNumber a){
-        render::DataSeriesRenderer<double> *res = new render::DataSeriesRenderer<double>(context, s, name);
-        res->getDrawStyle().color[0] = r.value;
-        res->getDrawStyle().color[1] = g.value;
-        res->getDrawStyle().color[2] = b.value;
-        res->getDrawStyle().color[3] = a.value;
-        return res;
-    });
+    declPlot<float>(context, resolver);
+    declPlot<double>(context, resolver);
 });

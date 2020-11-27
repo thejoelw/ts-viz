@@ -1,3 +1,6 @@
+#include "defs/ENABLE_GRAPHICS.h"
+#if ENABLE_GRAPHICS
+
 #include "window.h"
 
 #include <unistd.h>
@@ -202,3 +205,5 @@ void Window::errorCallback(int code, const char *str) {
 GLFWwindow *Window::firstWindow = nullptr;
 
 }
+
+#endif

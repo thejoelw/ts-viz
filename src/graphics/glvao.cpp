@@ -1,3 +1,6 @@
+#include "defs/ENABLE_GRAPHICS.h"
+#if ENABLE_GRAPHICS
+
 #include "glvao.h"
 
 #include "defs/GLVAO_ASSERT_BINDINGS.h"
@@ -29,3 +32,5 @@ void GlVao::assertBound() const {
 }
 
 }
+
+#endif

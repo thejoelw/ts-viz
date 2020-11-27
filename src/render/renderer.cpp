@@ -1,3 +1,6 @@
+#include "defs/ENABLE_GRAPHICS.h"
+#if ENABLE_GRAPHICS
+
 #include "renderer.h"
 
 #include "render/program/linestripprogram.h"
@@ -52,3 +55,5 @@ void Renderer::tickClose(app::TickerContext &tickerContext) {
 }
 
 }
+
+#endif

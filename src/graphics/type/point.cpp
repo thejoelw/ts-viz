@@ -1,3 +1,6 @@
+#include "defs/ENABLE_GRAPHICS.h"
+#if ENABLE_GRAPHICS
+
 #include "point.h"
 
 #include "graphics/glvao.h"
@@ -12,3 +15,5 @@ void Point::insertDefines(render::Program::Defines &defines) {
 }
 
 }
+
+#endif

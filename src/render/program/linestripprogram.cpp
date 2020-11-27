@@ -1,3 +1,6 @@
+#include "defs/ENABLE_GRAPHICS.h"
+#if ENABLE_GRAPHICS
+
 #include "linestripprogram.h"
 
 #include "spdlog/logger.h"
@@ -97,3 +100,5 @@ template class LineStripProgram<float>;
 template class LineStripProgram<double>;
 
 }
+
+#endif

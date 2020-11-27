@@ -1,5 +1,8 @@
 #pragma once
 
+#include "defs/ENABLE_GRAPHICS.h"
+static_assert(ENABLE_GRAPHICS, "Should not be including graphics/gl.h if ENABLE_GRAPHICS is false");
+
 #include <GL/glew.h>
 
 #include "defs/ENABLE_GUI.h"

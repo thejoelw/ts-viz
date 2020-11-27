@@ -4,7 +4,11 @@
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 
+#include "defs/ENABLE_GRAPHICS.h"
+#if ENABLE_GRAPHICS
 #include "render/renderer.h"
+#endif
+
 #include "stream/outputmanager.h"
 #include "program/resolver.h"
 #include "series/invalidparameterexception.h"
@@ -27,9 +31,12 @@ ProgramManager::ProgramManager(app::AppContext &context)
 {}
 
 void ProgramManager::recvRecord(const rapidjson::Document &row) {
+#if ENABLE_GRAPHICS
     if (context.has<render::Renderer>()) {
         context.get<render::Renderer>().clearSeries();
     }
+#endif
+
     if (context.has<stream::OutputManager>()) {
         context.get<stream::OutputManager>().clearEmitters();
     }
@@ -44,9 +51,12 @@ void ProgramManager::recvRecord(const rapidjson::Document &row) {
     for (rapidjson::SizeType i = 0; i < row.Size(); i++) {
         try {
             ProgObj obj = makeProgObj("#/" + std::to_string(i), row[i], cache);
+#if ENABLE_GRAPHICS
             if (std::holds_alternative<render::SeriesRenderer *>(obj)) {
                 context.get<render::Renderer>().addSeries(std::get<render::SeriesRenderer *>(obj));
-            } else if (std::holds_alternative<stream::SeriesEmitter *>(obj)) {
+            } else
+#endif
+            if (std::holds_alternative<stream::SeriesEmitter *>(obj)) {
                 context.get<stream::OutputManager>().addEmitter(std::get<stream::SeriesEmitter *>(obj));
             } else if (std::holds_alternative<std::monostate>(obj)) {
                 // Do nothing

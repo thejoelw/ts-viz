@@ -1,3 +1,6 @@
+#include "defs/ENABLE_GRAPHICS.h"
+#if ENABLE_GRAPHICS
+
 #include "element.h"
 
 #include "graphics/glvao.h"
@@ -21,3 +24,5 @@ void Element<double>::insertDefines(render::Program::Defines &defines) {
 }
 
 }
+
+#endif

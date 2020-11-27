@@ -1,3 +1,6 @@
+#include "defs/ENABLE_GRAPHICS.h"
+#if ENABLE_GRAPHICS
+
 #include "dataseriesrenderer.h"
 
 #include "graphics/imgui.h"
@@ -97,3 +100,5 @@ template class DataSeriesRenderer<float>;
 template class DataSeriesRenderer<double>;
 
 }
+
+#endif

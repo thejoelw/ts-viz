@@ -1,3 +1,6 @@
+#include "defs/ENABLE_GRAPHICS.h"
+#if ENABLE_GRAPHICS
+
 #include "shaders.h"
 
 namespace render {
@@ -19,3 +22,5 @@ const char Shaders::fillFrag[] = {
 };
 
 }
+
+#endif

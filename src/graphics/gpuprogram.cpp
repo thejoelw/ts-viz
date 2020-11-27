@@ -1,3 +1,6 @@
+#include "defs/ENABLE_GRAPHICS.h"
+#if ENABLE_GRAPHICS
+
 #include "gpuprogram.h"
 
 #ifndef NDEBUG
@@ -270,3 +273,5 @@ GpuProgram::Exception::Exception(const std::string &msg)
 {}
 
 }
+
+#endif

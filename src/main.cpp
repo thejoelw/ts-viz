@@ -2,7 +2,6 @@
 
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
-#include "flatbuffers/idl.h"
 
 #include "app/appcontext.h"
 #include "app/mainloop.h"
