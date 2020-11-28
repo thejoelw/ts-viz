@@ -33,7 +33,7 @@ popd
 
 git clone git@github.com:Tencent/rapidjson.git
 pushd rapidjson
-git checkout v1.1.0
+git checkout 0ccdbf364c577803e2a751f5aededce935314313
 popd
 
 

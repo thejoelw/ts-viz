@@ -9,7 +9,7 @@ CC = gcc
 CXX = g++
 
 CFLAGS += -std=c++17
-CFLAGS += -Wall -Werror -Wno-missing-braces -Wno-unused -Wno-psabi
+CFLAGS += -Wall -Werror -Wno-missing-braces -Wno-unused
 CFLAGS += -I$(SRC_PATH) -I$(THIRD_PARTY_PATH) -I$(THIRD_PARTY_PATH)/spdlog/include -I$(THIRD_PARTY_PATH)/rapidjson/include
 CFLAGS += -DIMGUI_IMPL_OPENGL_LOADER_GLEW
 
@@ -25,9 +25,10 @@ endif
 
 ifeq (@(TUP_PLATFORM),macosx)
     CFLAGS += -stdlib=libc++
-    LDFLAGS += -framework OpenGL `pkg-config --static --libs yaml-cpp glfw3 glew fftw3 fftw3f fmt`
+    LDFLAGS += -framework OpenGL `pkg-config --static --libs glfw3 glew fftw3 fftw3f fmt`
 else
-    LDFLAGS += `pkg-config --static --libs yaml-cpp gl glfw3 glew fftw3 fftw3f fmt`
+    CFLAGS += -Wno-psabi
+    LDFLAGS += `pkg-config --static --libs gl glfw3 glew fftw3 fftw3f fmt`
 endif
 
 !cpp = |> $(CXX) $(CFLAGS) $(CFLAGS_%f) -c %f -o %o |> %f.o $(ROOT)/<src_objects>

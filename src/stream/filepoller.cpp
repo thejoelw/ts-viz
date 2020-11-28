@@ -22,7 +22,7 @@ FilePoller::FilePoller(app::AppContext &context)
     struct sigaction act = {};
     act.sa_handler = signalHandler;
     act.sa_flags = 0;
-    act.sa_mask = 0;
+    sigemptyset(&act.sa_mask);
     sigaction(SIGUSR1, &act, nullptr);
 }
 

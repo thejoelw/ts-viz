@@ -3,6 +3,7 @@
 #include <complex>
 #include <vector>
 #include <array>
+#include <mutex>
 
 #include <fftw3.h>
 

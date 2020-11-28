@@ -3,6 +3,8 @@
 #include <cstdlib>
 #include <thread>
 #include <queue>
+#include <mutex>
+#include <condition_variable>
 
 namespace app { class AppContext; }
 
