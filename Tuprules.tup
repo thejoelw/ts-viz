@@ -13,10 +13,10 @@ CFLAGS += -Wall -Werror -Wno-missing-braces -Wno-unused
 CFLAGS += -I$(SRC_PATH) -I$(THIRD_PARTY_PATH) -I$(THIRD_PARTY_PATH)/spdlog/include -I$(THIRD_PARTY_PATH)/rapidjson/include
 CFLAGS += -DIMGUI_IMPL_OPENGL_LOADER_GLEW
 
-CFLAGS += -fsanitize=undefined,address
-LDFLAGS += -fsanitize=undefined,address
-
 ifeq (@(BUILD_TYPE),debug)
+    # CFLAGS += -fsanitize=undefined,address
+    # LDFLAGS += -fsanitize=undefined,address
+
     CFLAGS += -O0 -g -fdebug-prefix-map=`pwd`=`pwd | sed 's/\/\.tup\/.*//'`
 endif
 ifeq (@(BUILD_TYPE),release)
@@ -29,6 +29,7 @@ ifeq (@(TUP_PLATFORM),macosx)
 else
     CFLAGS += -Wno-psabi
     LDFLAGS += `pkg-config --static --libs gl glfw3 glew fftw3 fftw3f fmt`
+    LDFLAGS += -lpthread -latomic -lfftw3 -lfftw3f
 endif
 
 !cpp = |> $(CXX) $(CFLAGS) $(CFLAGS_%f) -c %f -o %o |> %f.o $(ROOT)/<src_objects>
