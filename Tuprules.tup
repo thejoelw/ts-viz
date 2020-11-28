@@ -5,9 +5,6 @@ THIRD_PARTY_PATH = $(ROOT)/third_party
 
 BIN_TARGET = $(ROOT)/ts-viz
 
-CC = gcc
-CXX = g++
-
 CFLAGS += -std=c++17
 CFLAGS += -Wall -Werror -Wno-missing-braces -Wno-unused
 CFLAGS += -I$(SRC_PATH) -I$(THIRD_PARTY_PATH) -I$(THIRD_PARTY_PATH)/spdlog/include -I$(THIRD_PARTY_PATH)/rapidjson/include
@@ -24,9 +21,15 @@ ifeq (@(BUILD_TYPE),release)
 endif
 
 ifeq (@(TUP_PLATFORM),macosx)
+    CC = clang
+    CXX = clang++
+
     CFLAGS += -stdlib=libc++
     LDFLAGS += -framework OpenGL `pkg-config --static --libs glfw3 glew fftw3 fftw3f fmt`
 else
+    CC = gcc
+    CXX = g++
+
     CFLAGS += -Wno-psabi
     LDFLAGS += `pkg-config --static --libs gl glfw3 glew fftw3 fftw3f fmt`
     LDFLAGS += -lpthread -latomic -lfftw3 -lfftw3f
@@ -34,5 +37,5 @@ endif
 
 !cpp = |> $(CXX) $(CFLAGS) $(CFLAGS_%f) -c %f -o %o |> %f.o $(ROOT)/<src_objects>
 # !archive = |> ar rs %o |>
-!link = |> $(CXX) $(LDFLAGS) $(LDFLAGS_$BIN_TARGET) -o $(BIN_TARGET) |>
-!write_linker_cmd = |> echo "$(CXX) $(LDFLAGS) $(LDFLAGS_$BIN_TARGET) -o $(BIN_TARGET) %<src_objects>" > %o |> link.sh
+!link = |> $(CXX) $(CFLAGS) $(LDFLAGS) $(LDFLAGS_$BIN_TARGET) -o $(BIN_TARGET) |>
+!write_linker_cmd = |> echo "$(CXX) $(CFLAGS) $(LDFLAGS) $(LDFLAGS_$BIN_TARGET) -o $(BIN_TARGET) %<src_objects>" > %o |> link.sh

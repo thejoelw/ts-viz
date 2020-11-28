@@ -84,7 +84,6 @@ public:
     }
 
     const ElementType *getData() const {
-        assert(computedCount == size);
         return data;
     }
     ElementType *getMutableData() {

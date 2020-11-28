@@ -20,8 +20,9 @@ int main(int argc, char **argv) {
     app::AppContext context;
 
     // Add logger to context
-    spdlog::set_default_logger(nullptr);
-    spdlog::set_default_logger(spdlog::stderr_color_st(""));
+//    spdlog::set_default_logger(nullptr);
+//    spdlog::set_default_logger(spdlog::stderr_color_st(""));
+//    spdlog::set_default_logger(spdlog::stderr_color_mt(""));
     context.provideInstance(spdlog::default_logger().get());
 
     // Print some debug info

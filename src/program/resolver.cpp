@@ -9,7 +9,7 @@ namespace program {
 Resolver::Resolver(app::AppContext &context)
     : context(context)
 {
-    for (std::function<void (app::AppContext &, Resolver &)> &func : builders) {
+    for (std::function<void (app::AppContext &, Resolver &)> &func : getBuilders()) {
         func(context, *this);
     }
 
@@ -65,10 +65,13 @@ ProgObj Resolver::execDecl(const std::string &name, const std::vector<ProgObj> &
 }
 
 int Resolver::registerBuilder(std::function<void (app::AppContext &, Resolver &)> func) {
-    builders.push_back(func);
+    getBuilders().push_back(func);
     return 0;
 }
 
-std::vector<std::function<void(app::AppContext &, Resolver &)>> Resolver::builders;
+std::vector<std::function<void(app::AppContext &, Resolver &)>> &Resolver::getBuilders() {
+    static std::vector<std::function<void(app::AppContext &, Resolver &)>> builders;
+    return builders;
+}
 
 }

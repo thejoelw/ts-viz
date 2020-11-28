@@ -159,7 +159,7 @@ public:
 
             if (computedCount == 0) {
                 // TODO: See if this segfaults?
-                typename fftwx::Complex test[CHUNK_SIZE * 2];
+//                typename fftwx::Complex test[CHUNK_SIZE * 2];
 
                 const typename FftwPlanner<ElementType>::IO planIO = FftwPlanner<ElementType>::request();
 
@@ -262,6 +262,7 @@ public:
 
             unsigned int kernelOffset = fillSize * kernelPartitionIndex;
             unsigned int tsOffset = computedCount - fillSize * kernelPartitionIndex;
+            assert(computedCount >= fillSize * kernelPartitionIndex);
 
             if (fillSizeLog2 >= CONV_USE_FFT_ABOVE_SIZE_LOG2) {
                 typename fftwx::Plan planFwd = FftwPlanner<ElementType>::template getPlanFwd<fillSize>();
@@ -276,8 +277,11 @@ public:
 
                 const typename fftwx::Complex *kernelFft;
                 if constexpr (fillSizeLog2 >= CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2) {
-                    kernelFft = std::get<ChunkPtr<typename fftwx::Complex, 2u << fillSizeLog2>>(kernelPartitionFfts)->getData();
+                    const ChunkPtr<typename fftwx::Complex, 2u << fillSizeLog2> &kc = std::get<ChunkPtr<typename fftwx::Complex, 2u << fillSizeLog2>>(kernelPartitionFfts);
+                    assert(kc->getComputedCount() == 2u << fillSizeLog2);
+                    kernelFft = kc->getData();
                 } else {
+                    assert(kernelChunk->getComputedCount() >= kernelOffset + fillSize);
                     std::copy_n(kernelChunk->getData() + kernelOffset, fillSize, kernelPlanIO.in);
                     std::fill_n(kernelPlanIO.in, fillSize, static_cast<ElementType>(0.0));
                     fftwx::execute_dft_r2c(planFwd, kernelPlanIO.in, kernelPlanIO.fft);
@@ -286,8 +290,11 @@ public:
 
                 const typename fftwx::Complex *tsFft;
                 if constexpr (fillSizeLog2 >= CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2) {
-                    tsFft = std::get<std::array<ChunkPtr<typename fftwx::Complex, 2u << fillSizeLog2>, CHUNK_SIZE / fillSize>>(tsPartitionedFfts)[tsOffset / fillSize]->getData();
+                    const ChunkPtr<typename fftwx::Complex, 2u << fillSizeLog2> &tc = std::get<std::array<ChunkPtr<typename fftwx::Complex, 2u << fillSizeLog2>, CHUNK_SIZE / fillSize>>(tsPartitionedFfts)[tsOffset / fillSize];
+                    assert(tc->getComputedCount() == 2u << fillSizeLog2);
+                    tsFft = tc->getData();
                 } else {
+                    assert(tsChunk->getComputedCount() >= tsOffset + fillSize);
                     std::copy_n(tsChunk->getData() + tsOffset, fillSize, tsPlanIO.in);
                     std::fill_n(tsPlanIO.in, fillSize, static_cast<ElementType>(0.0));
                     fftwx::execute_dft_r2c(planFwd, tsPlanIO.in, tsPlanIO.fft);

@@ -148,7 +148,7 @@ private:
     std::unordered_map<Decl, std::unique_ptr<Invokable>, util::HashForwarder<Decl>> declarations;
     std::unordered_map<Call, ProgObj, util::HashForwarder<Call>> calls;
 
-    static std::vector<std::function<void(app::AppContext &, Resolver &)>> builders;
+    static std::vector<std::function<void (app::AppContext &, Resolver &)> > &getBuilders();
 
     ProgObj execDecl(const std::string &name, const std::vector<ProgObj> &args);
 };

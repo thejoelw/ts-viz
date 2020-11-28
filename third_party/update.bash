@@ -28,7 +28,7 @@ popd
 
 git clone git@github.com:gabime/spdlog.git
 pushd spdlog
-git checkout v1.5.0
+git checkout v1.8.1
 popd
 
 git clone git@github.com:Tencent/rapidjson.git

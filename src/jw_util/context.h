@@ -132,7 +132,7 @@ private:
 
         template <typename ClassType>
         ClassType *getInstance() const {
-            assert(returnInstance && "If this fails, you probably have a circular dependency");
+            assert(returnInstance && "If this fails, you probably either have a circular dependency, or an exception was thrown from an earlier construction.");
             assert(std::is_const<ClassType>::value || !isConst);
 
 #if JWUTIL_CONTEXT_ENABLE_STRUCT_GENERATION

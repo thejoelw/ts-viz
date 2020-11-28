@@ -9,18 +9,19 @@
 
 template <typename RealType>
 void declPlot(app::AppContext &context, program::Resolver &resolver) {
+    resolver.decl("plot", [&context](series::DataSeries<RealType> *s, const std::string &name, program::UncastNumber r, program::UncastNumber g, program::UncastNumber b, program::UncastNumber a) {
 #if ENABLE_GRAPHICS
-    resolver.decl("plot", [&context](series::DataSeries<RealType> *s, const std::string &name, program::UncastNumber r, program::UncastNumber g, program::UncastNumber b, program::UncastNumber a){
         render::DataSeriesRenderer<RealType> *res = new render::DataSeriesRenderer<RealType>(context, s, name);
         res->getDrawStyle().color[0] = r.value;
         res->getDrawStyle().color[1] = g.value;
         res->getDrawStyle().color[2] = b.value;
         res->getDrawStyle().color[3] = a.value;
         return res;
-    });
 #else
-    throw series::InvalidParameterException("plot command is not available when ENABLE_GRAPHICS is false");
+        throw series::InvalidParameterException("plot command is not available when ENABLE_GRAPHICS is false");
+        return std::monostate();
 #endif
+    });
 }
 
 static int _ = program::Resolver::registerBuilder([](app::AppContext &context, program::Resolver &resolver) {
