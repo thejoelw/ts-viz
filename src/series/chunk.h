@@ -83,6 +83,11 @@ public:
         }
     }
 
+    bool isDone() const override {
+        assert(computedCount <= size);
+        return computedCount == size;
+    }
+
     const ElementType *getData() const {
         return data;
     }

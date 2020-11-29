@@ -46,11 +46,13 @@ std::chrono::duration<float> ChunkBase::getCriticalPathDuration() const {
 
 void ChunkBase::notify() {
     if (notifies++ == 0) {
-        static constexpr std::chrono::duration<float> taskLengthThreshold = std::chrono::microseconds(20);
-        if (ds->getAvgRunDuration() > taskLengthThreshold) {
-            ds->getContext().get<util::TaskScheduler<ChunkBase>>().addTask(this);
-        } else {
-            exec();
+        if (!isDone()) {
+            static constexpr std::chrono::duration<float> taskLengthThreshold = std::chrono::microseconds(20);
+            if (ds->getAvgRunDuration() > taskLengthThreshold) {
+                ds->getContext().get<util::TaskScheduler<ChunkBase>>().addTask(this);
+            } else {
+                exec();
+            }
         }
     }
 }

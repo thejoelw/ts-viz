@@ -29,6 +29,8 @@ public:
     void notify();
     virtual void exec() = 0;
 
+    virtual bool isDone() const = 0;
+
     void recordAccess();
     AccessInstant getLastAccess() const;
 

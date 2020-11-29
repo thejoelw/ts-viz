@@ -13,7 +13,7 @@ public:
     {}
 
     ~ChunkImpl() {
-        if (this->getComputedCount() != size) {
+        if (!this->isDone()) {
             releaseComputer();
         }
 
@@ -27,10 +27,6 @@ public:
         static constexpr std::size_t sizeofThis = sizeof(ChunkImpl<ElementType, size, ComputerType>);
         static constexpr std::size_t sizeofComputer = sizeof(ComputerType);
         assert(hasValue);
-
-        if (sizeofComputer == 304) {
-            int a = 1;
-        }
 #endif
 
         return computer(dst, computedCount);
