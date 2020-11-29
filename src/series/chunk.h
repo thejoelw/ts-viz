@@ -101,7 +101,7 @@ public:
     }
 
 protected:
-    virtual unsigned int compute(ElementType *dst, unsigned int computedCount) const = 0;
+    virtual unsigned int compute(ElementType *dst, unsigned int computedCount) = 0;
 
     virtual void releaseComputer() = 0;
 
