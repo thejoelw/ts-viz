@@ -7,7 +7,10 @@
 
 #include <fftw3.h>
 
+#include "spdlog/spdlog.h"
+
 #include "jw_util/thread.h"
+#include "jw_util/typename.h"
 
 #include "series/chunksize.h"
 
@@ -35,6 +38,9 @@ template<> struct fftwx_impl<float> {
     static void free(void *ptr) { return fftwf_free(ptr); }
     static int alignment_of(float *p) { return fftwf_alignment_of(p); }
 
+    static int import_wisdom_from_filename(const char *filename) { return fftwf_import_wisdom_from_filename(filename); }
+    static int export_wisdom_to_filename(const char *filename) { return fftwf_export_wisdom_to_filename(filename); }
+
     static Plan plan_dft_r2c_1d(std::size_t size, float *in, Complex *out, unsigned flags) { return fftwf_plan_dft_r2c_1d(size, in, reinterpret_cast<fftwf_complex *>(out), flags); }
     static Plan plan_dft_c2r_1d(std::size_t size, Complex *in, float *out, unsigned flags) { return fftwf_plan_dft_c2r_1d(size, reinterpret_cast<fftwf_complex *>(in), out, flags); }
 
@@ -55,6 +61,9 @@ template<> struct fftwx_impl<double> {
     static void free(void *ptr) { return fftw_free(ptr); }
     static int alignment_of(double *p) { return fftw_alignment_of(p); }
 
+    static int import_wisdom_from_filename(const char *filename) { return fftw_import_wisdom_from_filename(filename); }
+    static int export_wisdom_to_filename(const char *filename) { return fftw_export_wisdom_to_filename(filename); }
+
     static Plan plan_dft_r2c_1d(std::size_t size, double *in, Complex *out, unsigned flags) { return fftw_plan_dft_r2c_1d(size, in, reinterpret_cast<fftw_complex *>(out), flags); }
     static Plan plan_dft_c2r_1d(std::size_t size, Complex *in, double *out, unsigned flags) { return fftw_plan_dft_c2r_1d(size, reinterpret_cast<fftw_complex *>(in), out, flags); }
 
@@ -72,14 +81,18 @@ template <typename ElementType>
 class FftwPlanner {
     typedef fftwx_impl<ElementType> fftwx;
 
+//    static constexpr unsigned int planningLevel = FFTW_ESTIMATE;
+//    static constexpr unsigned int planningLevel = FFTW_MEASURE;
+    static constexpr unsigned int planningLevel = FFTW_PATIENT;
+//    static constexpr unsigned int planningLevel = FFTW_EXHAUSTIVE;
+
 public:
     struct IO {
-        ElementType *in;
-        typename fftwx::Complex *fft;
-        ElementType *out; // TODO: Do we really only need this, or just a real array and a complex array?
+        ElementType *real;
+        typename fftwx::Complex *complex;
 
         bool operator==(const IO &other) const {
-            return in == other.in && fft == other.fft && out == other.out;
+            return real == other.real && complex == other.complex;
         }
     };
 
@@ -111,9 +124,8 @@ public:
 
         IO res;
         if (ios.empty()) {
-            res.in = fftwx::alloc_real(CHUNK_SIZE * 2);
-            res.fft = fftwx::alloc_complex(CHUNK_SIZE * 2);
-            res.out = fftwx::alloc_real(CHUNK_SIZE * 2);
+            res.real = fftwx::alloc_real(CHUNK_SIZE * 2);
+            res.complex = fftwx::alloc_complex(CHUNK_SIZE * 2);
         } else {
             res = ios.back();
             ios.pop_back();
@@ -149,14 +161,34 @@ public:
         }
         isInit = true;
 
+        static const std::string tn = jw_util::TypeName::get<FftwPlanner<ElementType>>();
+
+        static const std::string filename = "fftw_wisdom_" + jw_util::TypeName::get<ElementType>() + ".bin";
+
+        bool importSuccess = fftwx::import_wisdom_from_filename(filename.data());
+        if (importSuccess) {
+            spdlog::info("{}::init() - Import from {} was successful", tn, filename);
+        } else {
+            spdlog::warn("{}::init() - Import from {} failed. No worries, we can regenerate it, but it might take a minute or so.", tn, filename);
+        }
+
         IO io = request();
         for (unsigned int i = 0; i < planFwds.size(); i++) {
-            planFwds[i] = fftwx::plan_dft_r2c_1d(1u << i, io.in, io.fft, FFTW_ESTIMATE | FFTW_DESTROY_INPUT);
+            if (!importSuccess) spdlog::debug("{}::init() - Preparing forward fft of size 2^{} = {}", tn, i, 1u << i);
+            planFwds[i] = fftwx::plan_dft_r2c_1d(1u << i, io.real, io.complex, planningLevel | FFTW_DESTROY_INPUT);
         }
         for (unsigned int i = 0; i < planBwds.size(); i++) {
-            planBwds[i] = fftwx::plan_dft_c2r_1d(1u << i, io.fft, io.out, FFTW_ESTIMATE | FFTW_DESTROY_INPUT);
+            if (!importSuccess) spdlog::debug("{}::init() - Preparing backward fft of size 2^{} = {}", tn, i, 1u << i);
+            planBwds[i] = fftwx::plan_dft_c2r_1d(1u << i, io.complex, io.real, planningLevel | FFTW_DESTROY_INPUT);
         }
         release(io);
+
+        bool exportSuccess = fftwx::export_wisdom_to_filename(filename.data());
+        if (exportSuccess) {
+            spdlog::info("{}::init() - Export to {} was successful", tn, filename);
+        } else {
+            spdlog::error("{}::init() - Export to {} FAILED", tn, filename);
+        }
     }
 
     static void cleanup() {
@@ -175,8 +207,8 @@ public:
         }
 
         for (IO io : ios) {
-            fftwx::free(io.in);
-            fftwx::free(io.fft);
+            fftwx::free(io.real);
+            fftwx::free(io.complex);
         }
         ios.clear();
 

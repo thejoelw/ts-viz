@@ -23,10 +23,12 @@ public:
 protected:
     app::AppContext &context;
 
-    static thread_local std::vector<ChunkBase *> dependencyStack;
+    static std::vector<ChunkBase *> &getDependencyStack();
 
 private:
     std::atomic<std::chrono::duration<float>> avgRunDuration;
+
+    static thread_local std::vector<ChunkBase *> dependencyStack;
 };
 
 }

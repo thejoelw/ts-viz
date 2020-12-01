@@ -25,6 +25,8 @@ int main(int argc, char **argv) {
     spdlog::set_default_logger(spdlog::stderr_color_mt(""));
     context.provideInstance(spdlog::default_logger().get());
 
+    spdlog::set_level(spdlog::level::debug);
+
     // Print some debug info
 #ifndef NDEBUG
     context.get<spdlog::logger>().warn("This is a debug build!");

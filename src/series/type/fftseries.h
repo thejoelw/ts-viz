@@ -70,7 +70,7 @@ public:
             }
 
             typename FftwPlanner<ElementType>::IO planIO = FftwPlanner<ElementType>::request();
-            doFft(dst, prevChunk, prevOffset, curChunk, curOffset, planIO.in);
+            doFft(dst, prevChunk, prevOffset, curChunk, curOffset, planIO.real);
             FftwPlanner<ElementType>::release(planIO);
 
             return fftSize;
@@ -78,8 +78,6 @@ public:
     }
 
     static void doFft(ComplexType *dst, const ChunkPtr<ElementType> &prevChunk, unsigned int prevOffset, const ChunkPtr<ElementType> &curChunk, unsigned int curOffset, ElementType *scratch) {
-        typename fftwx::Plan plan = FftwPlanner<ElementType>::template getPlanFwd<fftSize>();
-
         if (paddingType == PaddingType::PriorChunk && prevChunk.has()) {
             for (std::size_t i = 0; i < partitionSize; i++) {
                 ElementType val = prevChunk->getElement(prevOffset + i);
@@ -94,6 +92,7 @@ public:
             scratch[partitionSize + i] = std::isnan(val) ? 0.0 : val * factor;
         }
 
+        typename fftwx::Plan plan = FftwPlanner<ElementType>::template getPlanFwd<fftSize>();
         FftwPlanner<ElementType>::checkAlignment(dst);
         fftwx::execute_dft_r2c(plan, scratch, dst);
     }

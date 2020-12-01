@@ -14,9 +14,33 @@
 
 namespace {
 
-// TODO: Implement this dispatch using a function pointer table
+template <template <unsigned int> typename ClassType, unsigned int count>
+class DispatchToTemplate {
+public:
+    template <typename ReturnType, typename... ArgTypes>
+    static ReturnType call(unsigned int value, ArgTypes... args) {
+        assert(value < count);
+        return detail<ReturnType, ArgTypes...>::call(value, std::forward<ArgTypes>(args)..., std::make_index_sequence<count>{});
+    }
 
-template <template <unsigned int> typename CreateType, unsigned int count>
+private:
+    template <typename ReturnType, typename... ArgTypes>
+    struct detail {
+        template <std::size_t... is>
+        static ReturnType call(unsigned int value, ArgTypes... args, std::index_sequence<is...>) {
+            static constexpr std::array<ReturnType (*)(ArgTypes...), count> ptrs = { &dispatch<is>... };
+            return ptrs[value](std::forward<ArgTypes>(args)...);
+        }
+
+        template <std::size_t value>
+        static ReturnType dispatch(ArgTypes... args) {
+            return ClassType<value>::call(std::forward<ArgTypes>(args)...);
+        }
+    };
+};
+
+/*
+template <template <unsigned int> typename ClassType, unsigned int count>
 class DispatchToTemplate;
 
 template <template <unsigned int> typename ClassType>
@@ -33,7 +57,7 @@ template <template <unsigned int> typename ClassType, unsigned int count>
 class DispatchToTemplate {
 public:
     template <typename ReturnType, typename... ArgTypes>
-    static ReturnType call(unsigned int value, ArgTypes &&... args) {
+    static ReturnType call(unsigned int value, ArgTypes... args) {
         if (value == count - 1) {
             return ClassType<count - 1>::call(std::forward<ArgTypes>(args)...);
         } else {
@@ -41,6 +65,7 @@ public:
         }
     }
 };
+*/
 
 }
 
@@ -53,6 +78,7 @@ template <typename ElementType>
 auto getKernelPartitionFfts(app::AppContext &context, DataSeries<ElementType> &arg, std::size_t chunkIndex) {
     static constexpr unsigned int begin = CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2;
     static constexpr unsigned int end = CHUNK_SIZE_LOG2 + 1;
+    static_assert(begin <= end, "CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2 must be less than or equal to CHUNK_SIZE_LOG2 + 1");
     return getKernelPartitionFfts<ElementType, begin, end>(context, arg, chunkIndex, std::make_index_sequence<end - begin>{});
 }
 template <typename ElementType, std::size_t begin, std::size_t end, std::size_t... is>
@@ -69,6 +95,7 @@ template <typename ElementType>
 auto getTsPartitionFfts(app::AppContext &context, DataSeries<ElementType> &arg, std::size_t offset) {
     static constexpr unsigned int begin = CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2;
     static constexpr unsigned int end = CHUNK_SIZE_LOG2 + 1;
+    static_assert(begin <= end, "CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2 must be less than or equal to CHUNK_SIZE_LOG2 + 1");
     return getTsPartitionFfts<ElementType, begin, end>(context, arg, offset, std::make_index_sequence<end - begin>{});
 }
 template <typename ElementType, std::size_t begin, std::size_t end, std::size_t... is>
@@ -126,7 +153,7 @@ void checkCorrect(
 
     ElementType dist = std::fabs(expected - actual);
     bool valid = std::isnan(dist)
-            ? std::isnan(expected) == std::isnan(actual)
+            ? std::isnan(expected) == std::isnan(actual) || kernelOffset != 0
             : dist <= std::max(static_cast<ElementType>(1.0), std::fabs(expected) + std::fabs(actual)) * allowedError;
     assert(valid);
 }
@@ -186,7 +213,7 @@ public:
 
         auto tsPartitionedFfts = getTsPartitionFfts<ElementType>(this->context, ts, chunkIndex * CHUNK_SIZE);
 
-        unsigned int nanEnd = 0;
+        unsigned int nanEnd = !backfillZeros && kernelSize - 1 > chunkIndex * CHUNK_SIZE ? kernelSize - 1 - chunkIndex * CHUNK_SIZE : 0;
 
         return this->constructChunk([
             this,
@@ -214,65 +241,70 @@ public:
 
                 std::pair<unsigned int, unsigned int> ti = getTsIndex(1u - kernelSize);
                 assert(ti.first > 0);
-                assert(ti.first < tsChunks.size());
 
-                {
-                    unsigned int i;
-                    unsigned int j;
-                    for (i = 1; i < ti.first; i++) {
-                        for (j = CHUNK_SIZE; j-- > 0;) {
-                            if (std::isnan(tsChunks[i].first->getElement(j))) {
-                                goto foundNan;
-                            }
-                        }
-                    }
-                    assert(i == ti.first);
-                    for (j = CHUNK_SIZE; j-- > ti.second;) {
-                        if (std::isnan(tsChunks[ti.first].first->getElement(j))) {
+                for (unsigned int i = 1; i < tsChunks.size(); i++) {
+                    unsigned int end = i < ti.first ? 0 : (i == ti.first ? ti.second : CHUNK_SIZE);
+                    for (unsigned int j = CHUNK_SIZE; j-- > end;) {
+                        if (std::isnan(tsChunks[i].first->getElement(j))) {
+                            nanEnd = j - i * CHUNK_SIZE + kernelSize;
                             goto foundNan;
                         }
                     }
-
-                    if (false) {
-                        foundNan:
-                        nanEnd = j - i * CHUNK_SIZE + kernelSize;
-                        if (nanEnd > CHUNK_SIZE) { nanEnd = CHUNK_SIZE; }
-                    }
                 }
-
-                const typename FftwPlanner<ElementType>::IO planIO = FftwPlanner<ElementType>::request();
+                foundNan:
 
                 unsigned int len = std::min(kernelChunks.size(), tsChunks.size());
-                for (unsigned int i = len; i-- > 1;) {
-                    // Elementwise multiply
-                    for (unsigned int j = 0; j < CHUNK_SIZE * 2; j++) {
-                        planIO.fft[j] = kernelChunks[i].second->getElement(j) * tsChunks[i].second->getElement(j);
-                    }
+                if (len > 1) {
+                    const typename FftwPlanner<ElementType>::IO planIO = FftwPlanner<ElementType>::request();
 
-                    typename fftwx::Plan planBwd = FftwPlanner<ElementType>::template getPlanBwd<CHUNK_SIZE * 2>();
-                    fftwx::execute_dft_c2r(planBwd, planIO.fft, planIO.out);
-
-                    if (i == len - 1) {
-                        std::copy_n(planIO.out + CHUNK_SIZE, CHUNK_SIZE, dst);
-                    } else {
-                        for (unsigned int i = 0; i < CHUNK_SIZE; i++) {
-                            dst[i] += planIO.out[CHUNK_SIZE + i];
+                    for (unsigned int i = len; i-- > 1;) {
+                        // Elementwise multiply
+                        for (unsigned int j = 0; j < CHUNK_SIZE * 2; j++) {
+                            planIO.complex[j] = kernelChunks[i].second->getElement(j) * tsChunks[i].second->getElement(j);
                         }
+
+                        typename fftwx::Plan planBwd = FftwPlanner<ElementType>::template getPlanBwd<CHUNK_SIZE * 2>();
+                        fftwx::execute_dft_c2r(planBwd, planIO.complex, planIO.real);
+
+                        if (i == len - 1) {
+                            // Don't really need to do this here right now, but I think it could be useful in the future
+    //                        assert(nanEnd <= CHUNK_SIZE);
+    //                        std::fill_n(dst, nanEnd, NAN);
+    //                        std::copy(planIO.out + CHUNK_SIZE + nanEnd, planIO.out + CHUNK_SIZE * 2, dst + nanEnd);
+
+                            std::copy(planIO.real + CHUNK_SIZE, planIO.real + CHUNK_SIZE * 2, dst);
+                        } else {
+                            for (unsigned int i = 0; i < CHUNK_SIZE; i++) {
+                                dst[i] += planIO.real[CHUNK_SIZE + i];
+                            }
+                        }
+
+    #if CONV_ASSERT_CORRECTNESS
+                        for (unsigned int j = 0; j < CHUNK_SIZE; j++) {
+                            checkCorrect(kernelChunks, tsChunks, dst, j, i * CHUNK_SIZE);
+                        }
+    #endif
                     }
 
-#if CONV_ASSERT_CORRECTNESS
-                    for (unsigned int j = 0; j < CHUNK_SIZE; j++) {
-                        checkCorrect(kernelChunks, tsChunks, dst, j, i * CHUNK_SIZE);
-                    }
-#endif
-                }
-
-                assert(len > 0);
-                if (len <= 1) {
+                    FftwPlanner<ElementType>::release(planIO);
+                } else {
+                    assert(len > 0);
                     std::fill_n(dst, CHUNK_SIZE, static_cast<ElementType>(0.0));
                 }
 
-                FftwPlanner<ElementType>::release(planIO);
+                unsigned int newEndCount = tsChunks[0].first->getComputedCount();
+                assert(newEndCount >= endCount);
+                endCount = newEndCount;
+            }
+
+            for (unsigned int i = computedCount; i < endCount; i++) {
+                if (std::isnan(tsChunks[0].first->getElement(i))) {
+                    assert(i + kernelSize > nanEnd);
+                    nanEnd = i + kernelSize;
+                }
+                if (i < nanEnd) {
+                    dst[i] = NAN;
+                }
             }
 
             // 15 -> 3
@@ -320,30 +352,21 @@ public:
 
                 for (signed int i = std::min<signed int>(countLsz, maxBegin); i >= static_cast<signed int>(stepLog2); i--) {
                     DispatchToTemplate<KernelPartitionFiller, CHUNK_SIZE_LOG2 + 1>::template call<void>(
-                                i, dst, computedCount, kernelChunks[0].first, tsChunks[0].first, kernelPartitionFfts1, tsPartitionedFfts, 1
+                                i, dst, computedCount, std::cref(kernelChunks[0].first), std::cref(tsChunks[0].first), std::cref(kernelPartitionFfts1), std::cref(tsPartitionedFfts), 1
 #if CONV_ASSERT_CORRECTNESS
-                                , kernelChunks, tsChunks
+                                , std::cref(kernelChunks), std::cref(tsChunks)
 #endif
                             );
                 }
 
                 DispatchToTemplate<KernelPartitionFiller, CHUNK_SIZE_LOG2 + 1>::template call<void>(
-                            stepLog2, dst, computedCount, kernelChunks[0].first, tsChunks[0].first, kernelPartitionFfts0, tsPartitionedFfts, 0
+                            stepLog2, dst, computedCount, std::cref(kernelChunks[0].first), std::cref(tsChunks[0].first), std::cref(kernelPartitionFfts0), std::cref(tsPartitionedFfts), 0
 #if CONV_ASSERT_CORRECTNESS
-                            , kernelChunks, tsChunks
+                            , std::cref(kernelChunks), std::cref(tsChunks)
 #endif
                         );
 
-                unsigned int step = 1u << stepLog2;
-                for (unsigned int i = 0; i < step; i++) {
-                    if (std::isnan(tsChunks[0].first->getElement(computedCount))) {
-                        nanEnd = computedCount + kernelSize;
-                    }
-                    if (computedCount < nanEnd) {
-                        dst[computedCount] = NAN;
-                    }
-                    computedCount++;
-                }
+                computedCount += 1u << stepLog2;
             }
 
             return CHUNK_SIZE;
@@ -397,46 +420,49 @@ public:
                     assert(kc->getComputedCount() == 2u << fillSizeLog2);
                     kernelFft = kc->getData();
                 } else {
-                    // TODO: Working here
-                    assert(false);
-                    /*
-                    unsigned int prevOffset = (chunkIndex - 1) * partitionSize % CHUNK_SIZE;
-                    unsigned int curOffset = chunkIndex * partitionSize % CHUNK_SIZE;
-
-                    KernelFft<ElementType, fillSize>::doFft(kernelPlanIO.fft, const ChunkPtr<ElementType> &prevChunk, unsigned int prevOffset, const ChunkPtr<ElementType> &curChunk, unsigned int curOffset, ElementType *scratch)
-*/
-                    assert(kernelChunk->getComputedCount() >= kernelOffset + fillSize);
-                    std::copy_n(kernelChunk->getData() + kernelOffset, fillSize, kernelPlanIO.in);
-                    std::fill_n(kernelPlanIO.in, fillSize, static_cast<ElementType>(0.0));
-                    fftwx::execute_dft_r2c(planFwd, kernelPlanIO.in, kernelPlanIO.fft);
-                    kernelFft = kernelPlanIO.fft;
+                    ChunkPtr<ElementType> np = ChunkPtr<ElementType>::null();
+                    switch (CONV_KERNEL_FFT_PADDING_TYPE) {
+                    case PaddingType::ZeroFill:
+                        KernelFft<ElementType, fillSize>::doFft(kernelPlanIO.complex, np, 0, kernelChunk, kernelOffset, kernelPlanIO.real);
+                        break;
+                    case PaddingType::PriorChunk:
+                        KernelFft<ElementType, fillSize>::doFft(kernelPlanIO.complex, kernelOffset ? kernelChunk : np, kernelOffset - fillSize, kernelChunk, kernelOffset, kernelPlanIO.real);
+                        break;
+                    }
+                    kernelFft = kernelPlanIO.complex;
                 }
 
                 const typename fftwx::Complex *tsFft;
                 if constexpr (fillSizeLog2 >= CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2) {
+                    assert(tsOffset / fillSize < CHUNK_SIZE / fillSize);
                     const ChunkPtr<typename fftwx::Complex, 2u << fillSizeLog2> &tc = std::get<std::array<ChunkPtr<typename fftwx::Complex, 2u << fillSizeLog2>, CHUNK_SIZE / fillSize>>(tsPartitionedFfts)[tsOffset / fillSize];
                     assert(tc->getComputedCount() == 2u << fillSizeLog2);
                     tsFft = tc->getData();
                 } else {
-                    assert(tsChunk->getComputedCount() >= tsOffset + fillSize);
-                    std::copy_n(tsChunk->getData() + tsOffset, fillSize, tsPlanIO.in);
-                    std::fill_n(tsPlanIO.in, fillSize, static_cast<ElementType>(0.0));
-                    fftwx::execute_dft_r2c(planFwd, tsPlanIO.in, tsPlanIO.fft);
-                    tsFft = tsPlanIO.fft;
+                    ChunkPtr<ElementType> np = ChunkPtr<ElementType>::null();
+                    switch (CONV_TS_FFT_PADDING_TYPE) {
+                    case PaddingType::ZeroFill:
+                        TsFft<ElementType, fillSize>::doFft(tsPlanIO.complex, np, 0, tsChunk, tsOffset, tsPlanIO.real);
+                        break;
+                    case PaddingType::PriorChunk:
+                        TsFft<ElementType, fillSize>::doFft(tsPlanIO.complex, tsOffset ? tsChunk : np, tsOffset - fillSize, tsChunk, tsOffset, tsPlanIO.real);
+                        break;
+                    }
+                    tsFft = tsPlanIO.complex;
                 }
 
                 // Elementwise multiply
                 for (std::size_t i = 0; i < fillSize; i++) {
-                    eitherPlanIO.fft[i] = kernelFft[i] * tsFft[i];
+                    eitherPlanIO.complex[i] = kernelFft[i] * tsFft[i];
                 }
 
                 // Backward fft
-                FftwPlanner<ElementType>::checkAlignment(eitherPlanIO.fft);
+                FftwPlanner<ElementType>::checkAlignment(eitherPlanIO.complex);
                 FftwPlanner<ElementType>::checkAlignment(dst + computedCount);
-                fftwx::execute_dft_c2r(planBwd, eitherPlanIO.fft, eitherPlanIO.out);
+                fftwx::execute_dft_c2r(planBwd, eitherPlanIO.complex, eitherPlanIO.real);
 
                 for (unsigned int i = 0; i < fillSize; i++) {
-                    dst[computedCount + i] += eitherPlanIO.out[i];
+                    dst[computedCount + i] += eitherPlanIO.real[i];
                 }
 
                 // Release stuff
