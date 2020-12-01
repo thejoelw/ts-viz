@@ -88,6 +88,18 @@ class FftwPlanner {
 
 public:
     struct IO {
+        IO()
+#ifndef NDEBUG
+            : real(0)
+            , complex(0)
+#endif
+        {}
+
+        IO(ElementType *real, typename fftwx::Complex *complex)
+            : real(real)
+            , complex(complex)
+        {}
+
         ElementType *real;
         typename fftwx::Complex *complex;
 
@@ -116,37 +128,70 @@ public:
         return planBwds[planIndex];
     }
 
+#ifndef NDEBUG
+    static bool &doesThreadHaveOutstandingRequest() {
+        static thread_local bool has = false;
+        return has;
+    }
+#endif
+
+    static IO getThreadIO() {
+        static thread_local IO io(fftwx::alloc_real(CHUNK_SIZE * 2), fftwx::alloc_complex(CHUNK_SIZE * 2));
+        return io;
+    }
+
     static const IO request() {
+#ifndef NDEBUG
+        assert(doesThreadHaveOutstandingRequest() == false);
+        doesThreadHaveOutstandingRequest() = true;
+#endif
+
+        return getThreadIO();
+
+        /*
         // TODO: Just allocate these on the stack?
         // TODO: Or even better, just allocate in a static thread_local variable?
 
         std::unique_lock<std::mutex> lock(fftwMutex);
 
         IO res;
-        if (ios.empty()) {
+        if (IOs.empty()) {
             res.real = fftwx::alloc_real(CHUNK_SIZE * 2);
             res.complex = fftwx::alloc_complex(CHUNK_SIZE * 2);
+            createdIOs++;
+            assert(createdIOs <= std::thread::hardware_concurrency());
         } else {
-            res = ios.back();
-            ios.pop_back();
+            res = IOs.back();
+            IOs.pop_back();
         }
 
         return res;
+        */
     }
 
     static void release(const IO io) {
+#ifndef NDEBUG
+        assert(doesThreadHaveOutstandingRequest() == true);
+        doesThreadHaveOutstandingRequest() = false;
+#endif
+
+        assert(io.real == getThreadIO().real);
+        assert(io.complex == getThreadIO().complex);
+
+        /*
         std::unique_lock<std::mutex> lock(fftwMutex);
-        assert(std::find(ios.cbegin(), ios.cend(), io) == ios.cend());
-        ios.emplace_back(io);
+        assert(std::find(IOs.cbegin(), IOs.cend(), io) == IOs.cend());
+        IOs.emplace_back(io);
+        */
     }
 
-    static void checkAlignment(ElementType *ptr) {
+    inline static void checkAlignment(ElementType *ptr) {
 #ifndef NDEBUG
         static thread_local ElementType *authentic = fftwx::alloc_real(1);
         assert(fftwx::alignment_of(ptr) == fftwx::alignment_of(authentic));
 #endif
     }
-    static void checkAlignment(typename fftwx::Complex *ptr) {
+    inline static void checkAlignment(typename fftwx::Complex *ptr) {
 #ifndef NDEBUG
         static thread_local typename fftwx::Complex *authentic = fftwx::alloc_complex(1);
         assert(fftwx::alignment_of(reinterpret_cast<ElementType *>(ptr)) == fftwx::alignment_of(reinterpret_cast<ElementType *>(authentic)));
@@ -206,18 +251,21 @@ public:
             fftwx::destroy_plan(plan);
         }
 
-        for (IO io : ios) {
+        /*
+        for (IO io : IOs) {
             fftwx::free(io.real);
             fftwx::free(io.complex);
         }
-        ios.clear();
+        IOs.clear();
+        */
 
         fftwx::cleanup();
     }
 
 private:
     inline static bool isInit;
-    inline static std::vector<IO> ios;
+//    inline static std::vector<IO> IOs;
+//    inline static unsigned int createdIOs = 0;
     inline static std::array<typename fftwx::Plan, CHUNK_SIZE_LOG2 + 2> planFwds;
     inline static std::array<typename fftwx::Plan, CHUNK_SIZE_LOG2 + 2> planBwds;
 };

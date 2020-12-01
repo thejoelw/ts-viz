@@ -61,7 +61,7 @@ public:
                         computedCount++;
                     }
                 }
-                std::fill(dst + computedCount, dst + CHUNK_SIZE, static_cast<ElementType>(0.0));
+                std::fill(dst + computedCount, dst + CHUNK_SIZE, ElementType(0.0));
                 return CHUNK_SIZE;
             } else {
                 while (computedCount < endCount) {

@@ -84,7 +84,7 @@ public:
                 scratch[i] = std::isnan(val) ? 0.0 : val * factor;
             }
         } else {
-            std::fill_n(scratch, partitionSize, static_cast<ElementType>(0.0));
+            std::fill_n(scratch, partitionSize, ElementType(0.0));
         }
 
         for (std::size_t i = 0; i < partitionSize; i++) {
