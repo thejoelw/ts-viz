@@ -18,11 +18,10 @@ public:
 private:
     static std::string make(std::type_index typeId) {
         int status = 0;
-        std::size_t length;
-        char *realname = abi::__cxa_demangle(typeId.name(), 0, &length, &status);
+        char *realname = abi::__cxa_demangle(typeId.name(), 0, 0, &status);
         assert(status == 0);
 
-        std::string str(realname, length - 1);
+        std::string str(realname);
 
         std::free(realname);
 
