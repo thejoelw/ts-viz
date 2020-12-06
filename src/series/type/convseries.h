@@ -129,6 +129,9 @@ void updateIncludesKernelAfter(unsigned int &ika, unsigned int kernelSize, unsig
     if (to > kernelSize) {
         to = kernelSize;
     }
+    if (from > kernelSize) {
+        from = kernelSize;
+    }
 
     assert(ika == to);
     ika = from;
@@ -190,8 +193,8 @@ public:
         , kernelSize(kernelSize)
         , backfillZeros(backfillZeros)
     {
-        if (kernelSize <= 0) {
-            throw series::InvalidParameterException("ConvSeries: kernelSize must be greater than zero");
+        if (kernelSize <= 1) {
+            throw series::InvalidParameterException("ConvSeries: kernelSize must be greater than one");
         }
         if (kernelSize > std::numeric_limits<unsigned int>::max()) {
             throw series::InvalidParameterException("ConvSeries: kernelSize must not be greater than " + std::to_string(std::numeric_limits<unsigned int>::max()));
@@ -208,6 +211,8 @@ public:
 
         // 1 -> 1
         // 2 -> 1
+        // 16 -> 1
+        // 17 -> 2
         unsigned int numKernelChunks = (kernelSize + CHUNK_SIZE - 1) / CHUNK_SIZE;
         assert(numKernelChunks * CHUNK_SIZE >= kernelSize);
         std::vector<std::pair<ChunkPtr<ElementType>, ChunkPtr<ComplexType, CHUNK_SIZE * 2>>> kernelChunks;
@@ -232,6 +237,8 @@ public:
 
         unsigned int nanEnd = !backfillZeros && kernelSize - 1 > chunkIndex * CHUNK_SIZE ? kernelSize - 1 - chunkIndex * CHUNK_SIZE : 0;
 
+        unsigned int checkProgress = 0;
+
 #if CONV_ASSERT_CORRECTNESS
         std::vector<unsigned int> includesKernelAfter;
         includesKernelAfter.resize(CHUNK_SIZE, kernelSize);
@@ -244,21 +251,47 @@ public:
             kernelPartitionFfts0 = std::move(kernelPartitionFfts0),
             kernelPartitionFfts1 = std::move(kernelPartitionFfts1),
             tsPartitionedFfts = std::move(tsPartitionedFfts),
-            nanEnd
+            nanEnd,
+            checkProgress
 #if CONV_ASSERT_CORRECTNESS
             , includesKernelAfter = std::move(includesKernelAfter)
+            , chunkIndex
 #endif
         ](ElementType *dst, unsigned int computedCount) mutable -> unsigned int {
-            for (unsigned int i = 1; i < tsChunks.size(); i++) {
-                if (tsChunks[i].first->getComputedCount() != CHUNK_SIZE) {
-                    return 0;
-                }
-            }
-
             unsigned int endCount = tsChunks[0].first->getComputedCount();
             if (endCount == computedCount) {
-                return endCount;
+                return computedCount;
             }
+
+            switch (checkProgress) {
+            case 0:
+                for (unsigned int i = 1; i < tsChunks.size(); i++) {
+                    if (tsChunks[i].second->getComputedCount() != CHUNK_SIZE * 2) {
+                        assert(computedCount == 0);
+                        return 0;
+                    }
+                    assert(tsChunks[i].first->getComputedCount() == CHUNK_SIZE);
+                }
+
+                checkProgress++;
+                // Fall-through intentional
+
+            case 1:
+                for (std::pair<ChunkPtr<ElementType>, ChunkPtr<ComplexType, CHUNK_SIZE * 2>> &kc : kernelChunks) {
+                    if (kc.second->getComputedCount() != CHUNK_SIZE * 2) {
+                        assert(computedCount == 0);
+                        return 0;
+                    }
+                    assert(kc.first->getComputedCount() == CHUNK_SIZE);
+                }
+
+                checkProgress++;
+                // Fall-through intentional
+
+            case 2:
+                break;
+            }
+
 
             if (computedCount == 0) {
                 // TODO: See if this segfaults?
@@ -297,10 +330,10 @@ public:
     //                        std::fill_n(dst, nanEnd, NAN);
     //                        std::copy(planIO.out + CHUNK_SIZE + nanEnd, planIO.out + CHUNK_SIZE * 2, dst + nanEnd);
 
-                            std::copy(planIO.real + CHUNK_SIZE, planIO.real + CHUNK_SIZE * 2, dst);
+                            std::copy(planIO.real, planIO.real + CHUNK_SIZE, dst);
                         } else {
                             for (unsigned int i = 0; i < CHUNK_SIZE; i++) {
-                                dst[i] += planIO.real[CHUNK_SIZE + i];
+                                dst[i] += planIO.real[i];
                             }
                         }
 
@@ -319,6 +352,7 @@ public:
                     std::fill_n(dst, CHUNK_SIZE, ElementType(0.0));
                 }
 
+                // The chunk initialization could have taken awhile, so go ahead and make sure we're processing the maximum number of samples
                 unsigned int newEndCount = tsChunks[0].first->getComputedCount();
                 assert(newEndCount >= endCount);
                 endCount = newEndCount;
@@ -337,7 +371,8 @@ public:
             // 15 -> 3
             // 16 -> 3 (because a 4 would try convolving K[16:32], which is all zero
             // 17 -> 4
-            signed int maxBegin = sizeof(unsigned int) * CHAR_BIT - 1 - __builtin_clz(kernelSize - 1);
+            assert(kernelSize != 1);
+            unsigned int maxBegin = sizeof(unsigned int) * CHAR_BIT - 1 - __builtin_clz(kernelSize - 1);
 
             while (computedCount < endCount) {
                 // Divide kernel into sections: [0:1, 1:2, 2:4, 4:8, 8:16, ...]
@@ -376,9 +411,25 @@ public:
                 unsigned int countLsz = sizeof(unsigned int) * CHAR_BIT - 1 - __builtin_clz(computedCount ^ (computedCount - 1));
                 unsigned int maxStepLog2 = sizeof(unsigned int) * CHAR_BIT - 1 - __builtin_clz(endCount - computedCount);
                 unsigned int stepLog2 = std::min(countLsz, maxStepLog2);
+                unsigned int start = std::min(countLsz, maxBegin);
+//                unsigned int start = std::min<unsigned int>(countLsz, CHUNK_SIZE_LOG2);
 
-                for (signed int i = std::min<signed int>(countLsz, maxBegin); i >= static_cast<signed int>(stepLog2); i--) {
-                    DispatchToTemplate<KernelPartitionFiller, CHUNK_SIZE_LOG2 + 1>::template call<void>(
+                for (signed int i = start; i >= static_cast<signed int>(stepLog2); i--) {
+                    // Check to make sure we have all the data we need
+
+                    bool res = DispatchToTemplate<ParitionChecker, CHUNK_SIZE_LOG2 + 1>::template call<bool>(i, computedCount, std::cref(kernelPartitionFfts1), std::cref(tsPartitionedFfts), 1);
+                    if (!res) {
+                        return computedCount;
+                    }
+                }
+
+                bool res = DispatchToTemplate<ParitionChecker, CHUNK_SIZE_LOG2 + 1>::template call<bool>(stepLog2, computedCount, std::cref(kernelPartitionFfts0), std::cref(tsPartitionedFfts), 0);
+                if (!res) {
+                    return computedCount;
+                }
+
+                for (signed int i = start; i >= static_cast<signed int>(stepLog2); i--) {
+                    DispatchToTemplate<PartitionFiller, CHUNK_SIZE_LOG2 + 1>::template call<void>(
                                 i, dst, computedCount, std::cref(kernelChunks[0].first), std::cref(tsChunks[0].first), std::cref(kernelPartitionFfts1), std::cref(tsPartitionedFfts), 1
 #if CONV_ASSERT_CORRECTNESS
                                 , std::cref(kernelChunks), std::cref(tsChunks), kernelSize, std::ref(includesKernelAfter)
@@ -386,7 +437,7 @@ public:
                             );
                 }
 
-                DispatchToTemplate<KernelPartitionFiller, CHUNK_SIZE_LOG2 + 1>::template call<void>(
+                DispatchToTemplate<PartitionFiller, CHUNK_SIZE_LOG2 + 1>::template call<void>(
                             stepLog2, dst, computedCount, std::cref(kernelChunks[0].first), std::cref(tsChunks[0].first), std::cref(kernelPartitionFfts0), std::cref(tsPartitionedFfts), 0
 #if CONV_ASSERT_CORRECTNESS
                             , std::cref(kernelChunks), std::cref(tsChunks), kernelSize, std::ref(includesKernelAfter)
@@ -402,12 +453,55 @@ public:
                 computedCount += 1u << stepLog2;
             }
 
+            assert(computedCount == endCount);
+
             return computedCount;
         });
     }
 
     template <unsigned int fillSizeLog2>
-    struct KernelPartitionFiller {
+    struct ParitionChecker {
+        static bool call(
+                unsigned int computedCount,
+                const typename std::result_of<decltype(&getKernelPartitionFfts<ElementType>)(app::AppContext &, DataSeries<ElementType> &, std::size_t)>::type &kernelPartitionFfts,
+                const typename std::result_of<decltype(&getTsPartitionFfts<ElementType>)(app::AppContext &, DataSeries<ElementType> &, std::size_t)>::type &tsPartitionedFfts,
+                bool kernelPartitionIndex // Either the first or second partition
+        ) {
+            static_assert(fillSizeLog2 <= CHUNK_SIZE_LOG2, "We should not be generating code to handle larger-than-chunk-size fills");
+
+            static constexpr unsigned int fillSize = 1u << fillSizeLog2;
+            assert(computedCount % fillSize == 0);
+
+            if (kernelPartitionIndex && computedCount == 0) {
+                return true;
+            }
+
+            if constexpr (fillSizeLog2 >= CONV_USE_FFT_ABOVE_SIZE_LOG2) {
+                if constexpr (fillSizeLog2 >= CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2) {
+                    const ChunkPtr<typename fftwx::Complex, fillSize * 2> &kc = std::get<ChunkPtr<typename fftwx::Complex, fillSize * 2>>(kernelPartitionFfts);
+                    if (kc->getComputedCount() != fillSize * 2) {
+                        return false;
+                    }
+                }
+
+                if constexpr (fillSizeLog2 >= CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2) {
+                    unsigned int tsOffset = computedCount - fillSize * kernelPartitionIndex;
+                    assert(computedCount >= fillSize * kernelPartitionIndex);
+
+                    assert(tsOffset / fillSize < CHUNK_SIZE / fillSize);
+                    const ChunkPtr<typename fftwx::Complex, fillSize * 2> &tc = std::get<std::array<ChunkPtr<typename fftwx::Complex, fillSize * 2>, CHUNK_SIZE / fillSize>>(tsPartitionedFfts)[tsOffset / fillSize];
+                    if (tc->getComputedCount() != fillSize * 2) {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+    };
+
+    template <unsigned int fillSizeLog2>
+    struct PartitionFiller {
         static void call(
                 ElementType *dst,
                 unsigned int computedCount,
@@ -438,7 +532,7 @@ public:
             unsigned int tsOffset = computedCount - fillSize * kernelPartitionIndex;
             assert(computedCount >= fillSize * kernelPartitionIndex);
 
-            if constexpr (fillSizeLog2 >= CONV_USE_FFT_ABOVE_SIZE_LOG2) {
+            if constexpr (true || fillSizeLog2 >= CONV_USE_FFT_ABOVE_SIZE_LOG2) {
                 const typename FftwPlanner<ElementType>::IO planIO = FftwPlanner<ElementType>::request();
 
                 const typename fftwx::Complex *kernelFft;
@@ -495,17 +589,50 @@ public:
                 fftwx::execute_dft_c2r(planBwd, planIO.complex, planIO.real);
 
                 for (unsigned int i = 0; i < fillSize; i++) {
+                    /*
+                    if (computedCount + i == 1210) {
+                        unsigned int sizeLog2 = fillSizeLog2;
+                        unsigned int size = fillSize;
+                        ElementType prev = dst[computedCount + i];
+                        ElementType add = planIO.real[fillSize + i];
+                        int a = 123;
+                    }
+                    */
                     dst[computedCount + i] += planIO.real[i];
                 }
 
                 FftwPlanner<ElementType>::release(planIO);
             } else {
                 assert(fillSizeLog2 < CHUNK_SIZE_LOG2);
-                assert(computedCount + 1 >= fillSize);
 
                 for (unsigned int i = 0; i < fillSize; i++) {
                     for (unsigned int j = 0; j < fillSize; j++) {
-                        dst[computedCount + i] += kernelChunk->getElement(kernelOffset + j) * tsChunk->getElement(tsOffset + j);
+                        /*
+                        ElementType k;
+                        switch (CONV_KERNEL_FFT_PADDING_TYPE) {
+                        case PaddingType::ZeroFill:
+                            k = kernelChunk->getElement(kernelOffset + j);
+                            KernelFft<ElementType, fillSize>::doFft(const_cast<decltype(planIO.complex)>(kernelFft), np, 0, kernelChunk, kernelOffset, planIO.real);
+                            break;
+                        case PaddingType::PriorChunk:
+                            KernelFft<ElementType, fillSize>::doFft(const_cast<decltype(planIO.complex)>(kernelFft), kernelOffset ? kernelChunk : np, kernelOffset - fillSize, kernelChunk, kernelOffset, planIO.real);
+                            break;
+                        }
+
+                        ElementType t;
+                        switch (CONV_TS_FFT_PADDING_TYPE) {
+                        case PaddingType::ZeroFill:
+                            TsFft<ElementType, fillSize>::doFft(const_cast<decltype(planIO.complex)>(tsFft), np, 0, tsChunk, tsOffset, planIO.real);
+                            break;
+                        case PaddingType::PriorChunk:
+                            TsFft<ElementType, fillSize>::doFft(const_cast<decltype(planIO.complex)>(tsFft), tsOffset ? tsChunk : np, tsOffset - fillSize, tsChunk, tsOffset, planIO.real);
+                            break;
+                        }
+
+                        ElementType k = kernelChunk->getElement(kernelOffset + j);
+                        ElementType t = tsChunk->getElement(tsOffset + i - j);
+                        dst[computedCount + i] += k * t;
+                        */
                     }
                 }
             }

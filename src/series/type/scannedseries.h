@@ -65,14 +65,18 @@ public:
         auto chunks = std::apply([chunkIndex](auto &... x){return std::make_tuple(x.getChunk(chunkIndex)...);}, args);
         return this->constructChunk([this, prevChunk = std::move(prevChunk), chunks = std::move(chunks)](ElementType *dst, unsigned int computedCount) -> unsigned int {
             ElementType value;
-            if (prevChunk.has()) {
-                if (prevChunk->getComputedCount() == CHUNK_SIZE) {
-                    value = prevChunk->getElement(CHUNK_SIZE - 1);
-                } else {
-                    return 0;
-                }
+            if (computedCount > 0) {
+                value = dst[computedCount - 1];
             } else {
-                value = initialValue;
+                if (prevChunk.has()) {
+                    if (prevChunk->getComputedCount() == CHUNK_SIZE) {
+                        value = prevChunk->getElement(CHUNK_SIZE - 1);
+                    } else {
+                        return 0;
+                    }
+                } else {
+                    value = initialValue;
+                }
             }
 
             unsigned int endCount = std::apply([](auto &... x){return std::min({x->getComputedCount()...});}, chunks);

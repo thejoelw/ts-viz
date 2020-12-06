@@ -78,9 +78,7 @@ public:
             notify();
         }
 
-        if (count != prevCount) {
-            ds->recordDuration(std::chrono::duration(t2 - t1) / (count - prevCount));
-        }
+        ds->recordDuration(std::chrono::duration(t2 - t1) / std::max(1u, count - prevCount));
     }
 
     bool isDone() const override {
