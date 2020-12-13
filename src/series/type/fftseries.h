@@ -36,6 +36,9 @@ public:
         auto foundValue = cache.emplace(&arg, static_cast<FftSeries<ElementType, partitionSize, paddingType, scale> *>(0));
         if (foundValue.second) {
             foundValue.first->second = new FftSeries<ElementType, partitionSize, paddingType, scale>(context, arg);
+#if ENABLE_CHUNK_NAMES
+            foundValue.first->second->setName("fft<" + std::to_string(partitionSize) + ">");
+#endif
         }
         return *foundValue.first->second;
     }

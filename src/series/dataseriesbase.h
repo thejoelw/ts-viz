@@ -1,8 +1,12 @@
 #pragma once
 
+#include "defs/ENABLE_CHUNK_MULTITHREADING.h"
+
+#include <vector>
+#if ENABLE_CHUNK_MULTITHREADING
 #include <chrono>
 #include <atomic>
-#include <vector>
+#endif
 
 namespace app { class AppContext; }
 namespace series { class ChunkBase; }
@@ -17,8 +21,10 @@ public:
         return context;
     }
 
+#if ENABLE_CHUNK_MULTITHREADING
     void recordDuration(std::chrono::duration<float> duration);
     std::chrono::duration<float> getAvgRunDuration() const;
+#endif
 
 protected:
     app::AppContext &context;
@@ -26,7 +32,9 @@ protected:
     static std::vector<ChunkBase *> &getDependencyStack();
 
 private:
+#if ENABLE_CHUNK_MULTITHREADING
     std::atomic<std::chrono::duration<float>> avgRunDuration;
+#endif
 
     static thread_local std::vector<ChunkBase *> dependencyStack;
 };

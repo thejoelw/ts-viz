@@ -4,6 +4,8 @@
 
 #include "series/dataseries.h"
 
+#include "defs/ENABLE_CHUNK_MULTITHREADING.h"
+
 namespace series {
 
 template <typename ElementType>
@@ -32,28 +34,34 @@ public:
     }
 
     void set(std::size_t index, ElementType value) {
-        std::size_t prevChunk = nextIndex / CHUNK_SIZE;
+        std::size_t ctr = nextIndex;
+        std::size_t prevChunk = ctr / CHUNK_SIZE;
 
-        assert(index >= nextIndex);
-        while (nextIndex < index) {
-            this->getChunk(nextIndex / CHUNK_SIZE)->getMutableData()[nextIndex % CHUNK_SIZE] = prevValue;
-            nextIndex++;
+        assert(index >= ctr);
+        while (ctr < index) {
+            this->getChunk(ctr / CHUNK_SIZE)->getMutableData()[ctr % CHUNK_SIZE] = prevValue;
+            ctr++;
         }
 
         prevValue = value;
-        this->getChunk(nextIndex / CHUNK_SIZE)->getMutableData()[nextIndex % CHUNK_SIZE] = value;
+        this->getChunk(ctr / CHUNK_SIZE)->getMutableData()[ctr % CHUNK_SIZE] = value;
 
-        while (prevChunk <= nextIndex / CHUNK_SIZE) {
+        nextIndex = ctr + 1;
+
+        while (prevChunk <= ctr / CHUNK_SIZE) {
             this->getChunk(prevChunk)->notify();
             prevChunk++;
         }
-
-        nextIndex++;
     }
 
 private:
     ElementType prevValue = NAN;
+
+#if ENABLE_CHUNK_MULTITHREADING
     std::atomic<std::size_t> nextIndex = 0;
+#else
+    std::size_t nextIndex = 0;
+#endif
 };
 
 }

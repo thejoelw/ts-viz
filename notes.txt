@@ -1,0 +1,138 @@
+TODO: Sort notifies to limit notify count
+	Keep notify() returning void.
+	Alongside dependents, need to store the FIRST index they need to possibly advance.
+	In other words, if we haven't completed that index, no need to notify them.
+	So we only notify dependents that need to be notified.
+	In addition, when a dependent completes, we remove it from the list.
+	QUESTION: How can we keep notify a very lightweight operation for chunks that are being repeatedly notified?
+
+TODO: Fix the opposite padding method
+	It seems that convolving a short TS over a wide kernel produces 2 chunks, not one.
+	But I don't think this is a problem, because we can capture ALL of the effects of a single TS chunk on a single TS chunk using a 2-wide kernel.
+	Is there a problem with the T[...] blocks below? Are they correct? They seem to be less uniform than the kernel blocks.
+
+TODO: Implement direct convolution
+	Easy; just mimic the fft convolution
+
+TODO: Fix convolving past the chunk size
+	Probably some mini bug
+
+TODO: fix numKernelChunks?
+
+
+1. Assume we have a kernel chunk from A to B, and a TS chunk from C to D
+2. Assert B-A == D-C == [positive number] == [length of zero padding], and A >= 0
+3. Post-zero-pad both kernel and TS.
+4. Do fft stuff
+5. The first half of the result should go into C+A : D+A, and the second half should go into C+B : D+B
+
+To get E:E+(B-A) from the kernel section A:(B=2A):
+	Use the first half from:
+		C+A == E, D+A == E+B-A == E+A, D = E
+		C = E-A
+	Use the second half from:
+		C+B == E, D+B == E+B-A == E+A, D = E-A
+		C = E-2A
+
+To get E:E+(B-A) from the TS section ???:
+	???
+
+In addition, "rotating", or "translating" the kernel or TS will translate the output by the same amount.
+
+From our assumption, we have:
+	C+B == D+A
+	C+A < (D+A == C+B) < D+B < 2D-C+B
+
+ALGO_0:
+	TS: double (C:(2D-C))
+	Kernel: zero-after (A:B)
+	The first half of the TS (C:D), post-zero-padded, convolved with the kernel, also post-zero-padded, will produce 2 halves:
+		1. Goes into C+A : (D+A == C+B)
+		2. Goes into C+B : D+B
+	The second half of the TS (D:2D-C), post-zero-padded, convolved with the kernel, also post-zero-padded, will produce 2 halves:
+		1. Goes into D+A : 2D-C+A
+		2. Goes into D+B : 2D-C+B
+	We flip these because the second half was convolved in place of the first half (note the post-zero-padding), but we want it in the second half place:
+		1. Goes into D+B : 2D-C+B
+		2. Goes into D+A : 2D-C+A
+	Then just use our identity (B-A == D-C) to solve:
+		1. Goes into D+B : 2D-C+B
+		2. Goes into (D+A == C+B) : (2D-C+A == D+D-C+A == D+B-A+A == D+B)
+	CONCLUSION:
+		So, the first half of the result will contain data for both C+A : (D+A == C+B) and D+B : 2D-C+B, and is therefore unusable.
+		The second half of the result will contain data for C+B : D+B
+
+ALGO_1:
+	TS: double (C:(2D-C))
+	Kernel: zero-before (A:B)
+	This is just a rotation from the previous algo.
+	CONCLUSION:
+		The first half of the result will contain data for C+B : D+B
+		The second half of the result will contain data for both C+A : (D+A == C+B) and D+B : 2D-C+B, and is therefore unusable
+
+ALGO_2:
+	TS: zero-after (C+D)
+	Kernel: double (A:(2B-A))
+	The first half of the kernel (A:B), post-zero-padded, convolved with the TS, also post-zero-padded, will produce 2 halves:
+		1. Goes into C+A : (D+A == C+B)
+		2. Goes into C+B : D+B
+	The second half of the kernel (B:2B-A), post-zero-padded, convolved with the TS, also post-zero-padded, will produce 2 halves:
+		1. Goes into C+B : D+B
+		2. Goes into C+2B-A : D+2B-A
+	We flip these because the second half was convolved in place of the first half (note the post-zero-padding), but we want it in the second half place:
+		1. Goes into C+2B-A : D+2B-A
+		2. Goes into C+B : D+B
+	Then just use our identity (B-A == D-C) to solve:
+		1. Goes into (C+2B-A == C+B+B-A == C+B+D-C == D+B) : (D+2B-A == D+B+B-A == D+B+D-C == 2D-C+B)
+		2. Goes into C+B : D+B
+	CONCLUSION:
+		So, the first half of the result will contain data for both C+A : (D+A == C+B) and D+B : 2D-C+B, and is therefore unusable.
+		The second half of the result will contain data for C+B : D+B
+
+ALGO_3:
+	TS: zero-before (C+D)
+	Kernel: double (A:(2B-A))
+	This is just a rotation from the previous algo.
+	CONCLUSION:
+		The first half of the result will contain data for C+B : D+B
+		The second half of the result will contain data for both C+A : (D+A == C+B) and D+B : 2D-C+B, and is therefore unusable.
+
+All algos generate data for C+B : D+B
+
+For adding to a future chunk D:2D-C with all effects from chunk C:D:
+	Solve D:2D-C == C+B:D+B for A:B:
+		D == C+B == D+A, A = 0
+		B-A == D-C, B = D-C
+	So A:B == 0:D-C
+	If we use ALGO_1, our kernel is zero-padding, then 0:D-C
+	If we use ALGO_3, our kernel is 0:2(B-A)
+
+For adding to the current chunk C:D with all effects from chunk C:D:
+	Solve C:D == C+B:D+B for A:B:
+		B = 0
+		B-A == D-C, A = C-D
+	So A:B == C-D:0
+	Note: We can set the kernel to the left of zero (the future) to zero. This means that we don't know what the future holds, but it will be filled in later.
+	If we use ALGO_1, our kernel is zero
+	If we use ALGO_3, our kernel is C-D:D-C
+
+
+k = 0
+out[k + 0] = k[4] * t[4] = 0.5
+out[k + 1] = k[4] * t[5] + k[5] & t[4] = 0.75
+
+
+
+
+1234 = 0b?
+6,T : K[64:128] * T[1152:1216] += 5.8188
+5,T : K[32:64] * T[1184:1216] += 3.1559
+4,T : K[16:32] * T[1216:1232] += 1.5780
+3,T : K[8:16] * T[1224:1232] += 0.7889
+2,T : K[4:8] * T[1228:1232] += 0.3945
+1,T : K[2:4] * T[1232:1234] += 0.1972
+1,F : K[0:2] * T[1234:1236] += 0.0986
+
+
+
+6,T should be 3.5505

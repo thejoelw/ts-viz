@@ -21,7 +21,9 @@ thread_local std::vector<ChunkBase *> DataSeriesBase::dependencyStack;
 
 DataSeriesBase::DataSeriesBase(app::AppContext &context)
     : context(context)
+#if ENABLE_CHUNK_MULTITHREADING
     , avgRunDuration(std::chrono::duration<float>::zero())
+#endif
 {
     class DepStackResetter : public app::TickerContext::TickableBase<DepStackResetter> {
     public:
@@ -39,6 +41,7 @@ DataSeriesBase::DataSeriesBase(app::AppContext &context)
     context.get<DepStackResetter>();
 }
 
+#if ENABLE_CHUNK_MULTITHREADING
 void DataSeriesBase::recordDuration(std::chrono::duration<float> duration) {
     atomicApply(avgRunDuration, [duration](std::chrono::duration<float> ard) {
         static constexpr float durationSampleResponse = 0.1f;
@@ -51,6 +54,7 @@ void DataSeriesBase::recordDuration(std::chrono::duration<float> duration) {
 std::chrono::duration<float> DataSeriesBase::getAvgRunDuration() const {
     return avgRunDuration.load();
 }
+#endif
 
 std::vector<ChunkBase *> &DataSeriesBase::getDependencyStack() {
     jw_util::Thread::assert_main_thread();

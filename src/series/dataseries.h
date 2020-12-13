@@ -23,6 +23,12 @@ public:
         jw_util::Thread::set_main_thread();
     }
 
+#if ENABLE_CHUNK_NAMES
+    void setName(std::string newName) {
+        name = std::move(newName);
+    }
+#endif
+
     template <std::size_t desiredSize = CHUNK_SIZE>
     ChunkPtr<ElementType, size> getChunk(std::size_t chunkIndex) {
         static_assert(size == desiredSize, "DataSeries chunk size doesn't match desired size");
@@ -35,6 +41,12 @@ public:
         if (!chunks[chunkIndex].has()) {
             std::size_t depStackSize = getDependencyStack().size();
             chunks[chunkIndex] = ChunkPtr<ElementType, size>::construct(makeChunk(chunkIndex));
+
+#if ENABLE_CHUNK_NAMES
+            chunks[chunkIndex]->setName(name + "[" + std::to_string(chunkIndex) + "]");
+#endif
+
+            assert(getDependencyStack().size() >= depStackSize);
             while (getDependencyStack().size() > depStackSize) {
                 getDependencyStack().back()->addDependent(chunks[chunkIndex].clone());
                 getDependencyStack().pop_back();
@@ -58,6 +70,10 @@ protected:
 private:
 //    std::size_t offset = 0;
     std::vector<ChunkPtr<ElementType, size>> chunks;
+
+#if ENABLE_CHUNK_NAMES
+    std::string name = "nameless";
+#endif
 };
 
 }

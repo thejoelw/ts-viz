@@ -1,6 +1,15 @@
 #pragma once
 
+#include "defs/ENABLE_CHUNK_MULTITHREADING.h"
+#include "defs/ENABLE_CHUNK_NAMES.h"
+
+#if ENABLE_CHUNK_MULTITHREADING
 #include <mutex>
+#endif
+
+#if ENABLE_CHUNK_NAMES
+#include "spdlog/spdlog.h"
+#endif
 
 #include "series/chunkbase.h"
 #include "series/chunkptr.h"
@@ -26,19 +35,32 @@ public:
     void exec() override {
         assert(computedCount < size);
 
+#if ENABLE_CHUNK_MULTITHREADING
         unsigned int prevNotifies = notifies;
-
         auto t1 = std::chrono::high_resolution_clock::now();
+#endif
         unsigned int prevCount = computedCount;
         unsigned int count = compute(data, prevCount);
         assert(count >= prevCount);
         assert(count <= size);
+#if ENABLE_CHUNK_MULTITHREADING
         auto t2 = std::chrono::high_resolution_clock::now();
+#endif
 
         // Set this first so the dependents we notify know what we've computed.
         computedCount = count;
 
-        if (notifies.exchange(0) == prevNotifies || count == size) {
+#if ENABLE_CHUNK_NAMES
+        spdlog::debug(getIndentation(0) + "count: {} -> {}", prevCount, count);
+#endif
+
+        if (
+#if ENABLE_CHUNK_MULTITHREADING
+                notifies.exchange(0) == prevNotifies || count == size
+#else
+                true
+#endif
+        ) {
             // No notifies came in while we were computing.
             // Notifies is zero. The next notify() will relaunch exec().
 
@@ -50,6 +72,11 @@ public:
                     releaseComputer();
                 }
 
+#if ENABLE_CHUNK_NAMES
+                spdlog::debug(getIndentation(2) + "notifying dependents: {{");
+#endif
+
+#if ENABLE_CHUNK_MULTITHREADING
                 static thread_local std::vector<ChunkPtrBase> processingDeps;
                 std::size_t prevSize = processingDeps.size();
 
@@ -71,6 +98,15 @@ public:
                         processingDeps.pop_back();
                     }
                 }
+#else
+                for (ChunkPtrBase &dep : dependents) {
+                    dep->notify();
+                }
+#endif
+
+#if ENABLE_CHUNK_NAMES
+                spdlog::debug(getIndentation(-2) + "}} // notifying dependents");
+#endif
             }
         } else {
             // One or more notifies came in while we were computing.
@@ -78,7 +114,9 @@ public:
             notify();
         }
 
+#if ENABLE_CHUNK_MULTITHREADING
         ds->recordDuration(std::chrono::duration(t2 - t1) / std::max(1u, count - prevCount));
+#endif
     }
 
     bool isDone() const override {
@@ -93,7 +131,7 @@ public:
         return data;
     }
 
-    ElementType getElement(unsigned int index) {
+    ElementType getElement(unsigned int index) const {
         assert(index < computedCount);
         return data[index];
     }
@@ -104,7 +142,11 @@ protected:
     virtual void releaseComputer() = 0;
 
 private:
+#if ENABLE_CHUNK_MULTITHREADING
     std::atomic<unsigned int> computedCount = 0;
+#else
+    unsigned int computedCount = 0;
+#endif
 
     // Align to 16-byte boundary for fftw
     alignas(16) ElementType data[size];

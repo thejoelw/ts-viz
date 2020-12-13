@@ -3,6 +3,24 @@
 #include "spdlog/logger.h"
 
 #include "app/appcontext.h"
+#include "series/dataseries.h"
+
+namespace {
+
+#if ENABLE_CHUNK_NAMES
+template <class Type>
+auto setName(Type *obj, const std::string &name, int) -> decltype(obj->setName(name), void()) {
+    obj->setName(name);
+}
+template <class Type>
+auto setName(Type &obj, const std::string &name, int) -> decltype(obj.setName(name), void()) {
+    obj.setName(name);
+}
+template <class Type>
+void setName(Type &, const std::string &, long) {}
+#endif
+
+}
 
 namespace program {
 
@@ -61,7 +79,11 @@ ProgObj Resolver::execDecl(const std::string &name, const std::vector<ProgObj> &
         throw UnresolvedCallException(msg);
     }
 
-    return foundImpl->second->invoke(args);
+    ProgObj res = foundImpl->second->invoke(args);
+#if ENABLE_CHUNK_NAMES
+    std::visit([name](auto &arg){setName(arg, name, 0);}, res);
+#endif
+    return res;
 }
 
 int Resolver::registerBuilder(std::function<void (app::AppContext &, Resolver &)> func) {
