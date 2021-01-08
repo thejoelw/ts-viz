@@ -1,8 +1,6 @@
 #include "programmanager.h"
 
-#include "spdlog/logger.h"
-#include "rapidjson/stringbuffer.h"
-#include "rapidjson/writer.h"
+#include "spdlog/spdlog.h"
 
 #include "defs/ENABLE_GRAPHICS.h"
 #if ENABLE_GRAPHICS
@@ -12,17 +10,7 @@
 #include "stream/outputmanager.h"
 #include "program/resolver.h"
 #include "series/invalidparameterexception.h"
-
-namespace {
-
-static std::string jsonToStr(const rapidjson::Value &value) {
-    rapidjson::StringBuffer buffer;
-    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-    value.Accept(writer);
-    return std::string(buffer.GetString(), buffer.GetSize());
-}
-
-}
+#include "util/jsontostring.h"
 
 namespace program {
 
@@ -42,7 +30,8 @@ void ProgramManager::recvRecord(const rapidjson::Document &row) {
     }
 
     if (!row.IsArray()) {
-        context.get<spdlog::logger>().warn("Top-level node must be an array");
+        spdlog::warn("Top-level program node must be an array");
+        spdlog::info("For line: {}", util::jsonToStr(row));
         return;
     }
 
@@ -64,13 +53,14 @@ void ProgramManager::recvRecord(const rapidjson::Document &row) {
                 throw InvalidProgramException("Value for top-level entry at index " + std::to_string(i) + " is a " + progObjTypeNames[obj.index()] + ", but must be a series renderer or an output emitter");
             }
         } catch (const InvalidProgramException &ex) {
-            context.get<spdlog::logger>().warn("InvalidProgramException: {}", ex.what());
+            spdlog::warn("InvalidProgramException: {}", ex.what());
         }
     }
 }
 
 void ProgramManager::end() {
-
+    assert(running);
+    running = false;
 }
 
 ProgObj ProgramManager::makeProgObj(const std::string &path, const rapidjson::Value &value, std::unordered_map<std::string, ProgObj> &cache) {
@@ -97,12 +87,12 @@ ProgObj ProgramManager::makeProgObj(const std::string &path, const rapidjson::Va
                     }
                 }
             }
-            throw InvalidProgramException("Cannot parse " + jsonToStr(value));
+            throw InvalidProgramException("Cannot parse " + util::jsonToStr(value));
         }
         case rapidjson::Type::kArrayType: {
             const rapidjson::Value::ConstArray &arr = value.GetArray();
             if (arr.Size() < 1 || !arr[0].IsString()) {
-                throw InvalidProgramException("Array must have length >= 1 and first item must be a string: " + jsonToStr(value));
+                throw InvalidProgramException("Array must have length >= 1 and first item must be a string: " + util::jsonToStr(value));
             }
             std::string name(arr[0].GetString(), arr[0].GetStringLength());
             std::vector<ProgObj> args;

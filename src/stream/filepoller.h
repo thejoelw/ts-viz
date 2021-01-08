@@ -6,6 +6,7 @@
 #include "readerwriterqueue/readerwriterqueue.h"
 
 #include "app/appcontext.h"
+#include "app/mainloop.h"
 #include "app/tickercontext.h"
 
 namespace stream {
@@ -16,7 +17,7 @@ public:
     ~FilePoller();
 
     template <typename ReceiverClass>
-    void addFile(const char *path) {
+    void addFile(const std::string &path) {
         File &file = files.emplace_back();
         file.path = path;
         file.lineDispatcher = &dispatchLine<ReceiverClass>;
@@ -51,7 +52,6 @@ private:
     };
     std::deque<File> files;
     std::atomic<bool> running = true;
-
 
     template <typename ReceiverClass>
     static void dispatchLine(app::AppContext &context, const char *data, std::size_t size) {

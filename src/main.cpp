@@ -1,9 +1,12 @@
 ﻿#include <iostream>
 
+#include "argparse/include/argparse/argparse.hpp"
+
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 
 #include "app/appcontext.h"
+#include "app/options.h"
 #include "app/mainloop.h"
 #include "app/quitexception.h"
 
@@ -16,50 +19,71 @@
 #include "defs/CHUNK_SIZE_LOG2.h"
 
 int main(int argc, char **argv) {
-    // Setup context
-    app::AppContext context;
+    // Setup argument parser
+    argparse::ArgumentParser program("ts-viz");
+    program.add_description("A time series visualizer and processor");
 
-    // Add logger to context
-    spdlog::set_default_logger(nullptr);
-//    spdlog::set_default_logger(spdlog::stderr_color_st(""));
-    spdlog::set_default_logger(spdlog::stderr_color_mt(""));
-    context.provideInstance(spdlog::default_logger().get());
+    program.add_argument("program-path")
+            .help("The path to the program file or stream")
+            .required();
 
-    spdlog::set_level(spdlog::level::debug);
+    program.add_argument("data-path")
+            .help("The path to the data file or stream")
+            .required();
 
-    // Print some debug info
-#ifndef NDEBUG
-    context.get<spdlog::logger>().warn("This is a debug build!");
-    std::cout << "A pointer is " << (sizeof(void*) * CHAR_BIT) << " bits" << std::endl;
-    std::cout << "An unsigned int is " << (sizeof(unsigned int) * CHAR_BIT) << " bits" << std::endl;
-#endif
+    program.add_argument("--dont-write-wisdom")
+            .help("Disable writing fftw's wisdom files")
+            .default_value(false)
+            .implicit_value(true);
 
-    context.get<spdlog::logger>().info("Running tests...");
-    util::TestRunner::getInstance().run();
-
-    context.get<spdlog::logger>().info("Starting...");
-
-    context.get<spdlog::logger>().info("Chunk size log2 is: {}", CHUNK_SIZE_LOG2);
-
-    // Parse command line options
-    if (argc != 3) {
-        context.get<spdlog::logger>().critical("Invalid command line options. Example: ./ts-viz program.jsons stream.jsons");
+    try {
+        program.parse_args(argc, argv);
+    }
+    catch (const std::runtime_error &err) {
+        std::cerr << err.what() << std::endl;
+        std::cerr << program;
         return 1;
     }
 
-    context.get<stream::FilePoller>().addFile<stream::JsonUnwrapper<program::ProgramManager>>(argv[1]);
-    context.get<stream::FilePoller>().addFile<stream::JsonUnwrapper<stream::InputManager>>(argv[2]);
+    app::Options::getMutableInstance().writeWisdom = !program.get<bool>("--dont-write-wisdom");
+
+    // Setup logger
+    spdlog::set_default_logger(nullptr);
+//    spdlog::set_default_logger(spdlog::stderr_color_st(""));
+    spdlog::set_default_logger(spdlog::stderr_color_mt(""));
+    spdlog::set_level(spdlog::level::debug);
+
+    // Setup context
+    app::AppContext context;
+
+    // Print some debug info
+#ifndef NDEBUG
+    spdlog::warn("This is a debug build!");
+    spdlog::info("A pointer is {} bits", sizeof(void*) * CHAR_BIT);
+    spdlog::info("An unsigned int is {} bits", sizeof(unsigned int) * CHAR_BIT);
+#endif
+
+    spdlog::info("Running tests...");
+    util::TestRunner::getInstance().run();
+
+    spdlog::info("Starting...");
+
+    spdlog::info("Chunk size log2 is: {}", CHUNK_SIZE_LOG2);
+
+    context.get<stream::FilePoller>().addFile<stream::JsonUnwrapper<program::ProgramManager>>(program.get<std::string>("program-path"));
+    context.get<stream::FilePoller>().addFile<stream::JsonUnwrapper<stream::InputManager>>(program.get<std::string>("data-path"));
 
     // Run it!!!
     try {
         context.get<app::MainLoop>().run();
     } catch (const app::QuitException &) {
         // Normal exit
-        context.get<spdlog::logger>().info("Ending...");
-        context.get<spdlog::logger>().info("AppContext type counts: managed={}, total={}", context.getManagedTypeCount(), context.getTotalTypeCount());
-        return 0;
     } catch (const std::exception &exception) {
-        context.get<spdlog::logger>().critical("Uncaught exception: {}", exception.what());
+        spdlog::critical("Uncaught exception: {}", exception.what());
         return 1;
     }
+
+    spdlog::info("Ending...");
+    spdlog::info("AppContext type counts: managed={}, total={}", context.getManagedTypeCount(), context.getTotalTypeCount());
+    return 0;
 }

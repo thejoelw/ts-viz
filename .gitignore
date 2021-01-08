@@ -3,10 +3,7 @@
 node_modules/
 
 .tup/
-build-debug/*
-build-release/*
-!build-debug/tup.config
-!build-release/tup.config
+build-*/
 
 bad_shader.glsl
 *.trace

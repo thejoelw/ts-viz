@@ -2,4 +2,4 @@ src/
 third_party/
 third_party/spdlog/include/
 third_party/rapidjson/include/
-build-debug/src/
+build-qtc/src/

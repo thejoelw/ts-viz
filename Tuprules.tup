@@ -37,5 +37,5 @@ endif
 
 !cpp = |> $(CXX) $(CFLAGS) $(CFLAGS_%f) -c %f -o %o |> %f.o $(ROOT)/<src_objects>
 # !archive = |> ar rs %o |>
-!link = |> $(CXX) $(CFLAGS) $(LDFLAGS) $(LDFLAGS_$BIN_TARGET) -o $(BIN_TARGET) |>
-!write_linker_cmd = |> echo "$(CXX) $(CFLAGS) $(LDFLAGS) $(LDFLAGS_$BIN_TARGET) -o $(BIN_TARGET) %<src_objects>" > %o |> link.sh
+!link = |> $(CXX) $(CFLAGS) $(LDFLAGS) -o %o %<src_objects> |> $(BIN_TARGET)
+!write_linker_cmd = |> echo "$(CXX) $(CFLAGS) $(LDFLAGS) -o $(BIN_TARGET) %<src_objects>" > %o |> link.sh

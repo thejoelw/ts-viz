@@ -9,6 +9,9 @@
 
 #if ENABLE_CHUNK_NAMES
 #include "spdlog/spdlog.h"
+#ifdef NDEBUG
+    static_assert(false, "Should not have ENABLE_CHUNK_NAMES enabled in release variant!");
+#endif
 #endif
 
 #include "series/chunkbase.h"

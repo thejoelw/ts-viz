@@ -2,7 +2,7 @@
 
 #include <cstdlib>
 
-#include "spdlog/logger.h"
+#include "spdlog/spdlog.h"
 #include "rapidjson/document.h"
 #include "rapidjson/error/en.h"
 
@@ -21,9 +21,9 @@ public:
         rapidjson::Document row;
 
         if (row.Parse(data, size).HasParseError()) {
-            context.get<spdlog::logger>().warn("Parser error: {}", rapidjson::GetParseError_En(row.GetParseError()));
+            spdlog::warn("Parser error: {}", rapidjson::GetParseError_En(row.GetParseError()));
+            spdlog::warn("For line: {}", std::string(data, size));
         } else {
-//            context.get<spdlog::logger>().info("Received record: {}", std::string(data, size));
             context.get<ReceiverClass>().recvRecord(row);
         }
     }

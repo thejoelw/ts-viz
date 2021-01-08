@@ -6,7 +6,18 @@
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 
+#include "app/mainloop.h"
+#include "stream/inputmanager.h"
+
 namespace stream {
+
+OutputManager::OutputManager(app::AppContext &context)
+    : TickableBase(context)
+{}
+
+OutputManager::~OutputManager() {
+    emit();
+}
 
 void OutputManager::clearEmitters() {
     emitters.clear();
@@ -18,7 +29,10 @@ void OutputManager::addEmitter(SeriesEmitter *emitter) {
 
 void OutputManager::tick(app::TickerContext &tickerContext) {
     (void) tickerContext;
+    emit();
+}
 
+void OutputManager::emit() {
     static thread_local rapidjson::StringBuffer buffer;
     static thread_local rapidjson::Writer<rapidjson::StringBuffer> writer;
 
@@ -31,7 +45,7 @@ void OutputManager::tick(app::TickerContext &tickerContext) {
         for (SeriesEmitter *emitter : emitters) {
             std::pair<bool, double> res = emitter->getValue(nextEmitIndex);
             if (!res.first) {
-                return;
+                goto finishLoop;
             }
 
             writer.Key(emitter->getKey().data(), emitter->getKey().size());
@@ -45,6 +59,12 @@ void OutputManager::tick(app::TickerContext &tickerContext) {
 
         nextEmitIndex++;
     }
+    finishLoop:;
+}
+
+bool OutputManager::isRunning() const {
+    assert(nextEmitIndex <= context.get<InputManager>().getIndex());
+    return nextEmitIndex < context.get<InputManager>().getIndex();
 }
 
 }

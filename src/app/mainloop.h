@@ -12,6 +12,8 @@ public:
 
 private:
     AppContext &context;
+
+    bool shouldRun() const;
 };
 
 }

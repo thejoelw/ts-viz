@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "chroma-js": "^2.1.0"
+    "chroma-js": "^2.1.0",
+    "glob": "^7.1.6"
   }
 }

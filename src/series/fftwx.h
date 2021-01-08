@@ -12,6 +12,8 @@
 #include "jw_util/thread.h"
 #include "jw_util/typename.h"
 
+#include "app/options.h"
+
 #include "series/chunksize.h"
 
 namespace {
@@ -228,11 +230,13 @@ public:
         }
         release(io);
 
-        bool exportSuccess = fftwx::export_wisdom_to_filename(filename.data());
-        if (exportSuccess) {
-            spdlog::info("{}::init() - Export to {} was successful", tn, filename);
-        } else {
-            spdlog::error("{}::init() - Export to {} FAILED", tn, filename);
+        if (app::Options::getInstance().writeWisdom) {
+            bool exportSuccess = fftwx::export_wisdom_to_filename(filename.data());
+            if (exportSuccess) {
+                spdlog::info("{}::init() - Export to {} was successful", tn, filename);
+            } else {
+                spdlog::error("{}::init() - Export to {} FAILED", tn, filename);
+            }
         }
     }
 

@@ -17,12 +17,17 @@ public:
     void recvRecord(const rapidjson::Document &row);
     void end();
 
+    std::size_t getIndex() const { return index; }
+    bool isRunning() const { return running; }
+
 private:
     app::AppContext &context;
 
     std::size_t index = 0;
 
     std::unordered_map<std::string, series::InputSeries<INPUT_SERIES_ELEMENT_TYPE> *> inputs;
+
+    bool running = true;
 };
 
 }

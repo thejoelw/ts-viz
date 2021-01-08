@@ -1,7 +1,6 @@
 include_rules
 
-# Create config/*.h files from defines.cfg
-run awk '/^[^#]/ { print ": |> echo \"#define "$0"\" > %o |> src/defs/"$1".h $(ROOT)/<gen_headers>" }' $(DEFINES_CONFIG_FILE)
+run node util/definesWriter.js "@(NAME)"
 
 # Compile sources
 : foreach $(SRC_PATH)/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
@@ -19,9 +18,14 @@ run awk '/^[^#]/ { print ": |> echo \"#define "$0"\" > %o |> src/defs/"$1".h $(R
 : foreach $(SRC_PATH)/stream/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 : foreach $(SRC_PATH)/util/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 
-# Link program
-# : | $(ROOT)/<src_objects> |> !link %<src_objects> |> $(BIN_TARGET)
-
+ifeq (@(DONT_LINK),1)
 # We have to write the linker command instead of executing it because the debug symbols don't get written correctly inside of tup.
 # It works better when it's executed from QtCreator.
 : | $(ROOT)/<src_objects> |> !write_linker_cmd |>
+else
+# Link program
+: | $(ROOT)/<src_objects> |> !link |>
+endif
+
+preload tests
+run node util/testsWriter.js "@(NAME)"

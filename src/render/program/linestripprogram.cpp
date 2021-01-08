@@ -3,7 +3,7 @@
 
 #include "linestripprogram.h"
 
-#include "spdlog/logger.h"
+#include "spdlog/spdlog.h"
 
 #include "graphics/type/element.h"
 #include "render/shaders.h"
@@ -43,11 +43,11 @@ template <typename ElementType>
 void LineStripProgram<ElementType>::setupProgram() {
     Program::setupProgram();
 
-    context.get<spdlog::logger>().debug("Compiling main vertex shader");
+    spdlog::debug("Compiling main vertex shader");
     std::string vertShaderStr = std::string(Shaders::mainVert);
     attachShader(GL_VERTEX_SHADER, std::move(vertShaderStr), defines);
 
-    context.get<spdlog::logger>().debug("Compiling main fragment shader");
+    spdlog::debug("Compiling main fragment shader");
     std::string fragShaderStr = std::string(Shaders::mainFrag);
     attachShader(GL_FRAGMENT_SHADER, std::move(fragShaderStr), defines);
 }

@@ -19,7 +19,7 @@ Window::Window(AppContext &context)
     dimensions.height = 0;
 
 #if ENABLE_GUI
-    context.get<spdlog::logger>().info("GLFW version: {}", glfwGetVersionString());
+    spdlog::info("GLFW version: {}", glfwGetVersionString());
 
     glfwSetErrorCallback(&Window::errorCallback);
 
@@ -65,8 +65,8 @@ Window::Window(AppContext &context)
     // Apparently it's harmless, but this is to clear it.
     glGetError();
 
-    context.get<spdlog::logger>().info("GLEW version: {}", glewGetString(GLEW_VERSION));
-    context.get<spdlog::logger>().info("OpenGL version: {}", glGetString(GL_VERSION));
+    spdlog::info("GLEW version: {}", glewGetString(GLEW_VERSION));
+    spdlog::info("OpenGL version: {}", glGetString(GL_VERSION));
 
     // Set GLFW options
     glfwSetInputMode(glfwWindow, GLFW_STICKY_KEYS, GL_TRUE);
@@ -110,7 +110,7 @@ void Window::pollEvents() {
     glfwGetFramebufferSize(glfwWindow, &newDims.width, &newDims.height);
 
     if (newDims != dimensions) {
-        context.get<spdlog::logger>().info("Resizing to {} x {}", newDims.width, newDims.height);
+        spdlog::info("Resizing to {} x {}", newDims.width, newDims.height);
         glViewport(0, 0, newDims.width, newDims.height);
 
         dimensions = newDims;

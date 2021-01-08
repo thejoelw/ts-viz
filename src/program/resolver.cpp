@@ -1,6 +1,6 @@
 #include "resolver.h"
 
-#include "spdlog/logger.h"
+#include "spdlog/spdlog.h"
 
 #include "app/appcontext.h"
 #include "series/dataseries.h"
@@ -31,7 +31,7 @@ Resolver::Resolver(app::AppContext &context)
         func(context, *this);
     }
 
-    context.get<spdlog::logger>().info("Registered {} declarations", declarations.size());
+    spdlog::info("Registered {} declarations", declarations.size());
 }
 
 ProgObj Resolver::call(const std::string &name, const std::vector<ProgObj> &args) {

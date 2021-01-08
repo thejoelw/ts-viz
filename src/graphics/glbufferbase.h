@@ -54,6 +54,10 @@ public:
     void assert_bound() const
     {
 #if GLBUFFER_ASSERT_BINDINGS
+#ifdef NDEBUG
+        static_assert(false, "Should not have GLBUFFER_ASSERT_BINDINGS enabled in release variant!");
+#endif
+
         GLint binding;
 
         switch (target)

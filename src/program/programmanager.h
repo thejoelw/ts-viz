@@ -28,8 +28,12 @@ public:
     void recvRecord(const rapidjson::Document &row);
     void end();
 
+    bool isRunning() const { return running; }
+
 private:
     app::AppContext &context;
+
+    bool running = true;
 
     ProgObj makeProgObj(const std::string &path, const rapidjson::Value &value, std::unordered_map<std::string, ProgObj> &cache);
 };

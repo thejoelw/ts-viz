@@ -6,7 +6,7 @@ set -x
 # Change working directory to script location
 pushd `dirname $0` > /dev/null
 
-rm -rf imgui readerwriterqueue spdlog rapidjson
+rm -rf imgui readerwriterqueue spdlog rapidjson argparse
 
 git clone git@github.com:ocornut/imgui.git
 pushd imgui
@@ -34,6 +34,11 @@ popd
 git clone git@github.com:Tencent/rapidjson.git
 pushd rapidjson
 git checkout 0ccdbf364c577803e2a751f5aededce935314313
+popd
+
+git clone git@github.com:p-ranav/argparse.git
+pushd argparse
+git checkout 9903a22904fed8176c4a1f69c4b691304b23c78e
 popd
 
 

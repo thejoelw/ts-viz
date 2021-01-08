@@ -2,7 +2,8 @@
 
 #include "app/appcontext.h"
 #include "program/resolver.h"
-#include "spdlog/logger.h"
+#include "spdlog/spdlog.h"
+#include "util/jsontostring.h"
 
 #include "defs/ENABLE_GRAPHICS.h"
 #if ENABLE_GRAPHICS
@@ -16,6 +17,12 @@ InputManager::InputManager(app::AppContext &context)
 {}
 
 void InputManager::recvRecord(const rapidjson::Document &row) {
+    if (!row.IsObject()) {
+        spdlog::warn("Top-level data input node must be an object");
+        spdlog::info("For line: {}", util::jsonToStr(row));
+        return;
+    }
+
     for (rapidjson::Value::ConstMemberIterator it = row.MemberBegin(); it != row.MemberEnd(); ++it) {
         if (!it->value.IsNumber()) { continue; }
 
@@ -29,7 +36,7 @@ void InputManager::recvRecord(const rapidjson::Document &row) {
             series::DataSeries<INPUT_SERIES_ELEMENT_TYPE> *ds = std::get<series::DataSeries<INPUT_SERIES_ELEMENT_TYPE> *>(po);
             in = dynamic_cast<series::InputSeries<INPUT_SERIES_ELEMENT_TYPE> *>(ds);
 
-            context.get<spdlog::logger>().info("Input key " + key);
+            spdlog::info("Input key " + key);
         }
 
         in->set(index, static_cast<INPUT_SERIES_ELEMENT_TYPE>(it->value.GetDouble()));
@@ -48,7 +55,9 @@ void InputManager::recvRecord(const rapidjson::Document &row) {
 }
 
 void InputManager::end() {
-    // Not really much to do here
+    assert(running);
+    running = false;
 }
+
 
 }
