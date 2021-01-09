@@ -98,13 +98,18 @@ private:
     static_assert(partitionSize > 0, "Partition size must be positive");
     static_assert((partitionSize & (partitionSize - 1)) == 0, "Partition size must be a power of 2");
     static_assert(partitionSize <= CHUNK_SIZE, "Partition size is too big");
-    static_assert(srcOffset >= -partitionSize, "Src offset is too far back (could span multiple chunks)");
-    static_assert(srcOffset + copySize <= partitionSize, "Src offset + copy size is too far forwards (could span multiple chunks)");
     static_assert(copySize > 0, "Must copy a positive size of data");
 
     // The fft is twice as big as the input
     static constexpr std::size_t fftSize = partitionSize * 2;
     static_assert(dstOffset + copySize <= fftSize, "The copied elements would exceed the size of the FFT");
+
+    static constexpr signed int splitOffset = (divFloor<signed int>(srcOffset, partitionSize) + 1) * partitionSize;
+    static constexpr signed int beginOffsetFromSplit = srcOffset - splitOffset;
+    static_assert(beginOffsetFromSplit >= -static_cast<signed int>(partitionSize), "Begins more than one partition back");
+    static_assert(beginOffsetFromSplit < 0, "Does not have a left chunk");
+    static constexpr signed int endOffsetFromSplit = srcOffset + copySize - splitOffset;
+    static_assert(endOffsetFromSplit <= partitionSize, "Ends more than one partition forward");
 
     static constexpr ElementType factor = static_cast<ElementType>(scale::num) / static_cast<ElementType>(scale::den);
 
@@ -133,58 +138,59 @@ private:
     }
 
 public:
-    static constexpr bool hasPrevChunk = srcOffset < 0;
-    static constexpr bool hasCurChunk = srcOffset + copySize > 0;
-    static_assert(hasPrevChunk || hasCurChunk, "Not using any data chunks");
+    static_assert(beginOffsetFromSplit < 0, "Does not have a left chunk");
+    static constexpr bool hasRightChunk = endOffsetFromSplit > 0;
 
     Chunk<ComplexType, fftSize> *makeChunk(std::size_t chunkIndex) override {
-        std::size_t centerOffset = chunkIndex * partitionSize;
+        typedef std::make_signed<std::size_t>::type signed_size_t;
 
-        ChunkPtr<ElementType> prevChunk = hasPrevChunk && static_cast<signed int>(centerOffset) >= -srcOffset
-                ? arg.getChunk(static_cast<std::size_t>(centerOffset + srcOffset) / CHUNK_SIZE)
+        signed_size_t centerOffset = chunkIndex * partitionSize + splitOffset;
+
+        ChunkPtr<ElementType> leftChunk = centerOffset >= partitionSize
+                ? arg.getChunk(static_cast<std::size_t>(centerOffset - partitionSize) / CHUNK_SIZE)
                 : ChunkPtr<ElementType>::null();
-        ChunkPtr<ElementType> curChunk = hasCurChunk
-                ? arg.getChunk(centerOffset / CHUNK_SIZE)
+        ChunkPtr<ElementType> rightChunk = hasRightChunk && centerOffset >= 0
+                ? arg.getChunk(static_cast<std::size_t>(centerOffset) / CHUNK_SIZE)
                 : ChunkPtr<ElementType>::null();
 
-        return this->constructChunk([centerOffset, prevChunk = std::move(prevChunk), curChunk = std::move(curChunk)](ComplexType *dst, unsigned int computedCount) -> unsigned int {
+        return this->constructChunk([centerOffset, leftChunk = std::move(leftChunk), rightChunk = std::move(rightChunk)](ComplexType *dst, unsigned int computedCount) -> unsigned int {
             assert(computedCount == 0);
 
             // This is an all-or-nothing transform
-            assert(hasCurChunk == curChunk.has());
-            if (hasCurChunk && prevChunk->getComputedCount() < static_cast<std::size_t>(centerOffset + (srcOffset + copySize)) % CHUNK_SIZE) {
+            assert(hasRightChunk || !rightChunk.has());
+            if (hasRightChunk && rightChunk.has() && rightChunk->getComputedCount() < static_cast<std::size_t>(centerOffset + endOffsetFromSplit) % CHUNK_SIZE) {
                 return 0;
             }
-            assert(hasPrevChunk || !prevChunk.has());
-            if (hasPrevChunk && prevChunk.has() && prevChunk->getComputedCount() < static_cast<std::size_t>(centerOffset + srcOffset) % CHUNK_SIZE) {
+            if (leftChunk.has() && leftChunk->getComputedCount() < static_cast<std::size_t>(centerOffset + beginOffsetFromSplit) % CHUNK_SIZE) {
                 return 0;
             }
 
             typename FftwPlanner<ElementType>::IO planIO = FftwPlanner<ElementType>::request();
-            doFft(dst, prevChunk, curChunk, centerOffset, planIO.real);
+            doFft(dst, leftChunk, rightChunk, centerOffset, planIO.real);
             FftwPlanner<ElementType>::release(planIO);
 
             return fftSize;
         });
     }
 
-    static void doFft(ComplexType *dst, const ChunkPtr<ElementType> &prevChunk, const ChunkPtr<ElementType> &curChunk, unsigned int centerOffset, ElementType *scratch) {
+    static void doFft(ComplexType *dst, const ChunkPtr<ElementType> &leftChunk, const ChunkPtr<ElementType> &rightChunk, unsigned int centerOffset, ElementType *scratch) {
 #ifndef NDEBUG
+        // Make sure we're going to fill everything
         std::fill_n(scratch, fftSize, ElementType(NAN));
 #endif
 
-        static constexpr unsigned int dstSplit = dstOffset - std::min(0, srcOffset);
+        static constexpr unsigned int dstSplit = dstOffset - beginOffsetFromSplit;
 
-        assert(hasPrevChunk || !prevChunk.has());
-        if (hasPrevChunk && prevChunk.has()) {
-            static constexpr signed int size = std::min<signed int>(-srcOffset, copySize);
-            static_assert(size > 0, "Previous chunk's size is not positive");
-            static_assert(size <= partitionSize, "Previous chunk's size is too big");
+        if (leftChunk.has()) {
             zeroRange<0, dstOffset>(scratch);
 
-            unsigned int srcChunkOffset = (centerOffset + srcOffset) % CHUNK_SIZE;
-            for (std::size_t i = 0; i < size; i++) {
-                ElementType val = prevChunk->getElement(srcChunkOffset + i);
+            static constexpr unsigned int size = std::min<signed int>(-beginOffsetFromSplit, copySize);
+            static_assert(size > 0, "Left chunk's size is not positive");
+            static_assert(size <= partitionSize, "Left chunk's size is too big");
+
+            unsigned int srcChunkOffset = (centerOffset + beginOffsetFromSplit) % CHUNK_SIZE;
+            for (unsigned int i = 0; i < size; i++) {
+                ElementType val = leftChunk->getElement(srcChunkOffset + i);
                 scratch[dstOffset + i] = std::isnan(val) ? 0.0 : val * factor;
             }
 
@@ -193,15 +199,16 @@ public:
             zeroRange<0, dstSplit>(scratch);
         }
 
-        assert(hasCurChunk == curChunk.has());
-        if (hasCurChunk) {
-            static constexpr signed int size = std::min<signed int>(copySize + srcOffset, copySize);
-            static_assert(size > 0, "Current chunk's size is not positive");
-            static_assert(size <= partitionSize, "Current chunk's size is too big");
+        assert(hasRightChunk || !rightChunk.has());
+        if (hasRightChunk && rightChunk.has()) {
+            static constexpr unsigned int size = endOffsetFromSplit;
+            static_assert(size < copySize, "Unexpected endOffsetFromSplit; some of the range should have been taken up by the left chunk");
+            static_assert(!hasRightChunk || size > 0, "Right chunk's size is not positive");
+            static_assert(size <= partitionSize, "Right chunk's size is too big");
 
             unsigned int srcChunkOffset = centerOffset % CHUNK_SIZE;
             for (std::size_t i = 0; i < size; i++) {
-                ElementType val = curChunk->getElement(srcChunkOffset + i);
+                ElementType val = rightChunk->getElement(srcChunkOffset + i);
                 scratch[dstSplit + i] = std::isnan(val) ? 0.0 : val * factor;
             }
 
@@ -211,6 +218,7 @@ public:
         }
 
 #ifndef NDEBUG
+        // Make sure we filled everything
         for (std::size_t i = 0; i < fftSize; i++) {
             assert(!std::isnan(scratch[i]));
         }
@@ -227,7 +235,7 @@ private:
     template <std::size_t begin, std::size_t end>
     static void zeroRange(ElementType *dst) {
         static_assert(begin <= end, "Range has negative size!");
-        std::fill(dst + begin, dst + end, ElementType(0.0));
+        std::fill_n(dst, end - begin, ElementType(0.0));
     }
 };
 

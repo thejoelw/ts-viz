@@ -18,7 +18,8 @@ private:
         static constexpr unsigned int fftSizeLog2 = sizeLog2 + 1;
         static constexpr unsigned int computedIncrement = 0;
 
-        static constexpr signed int kernelOffset = 0;
+        static constexpr unsigned int kernelIndex = 1u << sizeLog2;
+        static constexpr signed int kernelOffsetFromIndex = -(1u << sizeLog2);
         static constexpr unsigned int kernelSize = 2u << sizeLog2;
 
         static constexpr signed int tsOffsetFromCc = -(1u << sizeLog2);
@@ -36,7 +37,8 @@ private:
         static constexpr unsigned int fftSizeLog2 = sizeLog2 + 1;
         static constexpr unsigned int computedIncrement = 1u << sizeLog2;
 
-        static constexpr signed int kernelOffset = -(1u << sizeLog2);
+        static constexpr unsigned int kernelIndex = 0;
+        static constexpr signed int kernelOffsetFromIndex = -(1u << sizeLog2);
         static constexpr unsigned int kernelSize = 2u << sizeLog2;
 
         static constexpr signed int tsOffsetFromCc = 0;

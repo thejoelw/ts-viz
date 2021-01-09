@@ -170,8 +170,8 @@ public:
                             unsigned int ti = i;
                             unsigned int ki = tsChunks.size() - 1 - ti;
 
-                            ConvVariant::PriorChunkStepSpec ssw;
-                            static_assert(ssw.fftSizeLog2 == CHUNK_SIZE_LOG2 + 1, "Incorrect fftSizeLog2");
+                            ConvVariant::PriorChunkStepSpec stepSpec;
+                            static_assert(stepSpec.fftSizeLog2 == CHUNK_SIZE_LOG2 + 1, "Incorrect fftSizeLog2");
 
                             assert(ki > 0);
                             assert(ki < kernelChunks.size());
@@ -192,12 +192,13 @@ public:
                             typename fftwx_impl<ElementType>::Plan planBwd = FftwPlanner<ElementType>::template getPlanBwd<CHUNK_SIZE * 2>();
                             fftwx_impl<ElementType>::execute_dft_c2r(planBwd, planIO.complex, planIO.real);
 
-                            static_assert(ssw.dstSize == CHUNK_SIZE, "Unexpected ssw.outputSize");
+                            static_assert(stepSpec.resultSize == CHUNK_SIZE, "Unexpected ssw.resultSize");
+                            static_assert(stepSpec.dstSize == CHUNK_SIZE, "Unexpected ssw.dstSize");
                             for (unsigned int i = 0; i < CHUNK_SIZE; i++) {
-                                unsigned int srcIndex = i + ssw.isRotated * CHUNK_SIZE;
+                                unsigned int srcIndex = stepSpec.resultBegin + i;
                                 assert(srcIndex < CHUNK_SIZE * 2);
 
-                                unsigned int dstIndex = i;
+                                unsigned int dstIndex = stepSpec.dstOffsetFromCc + i;
                                 assert(dstIndex < CHUNK_SIZE);
 
                                 if constexpr (isFirstTag.value) {
@@ -243,20 +244,30 @@ public:
 
                         const typename fftwx::Complex *kernelFft;
                         if constexpr (stepSpec.fftSizeLog2 > CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2) {
-                            unsigned int kernelIndex = stepSpec.kernelFftOffset / stepSpec.strideSize;
-                            assert(kernelIndex < 2);
+                            static_assert(stepSpec.kernelIndex % stepSpec.strideSize == 0, "The kernel index must be a multiple of the stride size");
+                            static constexpr unsigned int kernelIndex = stepSpec.kernelIndex / stepSpec.strideSize;
+                            static_assert(kernelIndex < 2, "KernelIndex is too big! We'd need to prepare more chunks for this.");
                             const ChunkPtr<typename fftwx::Complex, stepSpec.fftSize> &kc = std::get<std::array<ChunkPtr<typename fftwx::Complex, stepSpec.fftSize>, 2>>(kernelPartitionFfts)[kernelIndex];
                             assert(kc->getComputedCount() == stepSpec.fftSize);
                             kernelFft = kc->getData();
                         } else {
                             kernelFft = planIO.complex;
                             ChunkPtr<ElementType> np = ChunkPtr<ElementType>::null();
-                            decltype(stepSpec)::template KernelFft<ElementType>::doFft(const_cast<decltype(planIO.complex)>(kernelFft), stepSpec.kernelFftOffset ? kernelChunks.front().first : np, stepSpec.kernelFftOffset - stepSpec.strideSize, kernelChunks.front().first, stepSpec.kernelFftOffset, planIO.real);
+                            decltype(stepSpec)::template KernelFft<ElementType>::doFft(
+                                const_cast<decltype(planIO.complex)>(kernelFft),
+                                stepSpec.kernelFftOffset ? kernelChunks.front().first : np,
+                                stepSpec.kernelFftOffset - stepSpec.strideSize,
+                                kernelChunks.front().first,
+                                stepSpec.kernelFftOffset,
+                                planIO.real
+                            );
                         }
 
                         const typename fftwx::Complex *tsFft;
-                        unsigned int tsIndex = computedCount / stepSpec.strideSize + stepSpec.tsFftOffset / stepSpec.strideSize;
+                        unsigned int tsOffset = computedCount + stepSpec.tsOffsetFromCc;
+                        assert(tsOffset % stepSpec.strideSize == 0);
                         if constexpr (stepSpec.fftSizeLog2 > CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2) {
+                            unsigned int tsIndex = tsOffset / stepSpec.strideSize;
                             assert(tsIndex < CHUNK_SIZE / stepSpec.strideSize);
                             const ChunkPtr<typename fftwx::Complex, stepSpec.fftSize> &tc = std::get<std::array<ChunkPtr<typename fftwx::Complex, stepSpec.fftSize>, CHUNK_SIZE / stepSpec.strideSize>>(tsPartitionFfts)[tsIndex];
                             assert(tc->getComputedCount() == stepSpec.fftSize);
@@ -270,7 +281,14 @@ public:
                             }
 
                             ChunkPtr<ElementType> np = ChunkPtr<ElementType>::null();
-                            decltype(stepSpec)::template TsFft<ElementType>::doFft(const_cast<decltype(planIO.complex)>(tsFft), tsIndex ? tsChunks.back().first : np, (tsIndex - 1) * stepSpec.strideSize, tsChunks.back().first, tsIndex * stepSpec.strideSize, planIO.real);
+                            decltype(stepSpec)::template TsFft<ElementType>::doFft(
+                                const_cast<decltype(planIO.complex)>(tsFft),
+                                tsIndex ? tsChunks.back().first : np,
+                                (tsIndex - 1) * stepSpec.strideSize,
+                                tsChunks.back().first,
+                                tsIndex * stepSpec.strideSize,
+                                planIO.real
+                            );
                         }
 
                         // Elementwise multiply
@@ -281,23 +299,24 @@ public:
                         typename fftwx_impl<ElementType>::Plan planBwd = FftwPlanner<ElementType>::template getPlanBwd<stepSpec.fftSize>();
                         fftwx_impl<ElementType>::execute_dft_c2r(planBwd, planIO.complex, planIO.real);
 
-                        static constexpr unsigned int loopSplit = std::min(stepSpec.outputSize, stepSpec.fftSize - stepSpec.isRotated * stepSpec.strideSize);
+                        static_assert(stepSpec.resultSize == stepSpec.dstSize, "stepSpec.resultSize != stepSpec.dstSize");
+                        static constexpr unsigned int loopSplit = std::min(stepSpec.resultSize, stepSpec.fftSize - stepSpec.resultBegin);
 
                         for (unsigned int i = 0; i < loopSplit; i++) {
-                            unsigned int srcIndex = i + stepSpec.isRotated * stepSpec.strideSize;
+                            unsigned int srcIndex = stepSpec.resultBegin + i;
                             assert(srcIndex < stepSpec.fftSize);
 
-                            unsigned int dstIndex = computedCount + i;
+                            unsigned int dstIndex = computedCount + stepSpec.dstOffsetFromCc + i;
                             assert(dstIndex < CHUNK_SIZE);
 
                             dst[dstIndex] += planIO.real[srcIndex];
                         }
 
                         for (unsigned int i = loopSplit; i < stepSpec.outputSize; i++) {
-                            unsigned int srcIndex = i + stepSpec.isRotated * stepSpec.strideSize - stepSpec.fftSize;
+                            unsigned int srcIndex = stepSpec.resultBegin - stepSpec.fftSize + i;
                             assert(srcIndex < stepSpec.fftSize);
 
-                            unsigned int dstIndex = computedCount + i;
+                            unsigned int dstIndex = computedCount + stepSpec.dstOffsetFromCc + i;
                             assert(dstIndex < CHUNK_SIZE);
 
                             dst[dstIndex] += planIO.real[srcIndex];
@@ -333,42 +352,42 @@ constexpr unsigned int exactLog2() {
     return x == 1 ? 0 : 1 + exactLog2<x / 2>();
 }
 
-template <typename ElementType, std::size_t strideSize, PaddingType paddingType>
-auto getKernelPartitionFfts(app::AppContext &context, DataSeries<ElementType> &kernel, Wrapper<FftSeries<ElementType, strideSize, paddingType, std::ratio<1, strideSize * 2>>>) {
-    static constexpr unsigned int sizeLog2 = exactLog2<strideSize>();
+template <typename ElementType, std::size_t partitionSize, signed int srcOffset, unsigned int copySize, unsigned int dstOffset>
+auto getKernelPartitionFfts(app::AppContext &context, DataSeries<ElementType> &kernel, Wrapper<FftSeries<ElementType, partitionSize, srcOffset, copySize, dstOffset, std::ratio<1, partitionSize * 2>>>) {
+    static constexpr unsigned int sizeLog2 = exactLog2<partitionSize>();
     if constexpr (sizeLog2 >= CONV_USE_FFT_ABOVE_SIZE_LOG2 && sizeLog2 >= CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2) {
 #ifndef NDEBUG
         static bool printed = false;
         if (!printed) {
-            spdlog::info("For kernel, requesting {} fft chunks of stride size {} and padding {}", 2, strideSize, paddingTypeToString(paddingType));
+            spdlog::info("For kernel, requesting {} fft chunks of partitionSize={}, srcOffset={}, copySize={}, dstOffset={}", 2, partitionSize, srcOffset, copySize, dstOffset);
             printed = true;
         }
 #endif
-        return std::make_tuple(getFftArr(FftSeries<ElementType, strideSize, paddingType, std::ratio<1, strideSize * 2>>::create(context, kernel), 0, std::make_index_sequence<2>{}));
+        return std::make_tuple(getFftArr(FftSeries<ElementType, partitionSize, srcOffset, copySize, dstOffset, std::ratio<1, partitionSize * 2>>::create(context, kernel), 0, std::make_index_sequence<2>{}));
     } else {
         return std::tuple<>();
     }
 }
 
-template <typename ElementType, std::size_t strideSize, PaddingType paddingType>
-auto getTsPartitionFfts(app::AppContext &context, DataSeries<ElementType> &ts, std::size_t offset, Wrapper<FftSeries<ElementType, strideSize, paddingType>>) {
-    static constexpr unsigned int sizeLog2 = exactLog2<strideSize>();
+template <typename ElementType, std::size_t partitionSize, signed int srcOffset, unsigned int copySize, unsigned int dstOffset>
+auto getTsPartitionFfts(app::AppContext &context, DataSeries<ElementType> &ts, std::size_t offset, Wrapper<FftSeries<ElementType, partitionSize, srcOffset, copySize, dstOffset>>) {
+    static constexpr unsigned int sizeLog2 = exactLog2<partitionSize>();
     if constexpr (sizeLog2 >= CONV_USE_FFT_ABOVE_SIZE_LOG2 && sizeLog2 >= CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2) {
 #ifndef NDEBUG
         static bool printed = false;
         if (!printed) {
-            spdlog::info("For ts, requesting {} fft chunks of stride size {} and padding {}", CHUNK_SIZE / strideSize, strideSize, paddingTypeToString(paddingType));
+            spdlog::info("For ts, requesting {} fft chunks of partitionSize={}, srcOffset={}, copySize={}, dstOffset={}", CHUNK_SIZE / partitionSize, partitionSize, srcOffset, copySize, dstOffset);
             printed = true;
         }
 #endif
-        return std::make_tuple(getFftArr(FftSeries<ElementType, strideSize, paddingType>::create(context, ts), offset, std::make_index_sequence<CHUNK_SIZE / strideSize>{}));
+        return std::make_tuple(getFftArr(FftSeries<ElementType, partitionSize, srcOffset, copySize, dstOffset>::create(context, ts), offset, std::make_index_sequence<CHUNK_SIZE / partitionSize>{}));
     } else {
         return std::tuple<>();
     }
 }
 
-template <typename ElementType, std::size_t partitionSize, PaddingType paddingType, typename scale, std::size_t... is>
-static auto getFftArr(FftSeries<ElementType, partitionSize, paddingType, scale> &fft, std::size_t offset, std::index_sequence<is...>) {
+template <typename ElementType, std::size_t partitionSize, signed int srcOffset, unsigned int copySize, unsigned int dstOffset, typename scale, std::size_t... is>
+static auto getFftArr(FftSeries<ElementType, partitionSize, srcOffset, copySize, dstOffset, scale> &fft, std::size_t offset, std::index_sequence<is...>) {
     assert(offset % partitionSize == 0);
 
     return std::array<ChunkPtr<typename fftwx_impl<ElementType>::Complex, partitionSize * 2>, sizeof...(is)>{

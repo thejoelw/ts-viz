@@ -18,9 +18,11 @@ struct StepSpecWrapper : public BaseType {
     static_assert(BaseType::dstOffsetFromCc >= 0, "Cannot change values that have already been emitted");
     static_assert(BaseType::resultSize == BaseType::dstSize, "The result range we are using must be the same size as the destination size");
 
+    static_assert(BaseType::kernelIndex % strideSize, "The kernel index must be a multiple of the stride size");
+
     static_assert(BaseType::tsOffsetFromCc + BaseType::tsSize <= BaseType::computedIncrement, "Trying to use TS elements that aren't necessarily available");
 
-    static_assert(BaseType::tsOffsetFromCc + BaseType::kernelOffset + BaseType::resultBegin == BaseType::dstOffsetFromCc, "Incorrect placement");
+    static_assert(BaseType::tsOffsetFromCc + BaseType::kernelIndex + BaseType::kernelOffsetFromIndex + BaseType::resultBegin == BaseType::dstOffsetFromCc, "Incorrect placement");
 
     template <typename ElementType>
     using KernelFft = FftSeries<ElementType, strideSize, BaseType::kernelOffset, BaseType::kernelSize, 0, std::ratio<1, fftSize>>;
