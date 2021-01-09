@@ -12,7 +12,7 @@ module.exports = (variant) => ({
 
 	GLVAO_ASSERT_BINDINGS: '!defined(NDEBUG) && 1',
 
-	PRINT_TICK_ORDER: 1,
+	PRINT_TICK_ORDER: '!defined(NDEBUG) && 0',
 
 	ENABLE_CHUNK_NAMES: '!defined(NDEBUG) && 1',
 

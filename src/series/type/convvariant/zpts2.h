@@ -20,11 +20,12 @@ private:
         static constexpr unsigned int fftSizeLog2 = sizeLog2 + 1;
         static constexpr unsigned int computedIncrement = 1;
 
-        static constexpr unsigned int kernelIndex = 1u << sizeLog2;
+        static constexpr unsigned int kernelIndex = 1u << sizeLog2; // Doesn't cause additional FftSeries to be generated. Index must be aligned.
         static constexpr signed int kernelOffsetFromIndex = -(1u << sizeLog2);
         static constexpr unsigned int kernelSize = 2u << sizeLog2;
 
-        static constexpr signed int tsOffsetFromCc = 1 - (1u << sizeLog2);
+        static constexpr signed int tsIndexOffsetFromCc = 1 - (1u << sizeLog2); // Doesn't cause additional FftSeries to be generated. Index must be aligned.
+        static constexpr signed int tsOffsetFromIndex = 0;
         static constexpr unsigned int tsSize = 1u << sizeLog2;
 
         static constexpr signed int resultBegin = (1u << sizeLog2) - 1;
@@ -39,11 +40,12 @@ private:
         static constexpr unsigned int fftSizeLog2 = sizeLog2 + 1;
         static constexpr unsigned int computedIncrement = (1u << sizeLog2) - 1;
 
-        static constexpr unsigned int kernelIndex = 0;
+        static constexpr unsigned int kernelIndex = 0; // Doesn't cause additional FftSeries to be generated. Index must be aligned.
         static constexpr signed int kernelOffsetFromIndex = -(1u << sizeLog2);
         static constexpr unsigned int kernelSize = 2u << sizeLog2;
 
-        static constexpr signed int tsOffsetFromCc = 0;
+        static constexpr signed int tsIndexOffsetFromCc = 0; // Doesn't cause additional FftSeries to be generated. Index must be aligned.
+        static constexpr signed int tsOffsetFromIndex = 0;
         static constexpr unsigned int tsSize = (1u << sizeLog2) - 1;
 
         static constexpr signed int resultBegin = 1u << sizeLog2;

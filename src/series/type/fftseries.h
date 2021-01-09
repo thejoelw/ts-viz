@@ -104,13 +104,6 @@ private:
     static constexpr std::size_t fftSize = partitionSize * 2;
     static_assert(dstOffset + copySize <= fftSize, "The copied elements would exceed the size of the FFT");
 
-    static constexpr signed int splitOffset = (divFloor<signed int>(srcOffset, partitionSize) + 1) * partitionSize;
-    static constexpr signed int beginOffsetFromSplit = srcOffset - splitOffset;
-    static_assert(beginOffsetFromSplit >= -static_cast<signed int>(partitionSize), "Begins more than one partition back");
-    static_assert(beginOffsetFromSplit < 0, "Does not have a left chunk");
-    static constexpr signed int endOffsetFromSplit = srcOffset + copySize - splitOffset;
-    static_assert(endOffsetFromSplit <= partitionSize, "Ends more than one partition forward");
-
     static constexpr ElementType factor = static_cast<ElementType>(scale::num) / static_cast<ElementType>(scale::den);
 
     typedef fftwx_impl<ElementType> fftwx;
@@ -138,12 +131,17 @@ private:
     }
 
 public:
+    static constexpr signed int splitOffset = (divFloor<signed int>(srcOffset, partitionSize) + 1) * partitionSize;
+    static constexpr signed int beginOffsetFromSplit = srcOffset - splitOffset;
+    static_assert(beginOffsetFromSplit >= -static_cast<signed int>(partitionSize), "Begins more than one partition back");
     static_assert(beginOffsetFromSplit < 0, "Does not have a left chunk");
+    static constexpr signed int endOffsetFromSplit = srcOffset + copySize - splitOffset;
+    static_assert(endOffsetFromSplit <= static_cast<signed int>(partitionSize), "Ends more than one partition forward");
     static constexpr bool hasRightChunk = endOffsetFromSplit > 0;
 
-    Chunk<ComplexType, fftSize> *makeChunk(std::size_t chunkIndex) override {
-        typedef std::make_signed<std::size_t>::type signed_size_t;
+    typedef std::make_signed<std::size_t>::type signed_size_t;
 
+    Chunk<ComplexType, fftSize> *makeChunk(std::size_t chunkIndex) override {
         signed_size_t centerOffset = chunkIndex * partitionSize + splitOffset;
 
         ChunkPtr<ElementType> leftChunk = centerOffset >= partitionSize
@@ -158,10 +156,11 @@ public:
 
             // This is an all-or-nothing transform
             assert(hasRightChunk || !rightChunk.has());
-            if (hasRightChunk && rightChunk.has() && rightChunk->getComputedCount() < static_cast<std::size_t>(centerOffset + endOffsetFromSplit) % CHUNK_SIZE) {
+            if (hasRightChunk && rightChunk.has() && rightChunk->getComputedCount() <= static_cast<std::size_t>(centerOffset + endOffsetFromSplit - 1) % CHUNK_SIZE) {
                 return 0;
             }
-            if (leftChunk.has() && leftChunk->getComputedCount() < static_cast<std::size_t>(centerOffset + beginOffsetFromSplit) % CHUNK_SIZE) {
+            assert(!leftChunk.has() || centerOffset >= 0);
+            if (leftChunk.has() && leftChunk->getComputedCount() <= static_cast<std::size_t>(centerOffset - 1) % CHUNK_SIZE) {
                 return 0;
             }
 
@@ -173,7 +172,7 @@ public:
         });
     }
 
-    static void doFft(ComplexType *dst, const ChunkPtr<ElementType> &leftChunk, const ChunkPtr<ElementType> &rightChunk, unsigned int centerOffset, ElementType *scratch) {
+    static void doFft(ComplexType *dst, const ChunkPtr<ElementType> &leftChunk, const ChunkPtr<ElementType> &rightChunk, signed_size_t centerOffset, ElementType *scratch) {
 #ifndef NDEBUG
         // Make sure we're going to fill everything
         std::fill_n(scratch, fftSize, ElementType(NAN));
@@ -181,6 +180,7 @@ public:
 
         static constexpr unsigned int dstSplit = dstOffset - beginOffsetFromSplit;
 
+        assert(leftChunk.has() == (centerOffset >= partitionSize));
         if (leftChunk.has()) {
             zeroRange<0, dstOffset>(scratch);
 
@@ -199,7 +199,7 @@ public:
             zeroRange<0, dstSplit>(scratch);
         }
 
-        assert(hasRightChunk || !rightChunk.has());
+        assert(rightChunk.has() == (hasRightChunk && centerOffset >= 0));
         if (hasRightChunk && rightChunk.has()) {
             static constexpr unsigned int size = endOffsetFromSplit;
             static_assert(size < copySize, "Unexpected endOffsetFromSplit; some of the range should have been taken up by the left chunk");
@@ -216,6 +216,14 @@ public:
         } else {
             zeroRange<dstSplit, fftSize>(scratch);
         }
+
+#ifndef NDEBUG
+        if (leftChunk.has() && hasRightChunk && rightChunk.has()) {
+            bool isSameChunks = leftChunk.operator->() == rightChunk.operator->();
+            bool shouldBeSame = (centerOffset + beginOffsetFromSplit) / CHUNK_SIZE == centerOffset / CHUNK_SIZE;
+            assert(isSameChunks == shouldBeSame);
+        }
+#endif
 
 #ifndef NDEBUG
         // Make sure we filled everything
@@ -235,7 +243,7 @@ private:
     template <std::size_t begin, std::size_t end>
     static void zeroRange(ElementType *dst) {
         static_assert(begin <= end, "Range has negative size!");
-        std::fill_n(dst, end - begin, ElementType(0.0));
+        std::fill_n(dst + begin, end - begin, ElementType(0.0));
     }
 };
 

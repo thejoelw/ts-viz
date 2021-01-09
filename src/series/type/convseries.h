@@ -239,40 +239,52 @@ public:
 
             while (computedCount < endCount) {
                 ConvVariant::withStepSpec(computedCount, endCount, [dst, &computedCount, &kernelChunks, &tsChunks, &kernelPartitionFfts, &tsPartitionFfts](auto stepSpec) {
+                    typedef typename decltype(stepSpec)::template KernelFft<ElementType> KernelFft;
+                    typedef typename decltype(stepSpec)::template TsFft<ElementType> TsFft;
+
                     if constexpr (true || stepSpec.fftSizeLog2 > CONV_USE_FFT_ABOVE_SIZE_LOG2) {
                         const typename FftwPlanner<ElementType>::IO planIO = FftwPlanner<ElementType>::request();
 
+                        static constexpr unsigned int kernelIndex = stepSpec.kernelIndex / stepSpec.strideSize;
                         const typename fftwx::Complex *kernelFft;
                         if constexpr (stepSpec.fftSizeLog2 > CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2) {
                             static_assert(stepSpec.kernelIndex % stepSpec.strideSize == 0, "The kernel index must be a multiple of the stride size");
-                            static constexpr unsigned int kernelIndex = stepSpec.kernelIndex / stepSpec.strideSize;
                             static_assert(kernelIndex < 2, "KernelIndex is too big! We'd need to prepare more chunks for this.");
+                            // If std::get fails to compile because of duplicate types, this probably means there are distinct kernel FftSeries that generate the same ChunkPtr type.
+                            // This isn't necessarily unworkable, but it probably means more stuff will be computed than need be.
                             const ChunkPtr<typename fftwx::Complex, stepSpec.fftSize> &kc = std::get<std::array<ChunkPtr<typename fftwx::Complex, stepSpec.fftSize>, 2>>(kernelPartitionFfts)[kernelIndex];
                             assert(kc->getComputedCount() == stepSpec.fftSize);
                             kernelFft = kc->getData();
                         } else {
+                            static_assert(stepSpec.strideSize < CHUNK_SIZE, "CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2 is too big");
+                            static constexpr std::make_signed<std::size_t>::type centerOffset = kernelIndex * stepSpec.strideSize + KernelFft::splitOffset;
+
                             kernelFft = planIO.complex;
                             ChunkPtr<ElementType> np = ChunkPtr<ElementType>::null();
-                            decltype(stepSpec)::template KernelFft<ElementType>::doFft(
+                            KernelFft::doFft(
                                 const_cast<decltype(planIO.complex)>(kernelFft),
-                                stepSpec.kernelFftOffset ? kernelChunks.front().first : np,
-                                stepSpec.kernelFftOffset - stepSpec.strideSize,
-                                kernelChunks.front().first,
-                                stepSpec.kernelFftOffset,
+                                centerOffset >= stepSpec.strideSize ? kernelChunks.front().first : np,
+                                KernelFft::hasRightChunk && centerOffset >= 0 ? kernelChunks.front().first : np,
+                                centerOffset,
                                 planIO.real
                             );
                         }
 
-                        const typename fftwx::Complex *tsFft;
-                        unsigned int tsOffset = computedCount + stepSpec.tsOffsetFromCc;
+                        unsigned int tsOffset = computedCount + stepSpec.tsIndexOffsetFromCc;
                         assert(tsOffset % stepSpec.strideSize == 0);
+                        const typename fftwx::Complex *tsFft;
                         if constexpr (stepSpec.fftSizeLog2 > CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2) {
                             unsigned int tsIndex = tsOffset / stepSpec.strideSize;
                             assert(tsIndex < CHUNK_SIZE / stepSpec.strideSize);
+                            // If std::get fails to compile because of duplicate types, this probably means there are distinct TS FftSeries that generate the same ChunkPtr type.
+                            // This isn't necessarily unworkable, but it probably means more stuff will be computed than need be.
                             const ChunkPtr<typename fftwx::Complex, stepSpec.fftSize> &tc = std::get<std::array<ChunkPtr<typename fftwx::Complex, stepSpec.fftSize>, CHUNK_SIZE / stepSpec.strideSize>>(tsPartitionFfts)[tsIndex];
                             assert(tc->getComputedCount() == stepSpec.fftSize);
                             tsFft = tc->getData();
                         } else {
+                            static_assert(stepSpec.strideSize < CHUNK_SIZE, "CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2 is too big");
+                            std::make_signed<std::size_t>::type centerOffset = tsOffset + TsFft::splitOffset;
+
                             if constexpr (stepSpec.fftSizeLog2 > CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2) {
                                 tsFft = planIO.complex;
                             } else {
@@ -281,12 +293,11 @@ public:
                             }
 
                             ChunkPtr<ElementType> np = ChunkPtr<ElementType>::null();
-                            decltype(stepSpec)::template TsFft<ElementType>::doFft(
+                            TsFft::doFft(
                                 const_cast<decltype(planIO.complex)>(tsFft),
-                                tsIndex ? tsChunks.back().first : np,
-                                (tsIndex - 1) * stepSpec.strideSize,
-                                tsChunks.back().first,
-                                tsIndex * stepSpec.strideSize,
+                                centerOffset >= stepSpec.strideSize ? tsChunks.back().first : np,
+                                TsFft::hasRightChunk && centerOffset >= 0 ? tsChunks.back().first : np,
+                                centerOffset,
                                 planIO.real
                             );
                         }
@@ -312,7 +323,7 @@ public:
                             dst[dstIndex] += planIO.real[srcIndex];
                         }
 
-                        for (unsigned int i = loopSplit; i < stepSpec.outputSize; i++) {
+                        for (unsigned int i = loopSplit; i < stepSpec.dstSize; i++) {
                             unsigned int srcIndex = stepSpec.resultBegin - stepSpec.fftSize + i;
                             assert(srcIndex < stepSpec.fftSize);
 
