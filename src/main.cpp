@@ -10,6 +10,7 @@
 #include "app/mainloop.h"
 #include "app/quitexception.h"
 
+#include "version.h"
 #include "stream/filepoller.h"
 #include "stream/jsonunwrapper.h"
 #include "program/programmanager.h"
@@ -20,7 +21,7 @@
 
 int main(int argc, char **argv) {
     // Setup argument parser
-    argparse::ArgumentParser program("ts-viz");
+    argparse::ArgumentParser program("ts-viz", tsVizVersion);
     program.add_description("A time series visualizer and processor");
 
     program.add_argument("program-path")
@@ -59,9 +60,14 @@ int main(int argc, char **argv) {
     // Print some debug info
 #ifndef NDEBUG
     spdlog::warn("This is a debug build!");
+#else
+    spdlog::info("This is a release build!");
+#endif
+
+    spdlog::info("Version is {}", tsVizVersion);
+
     spdlog::info("A pointer is {} bits", sizeof(void*) * CHAR_BIT);
     spdlog::info("An unsigned int is {} bits", sizeof(unsigned int) * CHAR_BIT);
-#endif
 
     spdlog::info("Running tests...");
     util::TestRunner::getInstance().run();

@@ -21,7 +21,7 @@ third_party/spdlog/
 third_party/Static-Sort/
 third_party/THST/
 
-program/
+program
 
 fftw_wisdom_float.bin
 fftw_wisdom_double.bin

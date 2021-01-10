@@ -33,25 +33,23 @@ public:
         });
     }
 
+    void propagateUntil(std::size_t index) {
+        wrapNotify([this, index]() {
+            propagateUntilImpl(index);
+            assert(nextIndex == index);
+        });
+    }
+
     void set(std::size_t index, ElementType value) {
-        std::size_t ctr = nextIndex;
-        std::size_t prevChunk = ctr / CHUNK_SIZE;
+        wrapNotify([this, index, value]() {
+            propagateUntilImpl(index);
+            assert(nextIndex == index);
 
-        assert(index >= ctr);
-        while (ctr < index) {
-            this->getChunk(ctr / CHUNK_SIZE)->getMutableData()[ctr % CHUNK_SIZE] = prevValue;
-            ctr++;
-        }
+            prevValue = value;
+            this->getChunk(index / CHUNK_SIZE)->getMutableData()[index % CHUNK_SIZE] = value;
 
-        prevValue = value;
-        this->getChunk(ctr / CHUNK_SIZE)->getMutableData()[ctr % CHUNK_SIZE] = value;
-
-        nextIndex = ctr + 1;
-
-        while (prevChunk <= ctr / CHUNK_SIZE) {
-            this->getChunk(prevChunk)->notify();
-            prevChunk++;
-        }
+            nextIndex++;
+        });
     }
 
 private:
@@ -62,6 +60,27 @@ private:
 #else
     std::size_t nextIndex = 0;
 #endif
+
+    void propagateUntilImpl(std::size_t index) {
+        assert(nextIndex <= index);
+        while (nextIndex < index) {
+            this->getChunk(nextIndex / CHUNK_SIZE)->getMutableData()[nextIndex % CHUNK_SIZE] = prevValue;
+            nextIndex++;
+        }
+        assert(nextIndex == index);
+    }
+
+    template <typename FuncType>
+    void wrapNotify(FuncType func) {
+        std::size_t prevChunk = nextIndex / CHUNK_SIZE;
+
+        func();
+
+        while (prevChunk <= (nextIndex - 1) / CHUNK_SIZE) {
+            this->getChunk(prevChunk)->notify();
+            prevChunk++;
+        }
+    }
 };
 
 }

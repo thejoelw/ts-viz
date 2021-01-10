@@ -6,7 +6,7 @@
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 
-#include "app/mainloop.h"
+#include "app/options.h"
 #include "stream/inputmanager.h"
 
 namespace stream {
@@ -33,6 +33,10 @@ void OutputManager::tick(app::TickerContext &tickerContext) {
 }
 
 void OutputManager::emit() {
+    if (emitters.empty()) {
+        return;
+    }
+
     static thread_local rapidjson::StringBuffer buffer;
     static thread_local rapidjson::Writer<rapidjson::StringBuffer> writer;
 
@@ -64,7 +68,7 @@ void OutputManager::emit() {
 
 bool OutputManager::isRunning() const {
     assert(nextEmitIndex <= context.get<InputManager>().getIndex());
-    return nextEmitIndex < context.get<InputManager>().getIndex();
+    return nextEmitIndex < context.get<InputManager>().getIndex() && !emitters.empty();
 }
 
 }

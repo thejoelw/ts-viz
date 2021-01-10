@@ -6,7 +6,6 @@
 #include "readerwriterqueue/readerwriterqueue.h"
 
 #include "app/appcontext.h"
-#include "app/mainloop.h"
 #include "app/tickercontext.h"
 
 namespace stream {

@@ -40,10 +40,16 @@ const {
 const r = d;
 
 module.exports = [
-	{
+	...[
+		// ...[2, 3, 4, 7, 8, 9],
+		// ...[10, 15, 16, 17, 31, 32, 33],
+		// ...[63, 64, 65, 127, 128, 129, 255, 256, 257],
+		63,
+	].map((n) => ({
+		name: `Test simple conv for n=${n}`,
 		variant: 'test-csl2-6',
-		input: { 0: { x: 0 }, 10: { x: 1 }, 11: { x: 0 }, 63: {} },
-		program: conv(windowRect(r(16)), r(input('x')), true),
-		output: { 0: { x: 0 }, 63: {} },
-	},
+		input: { 0: { x: 0 }, 10: { x: 1 }, 11: { x: 0 }, 300: {} },
+		program: conv(windowRect(r(n)), r(input('x')), true),
+		output: { 0: { z: 0 }, 10: { z: 1 / n }, [10 + n]: { z: 0 }, 300: {} },
+	})),
 ];

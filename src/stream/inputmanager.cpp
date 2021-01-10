@@ -57,6 +57,10 @@ void InputManager::recvRecord(const rapidjson::Document &row) {
 void InputManager::end() {
     assert(running);
     running = false;
+
+    for (const std::pair<std::string, series::InputSeries<INPUT_SERIES_ELEMENT_TYPE> *> entry : inputs) {
+        entry.second->propagateUntil(index);
+    }
 }
 
 

@@ -1,20 +1,36 @@
 #!/bin/bash
 
-set -e
-set -x
+# set -e
+# set -x
 
-# echo "Binary: $1"
-# echo "Input: $2"
-# echo "Program: $3"
-# echo "Output: $4"
+# echo "Test Name: $1"
+# echo "Binary: $2"
+# echo "Input: $3"
+# echo "Program: $4"
+# echo "Output: $5"
 
 TMP_DIR=$(mktemp -d)
-printf "$2" > $TMP_DIR/input.jsons
-printf "$3" > $TMP_DIR/program.jsons
-printf "$4" | cat -n > $TMP_DIR/expected_output.jsons
+printf "$3" > $TMP_DIR/input.jsons
+printf "$4" > $TMP_DIR/program.jsons
+printf "$5" > $TMP_DIR/expected_output.jsons
 
-"$1" --dont-write-wisdom $TMP_DIR/program.jsons $TMP_DIR/input.jsons | cat -n > $TMP_DIR/actual_output.jsons
+"$2" --dont-write-wisdom $TMP_DIR/program.jsons $TMP_DIR/input.jsons > $TMP_DIR/actual_output.jsons
 
-git diff --color $TMP_DIR/expected_output.jsons $TMP_DIR/actual_output.jsons
+if [ $? -ne 0 ]; then
+  echo -e "\033[0;31mCOMMAND FAILED\033[0m: $1"
+  echo "Keeping temporary files, command was:"
+  echo "$2" --dont-write-wisdom $TMP_DIR/program.jsons $TMP_DIR/input.jsons
+  exit 1
+fi
 
-# rm -rf $TMP_DIR
+node util/jsonsDiff.js $TMP_DIR/actual_output.jsons $TMP_DIR/expected_output.jsons
+
+if [ $? -ne 0 ]; then
+  echo -e "\033[0;31mDIFF FAILED\033[0m: $1"
+  echo "Keeping temporary files, command was:"
+  echo "$2" --dont-write-wisdom $TMP_DIR/program.jsons $TMP_DIR/input.jsons
+  exit 1
+fi
+
+echo -e "\033[0;32mPASSED\033[0m: $1"
+rm -rf $TMP_DIR

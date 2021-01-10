@@ -14,7 +14,7 @@ module.exports = (variant) => ({
 
 	PRINT_TICK_ORDER: '!defined(NDEBUG) && 0',
 
-	ENABLE_CHUNK_NAMES: '!defined(NDEBUG) && 1',
+	ENABLE_CHUNK_NAMES: '!defined(NDEBUG) && 0',
 
 	ENABLE_CHUNK_MULTITHREADING: 0,
 

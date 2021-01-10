@@ -175,3 +175,5 @@ src/util/testrunner.cpp
 src/util/testrunner.h
 src/util/transformers.h
 src/util/uniquetuple.h
+src/version.cpp
+src/version.h

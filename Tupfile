@@ -3,7 +3,8 @@ include_rules
 run node util/definesWriter.js "@(NAME)"
 
 # Compile sources
-: foreach $(SRC_PATH)/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
+: foreach $(SRC_PATH)/main.cpp | $(ROOT)/<gen_headers> |> !cpp |>
+: foreach $(SRC_PATH)/version.cpp | $(ROOT)/<gen_headers> |> !cpp "-DTSVIZ_VERSION=$(VERSION)" |>
 : foreach $(SRC_PATH)/app/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 : foreach $(SRC_PATH)/builder/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 : foreach $(SRC_PATH)/graphics/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
