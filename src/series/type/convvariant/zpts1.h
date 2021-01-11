@@ -67,23 +67,35 @@ public:
         );
     }
 
-    template <typename HandlerType>
-    static void withStepSpec(unsigned int computedCount, unsigned int endCount, HandlerType handler) {
+    template <typename CheckerType, typename HandlerType>
+    static bool withStepSpec(unsigned int computedCount, unsigned int endCount, CheckerType checker, HandlerType handler) {
         unsigned int countLsz = sizeof(unsigned int) * CHAR_BIT - 1 - __builtin_clz(computedCount ^ (computedCount - 1));
         unsigned int maxStepLog2 = sizeof(unsigned int) * CHAR_BIT - 1 - __builtin_clz(endCount - computedCount);
         unsigned int stepLog2 = std::min(countLsz, maxStepLog2);
 
         if (computedCount > 0) {
-            util::DispatchToLambda<unsigned int, CHUNK_SIZE_LOG2>::call(countLsz, [handler = std::forward<HandlerType>(handler)](auto sizeTag) {
+            if (!util::DispatchToLambda<unsigned int, CHUNK_SIZE_LOG2 + 1>::call<bool>(stepLog2, [checker = std::forward<CheckerType>(checker)](auto sizeTag) {
                 static constexpr unsigned int sizeLog2 = sizeTag.value;
-                handler(StepSpecWrapper<StepSpecDiag<sizeLog2>>());
+                return checker(StepSpecWrapper<StepSpecTri<sizeLog2>>());
+            })) { return false; }
+
+            if (!util::DispatchToLambda<unsigned int, CHUNK_SIZE_LOG2>::call<bool>(countLsz, [checker = std::forward<CheckerType>(checker), handler = std::forward<HandlerType>(handler)](auto sizeTag) {
+                static constexpr unsigned int sizeLog2 = sizeTag.value;
+                return checker(StepSpecWrapper<StepSpecDiag<sizeLog2>>()) && (handler(StepSpecWrapper<StepSpecDiag<sizeLog2>>()), true);
+            })) { return false; }
+
+            util::DispatchToLambda<unsigned int, CHUNK_SIZE_LOG2 + 1>::call<void>(stepLog2, [handler = std::forward<HandlerType>(handler)](auto sizeTag) {
+                static constexpr unsigned int sizeLog2 = sizeTag.value;
+                handler(StepSpecWrapper<StepSpecTri<sizeLog2>>());
+            });
+
+            return true;
+        } else {
+            return util::DispatchToLambda<unsigned int, CHUNK_SIZE_LOG2 + 1>::call<bool>(stepLog2, [checker = std::forward<CheckerType>(checker), handler = std::forward<HandlerType>(handler)](auto sizeTag) {
+                static constexpr unsigned int sizeLog2 = sizeTag.value;
+                return checker(StepSpecWrapper<StepSpecTri<sizeLog2>>()) && (handler(StepSpecWrapper<StepSpecTri<sizeLog2>>()), true);
             });
         }
-
-        util::DispatchToLambda<unsigned int, CHUNK_SIZE_LOG2 + 1>::call(stepLog2, [handler = std::forward<HandlerType>(handler)](auto sizeTag) {
-            static constexpr unsigned int sizeLog2 = sizeTag.value;
-            handler(StepSpecWrapper<StepSpecTri<sizeLog2>>());
-        });
     }
 };
 

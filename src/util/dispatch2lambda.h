@@ -9,7 +9,7 @@ namespace util {
 template <typename ValueType, std::size_t count>
 class DispatchToLambda {
 public:
-    template <typename ReturnType = void, typename FuncType>
+    template <typename ReturnType, typename FuncType>
     static ReturnType call(ValueType value, FuncType func) {
         assert(value < count);
         return call<ReturnType, FuncType>(std::forward<ValueType>(value), std::forward<FuncType>(func), std::make_index_sequence<count>{});

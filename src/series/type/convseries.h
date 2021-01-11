@@ -166,7 +166,7 @@ public:
                     const typename FftwPlanner<ElementType>::IO planIO = FftwPlanner<ElementType>::request();
 
                     for (unsigned int i = 0; i < len; i++) {
-                        util::DispatchToLambda<bool, 2>::call(i == 0, [dst, planIO, &kernelChunks, &tsChunks, i](auto isFirstTag) {
+                        util::DispatchToLambda<bool, 2>::call<void>(i == 0, [dst, planIO, &kernelChunks, &tsChunks, i](auto isFirstTag) {
                             unsigned int ti = i;
                             unsigned int ki = tsChunks.size() - 1 - ti;
 
@@ -238,11 +238,44 @@ public:
             unsigned int maxBegin = sizeof(unsigned int) * CHAR_BIT - 1 - __builtin_clz(kernelSize - 1);
 
             while (computedCount < endCount) {
-                ConvVariant::withStepSpec(computedCount, endCount, [dst, &computedCount, &kernelChunks, &tsChunks, &kernelPartitionFfts, &tsPartitionFfts](auto stepSpec) {
+                bool success = ConvVariant::withStepSpec(computedCount, endCount, [computedCount, &kernelPartitionFfts, &tsPartitionFfts](auto stepSpec) {
+                    if constexpr (stepSpec.fftSizeLog2 > CONV_USE_FFT_ABOVE_SIZE_LOG2) {
+                        static constexpr unsigned int kernelIndex = stepSpec.kernelIndex / stepSpec.strideSize;
+                        if constexpr (stepSpec.fftSizeLog2 > CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2) {
+                            static_assert(stepSpec.kernelIndex % stepSpec.strideSize == 0, "The kernel index must be a multiple of the stride size");
+                            static_assert(kernelIndex < 2, "KernelIndex is too big! We'd need to prepare more chunks for this.");
+                            // If std::get fails to compile because of duplicate types, this probably means there are distinct kernel FftSeries that generate the same ChunkPtr type.
+                            // This isn't necessarily unworkable, but it probably means more stuff will be computed than need be.
+                            const ChunkPtr<typename fftwx::Complex, stepSpec.fftSize> &kc = std::get<std::array<ChunkPtr<typename fftwx::Complex, stepSpec.fftSize>, 2>>(kernelPartitionFfts)[kernelIndex];
+                            if (kc->getComputedCount() == 0) {
+                                return false;
+                            }
+                            assert(kc->getComputedCount() == stepSpec.fftSize);
+                        }
+
+                        unsigned int tsOffset = computedCount + stepSpec.tsIndexOffsetFromCc;
+                        assert(tsOffset % stepSpec.strideSize == 0);
+                        if constexpr (stepSpec.fftSizeLog2 > CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2) {
+                            unsigned int tsIndex = tsOffset / stepSpec.strideSize;
+                            assert(tsIndex < CHUNK_SIZE / stepSpec.strideSize);
+                            // If std::get fails to compile because of duplicate types, this probably means there are distinct TS FftSeries that generate the same ChunkPtr type.
+                            // This isn't necessarily unworkable, but it probably means more stuff will be computed than need be.
+                            const ChunkPtr<typename fftwx::Complex, stepSpec.fftSize> &tc = std::get<std::array<ChunkPtr<typename fftwx::Complex, stepSpec.fftSize>, CHUNK_SIZE / stepSpec.strideSize>>(tsPartitionFfts)[tsIndex];
+                            if (tc->getComputedCount() == 0) {
+                                return false;
+                            }
+                            assert(tc->getComputedCount() == stepSpec.fftSize);
+                        }
+
+                        return true;
+                    } else {
+                        return true;
+                    }
+                }, [dst, &computedCount, &kernelChunks, &tsChunks, &kernelPartitionFfts, &tsPartitionFfts](auto stepSpec) {
                     typedef typename decltype(stepSpec)::template KernelFft<ElementType> KernelFft;
                     typedef typename decltype(stepSpec)::template TsFft<ElementType> TsFft;
 
-                    if constexpr (true || stepSpec.fftSizeLog2 > CONV_USE_FFT_ABOVE_SIZE_LOG2) {
+                    if constexpr (stepSpec.fftSizeLog2 > CONV_USE_FFT_ABOVE_SIZE_LOG2) {
                         const typename FftwPlanner<ElementType>::IO planIO = FftwPlanner<ElementType>::request();
 
                         static constexpr unsigned int kernelIndex = stepSpec.kernelIndex / stepSpec.strideSize;
@@ -340,6 +373,10 @@ public:
 
                     computedCount += stepSpec.computedIncrement;
                 });
+
+                if (!success) {
+                    return computedCount;
+                }
             }
 
             assert(computedCount == endCount);
