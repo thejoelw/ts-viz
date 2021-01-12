@@ -13,7 +13,9 @@ namespace stream {
 
 OutputManager::OutputManager(app::AppContext &context)
     : TickableBase(context)
-{}
+{
+    context.get<InputManager>();
+}
 
 OutputManager::~OutputManager() {
     emit();
@@ -33,14 +35,11 @@ void OutputManager::tick(app::TickerContext &tickerContext) {
 }
 
 void OutputManager::emit() {
-    if (emitters.empty()) {
-        return;
-    }
-
     static thread_local rapidjson::StringBuffer buffer;
     static thread_local rapidjson::Writer<rapidjson::StringBuffer> writer;
 
-    while (true) {
+    std::size_t endIndex = context.get<InputManager>().getIndex();
+    while (nextEmitIndex < endIndex) {
         buffer.Clear();
         writer.Reset(buffer);
 
@@ -53,7 +52,11 @@ void OutputManager::emit() {
             }
 
             writer.Key(emitter->getKey().data(), emitter->getKey().size());
-            writer.Double(res.second);
+            if (std::isfinite(res.second)) {
+                writer.Double(res.second);
+            } else {
+                writer.Null();
+            }
         }
 
         writer.EndObject();
@@ -68,7 +71,7 @@ void OutputManager::emit() {
 
 bool OutputManager::isRunning() const {
     assert(nextEmitIndex <= context.get<InputManager>().getIndex());
-    return nextEmitIndex < context.get<InputManager>().getIndex() && !emitters.empty();
+    return nextEmitIndex < context.get<InputManager>().getIndex();
 }
 
 }

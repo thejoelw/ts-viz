@@ -28,7 +28,6 @@ const serializeLines = (lines) => lines.map((line) => line + '\\n').join('');
 	);
 
 	const reqs = testFiles.forEach((file) => {
-		const name = path.basename(file, '.js');
 		const tests = require(path.resolve(file));
 
 		tests
@@ -39,7 +38,7 @@ const serializeLines = (lines) => lines.map((line) => line + '\\n').join('');
 				output = processJsonStream(output);
 
 				console.log(
-					`: $(BIN_TARGET) |> bash util/run_test.bash '${name}' '$(BIN_TARGET)' '${input}' '${program}' '${output}' |>`,
+					`: $(BIN_TARGET) |> bash util/run_test.bash '${file} - ${name}' '$(BIN_TARGET)' '${input}' '${program}' '${output}' |>`,
 				);
 			});
 	});

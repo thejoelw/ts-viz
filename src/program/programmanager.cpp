@@ -56,11 +56,15 @@ void ProgramManager::recvRecord(const rapidjson::Document &row) {
             spdlog::warn("InvalidProgramException: {}", ex.what());
         }
     }
+
+    hasProgram = true;
 }
 
 void ProgramManager::end() {
     assert(running);
     running = false;
+
+
 }
 
 ProgObj ProgramManager::makeProgObj(const std::string &path, const rapidjson::Value &value, std::unordered_map<std::string, ProgObj> &cache) {

@@ -16,7 +16,9 @@ src/app/window.h
 src/builder/binary.cpp
 src/builder/cast.cpp
 src/builder/check.cpp
-src/builder/conv.cpp
+src/builder/conv.double.cpp
+src/builder/conv.float.cpp
+src/builder/conv.h
 src/builder/delay.cpp
 src/builder/delta.cpp
 src/builder/emit.cpp

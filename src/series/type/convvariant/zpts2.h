@@ -11,8 +11,7 @@
 namespace series {
 namespace convvariant {
 
-// Doesn't work; reads too far forwards in the TS series
-
+/*
 struct ZpTs2 {
 private:
     template <unsigned int sizeLog2, bool incDstSize>
@@ -20,11 +19,11 @@ private:
         static constexpr unsigned int fftSizeLog2 = sizeLog2 + 1;
         static constexpr unsigned int computedIncrement = 1;
 
-        static constexpr unsigned int kernelIndex = 1u << sizeLog2; // Doesn't cause additional FftSeries to be generated. Index must be aligned.
+        static constexpr unsigned int kernelIndex = 1u << sizeLog2; // Doesn't cause additional FftSeries to be generated. Resulting index must be aligned.
         static constexpr signed int kernelOffsetFromIndex = -(1u << sizeLog2);
         static constexpr unsigned int kernelSize = 2u << sizeLog2;
 
-        static constexpr signed int tsIndexOffsetFromCc = 1 - (1u << sizeLog2); // Doesn't cause additional FftSeries to be generated. Index must be aligned.
+        static constexpr signed int tsIndexOffsetFromCc = 1 - (1u << sizeLog2); // Doesn't cause additional FftSeries to be generated. Resulting index must be aligned.
         static constexpr signed int tsOffsetFromIndex = 0;
         static constexpr unsigned int tsSize = 1u << sizeLog2;
 
@@ -40,11 +39,11 @@ private:
         static constexpr unsigned int fftSizeLog2 = sizeLog2 + 1;
         static constexpr unsigned int computedIncrement = (1u << sizeLog2) - 1;
 
-        static constexpr unsigned int kernelIndex = 0; // Doesn't cause additional FftSeries to be generated. Index must be aligned.
+        static constexpr unsigned int kernelIndex = 0; // Doesn't cause additional FftSeries to be generated. Resulting index must be aligned.
         static constexpr signed int kernelOffsetFromIndex = -(1u << sizeLog2);
         static constexpr unsigned int kernelSize = 2u << sizeLog2;
 
-        static constexpr signed int tsIndexOffsetFromCc = 0; // Doesn't cause additional FftSeries to be generated. Index must be aligned.
+        static constexpr signed int tsIndexOffsetFromCc = 0; // Doesn't cause additional FftSeries to be generated. Resulting index must be aligned.
         static constexpr signed int tsOffsetFromIndex = 0;
         static constexpr unsigned int tsSize = (1u << sizeLog2) - 1;
 
@@ -59,6 +58,7 @@ public:
     typedef StepSpecWrapper<StepSpecDiag<CHUNK_SIZE_LOG2, 0>> PriorChunkStepSpec;
 
     static auto makeStepSpecSpace() {
+        // TODO: Eliminate StepSpecTri<0> from step spec space
         return util::constexprFlatFor(std::make_index_sequence<CHUNK_SIZE_LOG2>{}, [](auto indexTag) {
             static constexpr std::size_t index = indexTag.value;
             return std::make_tuple(
@@ -69,11 +69,14 @@ public:
         });
     }
 
-    template <typename HandlerType>
-    static void withStepSpec(unsigned int computedCount, unsigned int endCount, HandlerType handler) {
+    template <typename CheckerType, typename HandlerType>
+    static void withStepSpec(unsigned int computedCount, unsigned int endCount, CheckerType checker, HandlerType handler) {
         unsigned int lsb = sizeof(unsigned int) * CHAR_BIT - 1 - __builtin_clz(computedCount ^ (computedCount - 1));
         if (lsb == 0) {
             unsigned int fillSizeLog2 = sizeof(unsigned int) * CHAR_BIT - 1 - __builtin_clz((computedCount + 1) ^ computedCount);
+
+            assert(false);
+            // TODO: Use checker
 
             util::DispatchToLambda<unsigned int, CHUNK_SIZE_LOG2>::call(fillSizeLog2, [computedCount, handler = std::forward<HandlerType>(handler)](auto sizeTag) {
                 static constexpr unsigned int sizeLog2 = sizeTag.value;
@@ -95,6 +98,7 @@ public:
         }
     }
 };
+*/
 
 }
 }

@@ -51,6 +51,7 @@ typedef std::variant<
 template <typename ItemType>
 class ProgObjArray {
 public:
+    ProgObjArray() {}
     ProgObjArray(std::vector<ItemType> &&arr)
         : arr(std::move(arr))
     {}

@@ -16,7 +16,8 @@ struct StepSpecWrapper : public BaseType {
 
     static_assert(BaseType::resultBegin >= 0, "Having a resultBegin less than zero doesn't make sense");
     static_assert(BaseType::dstOffsetFromCc >= 0, "Cannot change values that have already been emitted");
-    static_assert(BaseType::resultSize == BaseType::dstSize, "The result range we are using must be the same size as the destination size");
+    static_assert(BaseType::resultSize == BaseType::dstSize, "The result size we are using must be the same size as the destination size");
+    static_assert(BaseType::resultSize > 0, "The result size must be positive");
 
     static_assert(BaseType::kernelIndex % strideSize == 0, "kernelIndex must be a multiple of the stride size");
     static_assert(BaseType::tsOffsetFromIndex % strideSize == 0, "tsOffsetFromIndex must be a multiple of the stride size");

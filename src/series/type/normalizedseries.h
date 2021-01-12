@@ -1,5 +1,7 @@
 #pragma once
 
+#include <atomic>
+
 #include "series/dataseries.h"
 #include "series/invalidparameterexception.h"
 
@@ -30,7 +32,9 @@ public:
         return this->constructChunk([this, chunkIndex, normChunks = std::move(normChunks), srcChunk = std::move(srcChunk)](ElementType *dst, unsigned int computedCount) -> unsigned int {
             if (std::isnan(factor)) {
                 for (std::size_t i = 0; i < normChunks.size(); i++) {
-                    unsigned int minCount = std::min(i * CHUNK_SIZE, normSize);
+                    assert(normSize > i * CHUNK_SIZE);
+                    unsigned int minCount = std::min<std::size_t>(normSize - i * CHUNK_SIZE, CHUNK_SIZE);
+
                     if (normChunks[i]->getComputedCount() < minCount) {
                         assert(computedCount == 0);
                         return 0;

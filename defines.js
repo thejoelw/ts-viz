@@ -23,8 +23,9 @@ module.exports = (variant) => ({
 	CHUNK_SIZE_LOG2:
 		{
 			release: 8,
+			'relase-headless': 8,
 			debug: 8,
-			qtc: 8,
+			qtc: 6,
 		}[variant] || variant.match(/\bcsl2-(\d+)\b/)[1],
 
 	CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2: 4,
@@ -33,6 +34,7 @@ module.exports = (variant) => ({
 
 	// Refer to https://docs.google.com/spreadsheets/d/1bx1zbFPLz8JTu8aoTONM20n3F2VC5FLHwV885wqKi4I/edit for information on how they work
 	CONV_VARIANT: 'series::convvariant::ZpTs1',
+	// TODO: Make other variants work
 	// CONV_VARIANT: 'series::convvariant::ZpTs2',
 	// CONV_VARIANT: 'series::convvariant::ZpKernel',
 });

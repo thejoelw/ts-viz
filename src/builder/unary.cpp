@@ -9,6 +9,7 @@ template <typename RealType> struct FuncSgn {
 };
 
 template <typename RealType> struct FuncAbs { RealType operator()(RealType a) const { return std::abs(a); } };
+template <typename RealType> struct FuncInv { RealType operator()(RealType a) const { return RealType(1.0) / a; } };
 template <typename RealType> struct FuncSquare { RealType operator()(RealType a) const { return a * a; } };
 template <typename RealType> struct FuncSqrt { RealType operator()(RealType a) const { return std::sqrt(a); } };
 template <typename RealType> struct FuncExp { RealType operator()(RealType a) const { return std::exp(a); } };
@@ -29,6 +30,7 @@ void declUnaryOp(app::AppContext &context, program::Resolver &resolver, const ch
 static int _ = program::Resolver::registerBuilder([](app::AppContext &context, program::Resolver &resolver) {
     declUnaryOp<FuncSgn>(context, resolver, "sgn");
     declUnaryOp<FuncAbs>(context, resolver, "abs");
+    declUnaryOp<FuncInv>(context, resolver, "inv");
     declUnaryOp<FuncSquare>(context, resolver, "square");
     declUnaryOp<FuncSqrt>(context, resolver, "sqrt");
     declUnaryOp<FuncExp>(context, resolver, "exp");

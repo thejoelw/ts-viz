@@ -34,6 +34,7 @@ private:
     app::AppContext &context;
 
     bool running = true;
+    bool hasProgram = false;
 
     ProgObj makeProgObj(const std::string &path, const rapidjson::Value &value, std::unordered_map<std::string, ProgObj> &cache);
 };

@@ -24,9 +24,16 @@ void InputManager::recvRecord(const rapidjson::Document &row) {
     }
 
     for (rapidjson::Value::ConstMemberIterator it = row.MemberBegin(); it != row.MemberEnd(); ++it) {
-        if (!it->value.IsNumber()) { continue; }
-
         std::string key(it->name.GetString(), it->name.GetStringLength());
+        double value;
+        switch (it->value.GetType()) {
+            case rapidjson::kNullType: value = NAN; break;
+            case rapidjson::kNumberType: value = it->value.GetDouble(); break;
+            default:
+                spdlog::warn("Received input data with key {} with invalid value type {}", key, static_cast<unsigned int>(it->value.GetType()));
+                continue;
+        }
+
         series::InputSeries<INPUT_SERIES_ELEMENT_TYPE> *&in = inputs[key];
         if (!in) {
             std::vector<program::ProgObj> args {
@@ -39,7 +46,7 @@ void InputManager::recvRecord(const rapidjson::Document &row) {
             spdlog::info("Input key " + key);
         }
 
-        in->set(index, static_cast<INPUT_SERIES_ELEMENT_TYPE>(it->value.GetDouble()));
+        in->set(index, static_cast<INPUT_SERIES_ELEMENT_TYPE>(value));
     }
 
 #if ENABLE_GRAPHICS

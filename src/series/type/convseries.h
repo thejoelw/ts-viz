@@ -75,7 +75,7 @@ public:
         // 2 -> 1
         // 16 -> 1
         // 17 -> 2
-        unsigned int numKernelChunks = (kernelSize + CHUNK_SIZE - 1) / CHUNK_SIZE;
+        unsigned int numKernelChunks = (kernelSize + CHUNK_SIZE * 2 - 1) / CHUNK_SIZE;
         assert(numKernelChunks * CHUNK_SIZE >= kernelSize);
         std::vector<std::pair<ChunkPtr<ElementType>, ChunkPtr<typename fftwx::Complex, CHUNK_SIZE * 2>>> kernelChunks;
         kernelChunks.reserve(numKernelChunks);
@@ -95,7 +95,7 @@ public:
             tsChunks.emplace_back(ts.getChunk(ti), tsFft.template getChunk<CHUNK_SIZE * 2>(ti));
         }
 
-        unsigned int nanEnd = !backfillZeros && kernelSize - 1 > chunkIndex * CHUNK_SIZE ? kernelSize - 1 - chunkIndex * CHUNK_SIZE : 0;
+        unsigned int nanEnd = !backfillZeros && kernelSize - 1 > offset ? kernelSize - 1 - offset : 0;
 
         unsigned int checkProgress = 0;
 
@@ -161,19 +161,18 @@ public:
                 foundNan:
 
                 unsigned int len = std::min(kernelChunks.size(), tsChunks.size()) - 1;
-                assert(len != static_cast<unsigned int>(-1));
                 if (len > 0) {
                     const typename FftwPlanner<ElementType>::IO planIO = FftwPlanner<ElementType>::request();
 
                     for (unsigned int i = 0; i < len; i++) {
-                        util::DispatchToLambda<bool, 2>::call<void>(i == 0, [dst, planIO, &kernelChunks, &tsChunks, i](auto isFirstTag) {
-                            unsigned int ti = i;
-                            unsigned int ki = tsChunks.size() - 1 - ti;
-
+                        util::DispatchToLambda<bool, 2>::call<void>(i == 0, [dst, planIO, &kernelChunks, &tsChunks, len, i](auto isFirstTag) {
                             ConvVariant::PriorChunkStepSpec stepSpec;
                             static_assert(stepSpec.fftSizeLog2 == CHUNK_SIZE_LOG2 + 1, "Incorrect fftSizeLog2");
+                            static_assert(stepSpec.kernelSize == CHUNK_SIZE * 2, "We need the ConvVariant::PriorChunkStepSpec::kernelSize to be twice the chunk size, because we have an extra tsChunk we need to \"consume\".");
 
-                            assert(ki > 0);
+                            unsigned int ki = len - i;
+                            unsigned int ti = tsChunks.size() - 1 - len + i;
+
                             assert(ki < kernelChunks.size());
                             const ChunkPtr<typename fftwx::Complex, CHUNK_SIZE * 2> &kc = kernelChunks[ki].second;
                             assert(kc->getComputedCount() == CHUNK_SIZE * 2);
@@ -216,13 +215,13 @@ public:
                 }
 
                 // The chunk initialization could have taken awhile, so go ahead and make sure we're processing the maximum number of samples possible
-                unsigned int newEndCount = tsChunks[0].first->getComputedCount();
+                unsigned int newEndCount = tsChunks.back().first->getComputedCount();
                 assert(newEndCount >= endCount);
                 endCount = newEndCount;
             }
 
             for (unsigned int i = computedCount; i < endCount; i++) {
-                if (std::isnan(tsChunks[0].first->getElement(i))) {
+                if (std::isnan(tsChunks.back().first->getElement(i))) {
                     assert(i + kernelSize > nanEnd);
                     nanEnd = i + kernelSize;
                 }
