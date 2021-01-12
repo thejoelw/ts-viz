@@ -1,6 +1,6 @@
 module.exports = (variant) => ({
-	ENABLE_GRAPHICS: !variant.match(/\bheadless\b/),
-	ENABLE_GUI: !variant.match(/\bheadless\b/),
+	ENABLE_GRAPHICS: !variant.match(/\b(?:headless|test)\b/),
+	ENABLE_GUI: !variant.match(/\b(?:headless|test)\b/),
 
 	// The maximum merge gap in bytes.
 	// When updating flags, flags separated by a gap smaller than this value will be merged.
@@ -22,9 +22,9 @@ module.exports = (variant) => ({
 
 	CHUNK_SIZE_LOG2:
 		{
-			release: 20,
-			'release-headless': 20,
-			debug: 20,
+			release: 10,
+			'release-headless': 10,
+			debug: 10,
 			qtc: 8,
 		}[variant] || variant.match(/\bcsl2-(\d+)\b/)[1],
 
