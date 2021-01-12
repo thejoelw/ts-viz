@@ -6,18 +6,31 @@ namespace util {
 
 template <typename Out, typename In>
 struct BuildUniqueTuple;
+
+namespace {
+
+template <bool keep, typename Out, typename In>
+struct Mover;
+template <typename... Out, typename InCar, typename... InCdr>
+struct Mover<false, std::tuple<Out...>, std::tuple<InCar, InCdr...>> {
+    using type = typename BuildUniqueTuple<std::tuple<Out...>, std::tuple<InCdr...>>::type;
+};
+template <typename... Out, typename InCar, typename... InCdr>
+struct Mover<true, std::tuple<Out...>, std::tuple<InCar, InCdr...>> {
+    using type = typename BuildUniqueTuple<std::tuple<Out..., InCar>, std::tuple<InCdr...>>::type;
+};
+
+}
+
 template <typename... Out, typename InCar, typename... InCdr>
 struct BuildUniqueTuple<std::tuple<Out...>, std::tuple<InCar, InCdr...>> {
-    using type = typename std::conditional<
-        (std::is_same<Out, InCar>::value || ...),
-        typename BuildUniqueTuple<std::tuple<Out...>, std::tuple<InCdr...>>::type,
-        typename BuildUniqueTuple<std::tuple<Out..., InCar>, std::tuple<InCdr...>>::type
-    >::type;
+    using type = typename Mover<!(std::is_same<Out, InCar>::value || ...), std::tuple<Out...>, std::tuple<InCar, InCdr...>>::type;
 };
 template <typename Out>
 struct BuildUniqueTuple<Out, std::tuple<>> {
     using type = Out;
 };
+
 static_assert(std::is_same<
         BuildUniqueTuple<std::tuple<>, std::tuple<int, char, bool>>::type,
         std::tuple<int, char, bool>

@@ -31,14 +31,18 @@ const serializeLines = (lines) => lines.map((line) => line + '\\n').join('');
 		const tests = require(path.resolve(file));
 
 		tests
-			.filter((test) => test.variant === variant)
+			.filter((test) =>
+				Array.isArray(test.variant)
+					? test.variant.includes(variant)
+					: test.variant === variant,
+			)
 			.forEach(({ name, input, program, output }) => {
 				input = processJsonStream(input);
 				program = processProgram(program);
 				output = processJsonStream(output);
 
 				console.log(
-					`: $(BIN_TARGET) |> bash util/run_test.bash '${file} - ${name}' '$(BIN_TARGET)' '${input}' '${program}' '${output}' |>`,
+					`: $(BIN_TARGET) |> bash util/run_test.bash '${variant} - ${file} - ${name}' '$(BIN_TARGET)' '${input}' '${program}' '${output}' |>`,
 				);
 			});
 	});

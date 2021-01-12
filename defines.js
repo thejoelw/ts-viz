@@ -22,10 +22,10 @@ module.exports = (variant) => ({
 
 	CHUNK_SIZE_LOG2:
 		{
-			release: 8,
-			'relase-headless': 8,
-			debug: 8,
-			qtc: 6,
+			release: 20,
+			'release-headless': 20,
+			debug: 20,
+			qtc: 8,
 		}[variant] || variant.match(/\bcsl2-(\d+)\b/)[1],
 
 	CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2: 4,

@@ -32,7 +32,7 @@ module.exports = [
 		...[63, 64, 65, 100, 127, 128, 129, 255, 256, 257],
 	].map((n) => ({
 		name: `Test spike input and kernelSize=${n}`,
-		variant: 'test-csl2-6',
+		variant: ['test-csl2-6', 'debug', 'release'],
 		input: { 0: { x: 0 }, 10: { x: 1 }, 11: { x: 0 }, 300: {} },
 		program: conv(windowRect(r(n)), r(input('x')), true),
 		output: { 0: { z: 0 }, 10: { z: 1 / n }, [10 + n]: { z: 0 }, 300: {} },
@@ -40,7 +40,7 @@ module.exports = [
 
 	{
 		name: `Test kernel spikes`,
-		variant: 'test-csl2-6',
+		variant: ['test-csl2-6', 'debug', 'release'],
 		input: { 0: { x: 0 }, 10: { x: 1 }, 11: { x: 0 }, 300: {} },
 		program: conv(kernel({ 7: 0.4, 14: 0.6 }), r(input('x')), true),
 		output: {
