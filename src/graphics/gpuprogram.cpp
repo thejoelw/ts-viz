@@ -9,7 +9,7 @@
 #include <sstream>
 #include <cassert>
 
-#include "spdlog/spdlog.h"
+#include "log.h"
 
 namespace {
 static std::string replaceAll(std::string subject, const std::string &search, const std::string &replace) {
@@ -60,7 +60,7 @@ void GpuProgram::attachShader(GLenum type, std::string &&source, const Defines &
 
         std::size_t end_pos = source.find('\n', repeat_pos);
         if (end_pos == std::string::npos) {
-            spdlog::error("#repeat must be eventually followed by a newline");
+            SPDLOG_ERROR("#repeat must be eventually followed by a newline");
             throw Exception("Could not compile GLSL shader");
         }
 
@@ -68,12 +68,12 @@ void GpuProgram::attachShader(GLenum type, std::string &&source, const Defines &
         const char *end = source.data() + end_pos;
         long long int a = std::strtoll(str, const_cast<char **>(&str), 10);
         if (str >= end) {
-            spdlog::error("#repeat must be followed by a start index");
+            SPDLOG_ERROR("#repeat must be followed by a start index");
             throw Exception("Could not compile GLSL shader");
         }
         long long int b = std::strtoll(str, const_cast<char **>(&str), 10);
         if (str >= end) {
-            spdlog::error("#repeat must be followed by an end index");
+            SPDLOG_ERROR("#repeat must be followed by an end index");
             throw Exception("Could not compile GLSL shader");
         }
 
@@ -105,8 +105,8 @@ void GpuProgram::attachShader(GLenum type, std::string &&source, const Defines &
         GLchar *error_log = new GLchar[static_cast<std::size_t>(max_length)];
         glGetShaderInfoLog(shader, max_length, &max_length, error_log);
 
-        spdlog::error("Could not compile GLSL shader:");
-        spdlog::error(std::string(error_log, static_cast<std::size_t>(max_length)));
+        SPDLOG_ERROR("Could not compile GLSL shader:");
+        SPDLOG_ERROR(std::string(error_log, static_cast<std::size_t>(max_length)));
 
 #ifndef NDEBUG
         std::ofstream file;
@@ -149,8 +149,8 @@ void GpuProgram::link() {
         GLchar *info_log = new GLchar[static_cast<std::size_t>(max_length)];
         glGetProgramInfoLog(program_id, max_length, &max_length, info_log);
 
-        spdlog::error("Could not link GLSL program:");
-        spdlog::error(std::string(info_log, static_cast<std::size_t>(max_length)));
+        SPDLOG_ERROR("Could not link GLSL program:");
+        SPDLOG_ERROR(std::string(info_log, static_cast<std::size_t>(max_length)));
 
         delete[] info_log;
 
@@ -164,8 +164,8 @@ void GpuProgram::link() {
     GLchar *info_log = new GLchar[static_cast<std::size_t>(max_length)];
     glGetProgramInfoLog(getProgramId(), max_length, &max_length, info_log);
 
-    spdlog::info("GLSL program info log:");
-    spdlog::info(std::string(info_log, static_cast<std::size_t>(max_length)));
+    SPDLOG_INFO("GLSL program info log:");
+    SPDLOG_INFO(std::string(info_log, static_cast<std::size_t>(max_length)));
 
     graphics::GL::catchErrors();
 
@@ -225,25 +225,25 @@ void GpuProgram::printExtensions(app::AppContext &context) {
     */
 
     /*
-    spdlog::debug("GLEW_ARB_shader_atomic_counters: {}", static_cast<unsigned long long int>(GLEW_ARB_shader_atomic_counters));
-    spdlog::debug("GLEW_ARB_fragment_shader: {}", static_cast<unsigned long long int>(GLEW_ARB_fragment_shader));
-    spdlog::debug("GLEW_ARB_compute_shader: {}", static_cast<unsigned long long int>(GLEW_ARB_compute_shader));
-    spdlog::debug("GLEW_ARB_shader_storage_buffer_object: {}", static_cast<unsigned long long int>(GLEW_ARB_shader_storage_buffer_object));
-    spdlog::debug("GLEW_ARB_buffer_storage: {}", static_cast<unsigned long long int>(GLEW_ARB_buffer_storage));
-    spdlog::debug("GLEW_ARB_clear_buffer_object: {}", static_cast<unsigned long long int>(GLEW_ARB_clear_buffer_object));
-    spdlog::debug("GLEW_ARB_copy_buffer: {}", static_cast<unsigned long long int>(GLEW_ARB_copy_buffer));
-    spdlog::debug("GLEW_ARB_draw_buffers: {}", static_cast<unsigned long long int>(GLEW_ARB_draw_buffers));
-    spdlog::debug("GLEW_ARB_draw_indirect: {}", static_cast<unsigned long long int>(GLEW_ARB_draw_indirect));
-    spdlog::debug("GLEW_ARB_explicit_attrib_location: {}", static_cast<unsigned long long int>(GLEW_ARB_explicit_attrib_location));
-    spdlog::debug("GLEW_ARB_explicit_uniform_location: {}", static_cast<unsigned long long int>(GLEW_ARB_explicit_uniform_location));
-    spdlog::debug("GLEW_ARB_shadow: {}", static_cast<unsigned long long int>(GLEW_ARB_shadow));
-    spdlog::debug("GLEW_ARB_timer_query: {}", static_cast<unsigned long long int>(GLEW_ARB_timer_query));
-    spdlog::debug("GLEW_ARB_uniform_buffer_object: {}", static_cast<unsigned long long int>(GLEW_ARB_uniform_buffer_object));
-    spdlog::debug("GLEW_ARB_shader_image_load_store: {}", static_cast<unsigned long long int>(GLEW_ARB_shader_image_load_store));
-    spdlog::debug("GLEW_ARB_vertex_array_object: {}", static_cast<unsigned long long int>(GLEW_ARB_vertex_array_object));
-    spdlog::debug("GLEW_ARB_vertex_buffer_object: {}", static_cast<unsigned long long int>(GLEW_ARB_vertex_buffer_object));
-    spdlog::debug("GLEW_ARB_vertex_shader: {}", static_cast<unsigned long long int>(GLEW_ARB_vertex_shader));
-    spdlog::debug("GLEW_ARB_map_buffer_range: {}", static_cast<unsigned long long int>(GLEW_ARB_map_buffer_range));
+    SPDLOG_DEBUG("GLEW_ARB_shader_atomic_counters: {}", static_cast<unsigned long long int>(GLEW_ARB_shader_atomic_counters));
+    SPDLOG_DEBUG("GLEW_ARB_fragment_shader: {}", static_cast<unsigned long long int>(GLEW_ARB_fragment_shader));
+    SPDLOG_DEBUG("GLEW_ARB_compute_shader: {}", static_cast<unsigned long long int>(GLEW_ARB_compute_shader));
+    SPDLOG_DEBUG("GLEW_ARB_shader_storage_buffer_object: {}", static_cast<unsigned long long int>(GLEW_ARB_shader_storage_buffer_object));
+    SPDLOG_DEBUG("GLEW_ARB_buffer_storage: {}", static_cast<unsigned long long int>(GLEW_ARB_buffer_storage));
+    SPDLOG_DEBUG("GLEW_ARB_clear_buffer_object: {}", static_cast<unsigned long long int>(GLEW_ARB_clear_buffer_object));
+    SPDLOG_DEBUG("GLEW_ARB_copy_buffer: {}", static_cast<unsigned long long int>(GLEW_ARB_copy_buffer));
+    SPDLOG_DEBUG("GLEW_ARB_draw_buffers: {}", static_cast<unsigned long long int>(GLEW_ARB_draw_buffers));
+    SPDLOG_DEBUG("GLEW_ARB_draw_indirect: {}", static_cast<unsigned long long int>(GLEW_ARB_draw_indirect));
+    SPDLOG_DEBUG("GLEW_ARB_explicit_attrib_location: {}", static_cast<unsigned long long int>(GLEW_ARB_explicit_attrib_location));
+    SPDLOG_DEBUG("GLEW_ARB_explicit_uniform_location: {}", static_cast<unsigned long long int>(GLEW_ARB_explicit_uniform_location));
+    SPDLOG_DEBUG("GLEW_ARB_shadow: {}", static_cast<unsigned long long int>(GLEW_ARB_shadow));
+    SPDLOG_DEBUG("GLEW_ARB_timer_query: {}", static_cast<unsigned long long int>(GLEW_ARB_timer_query));
+    SPDLOG_DEBUG("GLEW_ARB_uniform_buffer_object: {}", static_cast<unsigned long long int>(GLEW_ARB_uniform_buffer_object));
+    SPDLOG_DEBUG("GLEW_ARB_shader_image_load_store: {}", static_cast<unsigned long long int>(GLEW_ARB_shader_image_load_store));
+    SPDLOG_DEBUG("GLEW_ARB_vertex_array_object: {}", static_cast<unsigned long long int>(GLEW_ARB_vertex_array_object));
+    SPDLOG_DEBUG("GLEW_ARB_vertex_buffer_object: {}", static_cast<unsigned long long int>(GLEW_ARB_vertex_buffer_object));
+    SPDLOG_DEBUG("GLEW_ARB_vertex_shader: {}", static_cast<unsigned long long int>(GLEW_ARB_vertex_shader));
+    SPDLOG_DEBUG("GLEW_ARB_map_buffer_range: {}", static_cast<unsigned long long int>(GLEW_ARB_map_buffer_range));
     */
 
     /*

@@ -10,6 +10,8 @@ const {
 	windowRect,
 } = require('../program/base');
 
+const { range } = require('../program/util');
+
 const r = d;
 
 const kernel = (spec) => {
@@ -36,6 +38,24 @@ module.exports = [
 		input: { 0: { x: 0 }, 10: { x: 1 }, 11: { x: 0 }, 300: {} },
 		program: conv(windowRect(r(n)), r(input('x')), true),
 		output: { 0: { z: 0 }, 10: { z: 1 / n }, [10 + n]: { z: 0 }, 300: {} },
+	})),
+
+	...[
+		...[2, 3, 4, 5, 6, 7, 8, 9],
+		...[10, 15, 16, 17, 31, 32, 33],
+		...[63, 64, 65, 100, 127, 128, 129, 255, 256, 257],
+	].map((n) => ({
+		name: `Test spike input and yields every ${n}`,
+		variant: ['test-csl2-6'],
+		input: {
+			0: { x: 0 },
+			10: { x: 1 },
+			11: { x: 0 },
+			300: {},
+		},
+		yields: range(0, 300, n),
+		program: conv(windowRect(r(1000)), r(input('x')), true),
+		output: { 0: { z: 0 }, 10: { z: 0.001 }, 300: {} },
 	})),
 
 	{

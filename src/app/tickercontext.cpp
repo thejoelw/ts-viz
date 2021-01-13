@@ -4,7 +4,7 @@ namespace app {
 
 void TickerContext::tick() {
 #if PRINT_TICK_ORDER
-    spdlog::debug("Tick order: Enter global tick");
+    SPDLOG_TRACE("Tick order: Enter global tick");
 #endif
 
     assert(getManagedTypeCount() == 0);
@@ -13,7 +13,7 @@ void TickerContext::tick() {
     reset();
 
 #if PRINT_TICK_ORDER
-    spdlog::debug("Tick order: Exit global tick");
+    SPDLOG_TRACE("Tick order: Exit global tick");
 #endif
 }
 

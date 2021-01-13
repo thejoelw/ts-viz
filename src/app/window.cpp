@@ -4,7 +4,7 @@
 #include "window.h"
 
 #include <unistd.h>
-#include "spdlog/spdlog.h"
+#include "log.h"
 
 #include "app/appcontext.h"
 #include "app/tickercontext.h"
@@ -19,7 +19,7 @@ Window::Window(AppContext &context)
     dimensions.height = 0;
 
 #if ENABLE_GUI
-    spdlog::info("GLFW version: {}", glfwGetVersionString());
+    SPDLOG_DEBUG("GLFW version: {}", glfwGetVersionString());
 
     glfwSetErrorCallback(&Window::errorCallback);
 
@@ -65,8 +65,8 @@ Window::Window(AppContext &context)
     // Apparently it's harmless, but this is to clear it.
     glGetError();
 
-    spdlog::info("GLEW version: {}", glewGetString(GLEW_VERSION));
-    spdlog::info("OpenGL version: {}", glGetString(GL_VERSION));
+    SPDLOG_DEBUG("GLEW version: {}", glewGetString(GLEW_VERSION));
+    SPDLOG_DEBUG("OpenGL version: {}", glGetString(GL_VERSION));
 
     // Set GLFW options
     glfwSetInputMode(glfwWindow, GLFW_STICKY_KEYS, GL_TRUE);
@@ -110,7 +110,7 @@ void Window::pollEvents() {
     glfwGetFramebufferSize(glfwWindow, &newDims.width, &newDims.height);
 
     if (newDims != dimensions) {
-        spdlog::info("Resizing to {} x {}", newDims.width, newDims.height);
+        SPDLOG_DEBUG("Resizing to {} x {}", newDims.width, newDims.height);
         glViewport(0, 0, newDims.width, newDims.height);
 
         dimensions = newDims;
@@ -170,36 +170,36 @@ void Window::errorCallback(int code, const char *str) {
     switch (code)
     {
     case GLFW_NOT_INITIALIZED:
-        spdlog::warn("GLFW has not been initialized.");
+        SPDLOG_ERROR("GLFW has not been initialized.");
         break;
     case GLFW_NO_CURRENT_CONTEXT:
-        spdlog::warn("No context is current for this thread.");
+        SPDLOG_ERROR("No context is current for this thread.");
         break;
     case GLFW_INVALID_ENUM:
-        spdlog::warn("One of the enum parameters for the function was given an invalid enum.");
+        SPDLOG_ERROR("One of the enum parameters for the function was given an invalid enum.");
         break;
     case GLFW_INVALID_VALUE:
-        spdlog::warn("One of the parameters for the function was given an invalid value.");
+        SPDLOG_ERROR("One of the parameters for the function was given an invalid value.");
         break;
     case GLFW_OUT_OF_MEMORY:
-        spdlog::warn("A memory allocation failed.");
+        SPDLOG_ERROR("A memory allocation failed.");
         break;
     case GLFW_API_UNAVAILABLE:
-        spdlog::warn("GLFW could not find support for the requested client API on the system.");
+        SPDLOG_ERROR("GLFW could not find support for the requested client API on the system.");
         break;
     case GLFW_VERSION_UNAVAILABLE:
-        spdlog::warn("The requested client API version is not available.");
+        SPDLOG_ERROR("The requested client API version is not available.");
         break;
     case GLFW_PLATFORM_ERROR:
-        spdlog::warn("A platform-specific error occurred that does not match any of the more specific categories.");
+        SPDLOG_ERROR("A platform-specific error occurred that does not match any of the more specific categories.");
         break;
     case GLFW_FORMAT_UNAVAILABLE:
-        spdlog::warn("The clipboard did not contain data in the requested format.");
+        SPDLOG_ERROR("The clipboard did not contain data in the requested format.");
         break;
     }
 #endif
 
-    spdlog::warn("GLFW error {}: {}", code, str);
+    SPDLOG_ERROR("GLFW error {}: {}", code, str);
 }
 
 GLFWwindow *Window::firstWindow = nullptr;

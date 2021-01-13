@@ -2,7 +2,7 @@
 
 #include "app/appcontext.h"
 #include "program/resolver.h"
-#include "spdlog/spdlog.h"
+#include "log.h"
 #include "util/jsontostring.h"
 
 #include "defs/ENABLE_GRAPHICS.h"
@@ -18,8 +18,7 @@ InputManager::InputManager(app::AppContext &context)
 
 void InputManager::recvRecord(const rapidjson::Document &row) {
     if (!row.IsObject()) {
-        spdlog::warn("Top-level data input node must be an object");
-        spdlog::info("For line: {}", util::jsonToStr(row));
+        SPDLOG_WARN("Discarding input line {} because it should be an object, but instead was {}", index, util::jsonToStr(row));
         return;
     }
 
@@ -30,7 +29,7 @@ void InputManager::recvRecord(const rapidjson::Document &row) {
             case rapidjson::kNullType: value = NAN; break;
             case rapidjson::kNumberType: value = it->value.GetDouble(); break;
             default:
-                spdlog::warn("Received input data with key {} with invalid value type {}", key, static_cast<unsigned int>(it->value.GetType()));
+                SPDLOG_WARN("Received input record entry with key {} with invalid value type {}", key, static_cast<unsigned int>(it->value.GetType()));
                 continue;
         }
 
@@ -43,7 +42,7 @@ void InputManager::recvRecord(const rapidjson::Document &row) {
             series::DataSeries<INPUT_SERIES_ELEMENT_TYPE> *ds = std::get<series::DataSeries<INPUT_SERIES_ELEMENT_TYPE> *>(po);
             in = dynamic_cast<series::InputSeries<INPUT_SERIES_ELEMENT_TYPE> *>(ds);
 
-            spdlog::info("Input key " + key);
+            SPDLOG_INFO("Received new input record entry key {}", key);
         }
 
         in->set(index, static_cast<INPUT_SERIES_ELEMENT_TYPE>(value));

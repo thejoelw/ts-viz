@@ -5,20 +5,44 @@ const { stringify } = require('../program/stringify');
 
 const variant = process.argv[2];
 
-const processJsonStream = (spec) => {
+// Generate wisdom before so our tests don't time out
+let isWisdomPrepared = false;
+const writePrepareWisdom = () => {
+	if (!isWisdomPrepared) {
+		console.log(
+			`: $(BIN_TARGET) |> bash util/prepare_wisdom.bash '${variant}' '$(BIN_TARGET)' |> fftw_wisdom_float.bin fftw_wisdom_double.bin`,
+		);
+		isWisdomPrepared = true;
+	}
+};
+
+const processJsonStream = (spec, yields) => {
 	const arr = [];
-	Object.entries(spec).forEach(([k, v]) => (arr[k] = v));
+	Object.entries(spec).forEach(([k, v]) => (arr[parseInt(k)] = v));
+
 	let acc = {};
 	for (let i = 0; i < arr.length; i++) {
 		arr[i] = acc = { ...acc, ...arr[i] };
 	}
-	return serializeLines(arr.map((x) => JSON.stringify(x)));
+
+	(yields || [])
+		.sort()
+		.reverse()
+		.forEach((k) => arr.splice(k, 0, 'yield'));
+
+	return serializeLines(arr);
 };
 
 const processProgram = (spec) =>
 	serializeLines([stringify([['emit', 'z', spec]])]);
 
-const serializeLines = (lines) => lines.map((line) => line + '\\n').join('');
+const serializeLines = (lines) =>
+	lines
+		.map(
+			(line) =>
+				(typeof line === 'object' ? JSON.stringify(line) : line) + '\\n',
+		)
+		.join('');
 
 (async () => {
 	const testFiles = await new Promise((resolve, reject) =>
@@ -36,13 +60,14 @@ const serializeLines = (lines) => lines.map((line) => line + '\\n').join('');
 					? test.variant.includes(variant)
 					: test.variant === variant,
 			)
-			.forEach(({ name, input, program, output }) => {
-				input = processJsonStream(input);
+			.forEach(({ name, input, yields, program, output }) => {
+				input = processJsonStream(input, yields);
 				program = processProgram(program);
 				output = processJsonStream(output);
 
+				writePrepareWisdom();
 				console.log(
-					`: $(BIN_TARGET) |> bash util/run_test.bash '${variant} - ${file} - ${name}' '$(BIN_TARGET)' '${input}' '${program}' '${output}' |>`,
+					`: $(BIN_TARGET) fftw_wisdom_float.bin fftw_wisdom_double.bin |> ^ bash util/run_test.bash '${variant} - ${file} - ${name}' [arguments omitted]^ bash util/run_test.bash '${variant} - ${file} - ${name}' '$(BIN_TARGET)' '${input}' '${program}' '${output}' |>`,
 				);
 			});
 	});

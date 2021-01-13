@@ -1,6 +1,6 @@
 #include "programmanager.h"
 
-#include "spdlog/spdlog.h"
+#include "log.h"
 
 #include "defs/ENABLE_GRAPHICS.h"
 #if ENABLE_GRAPHICS
@@ -19,6 +19,8 @@ ProgramManager::ProgramManager(app::AppContext &context)
 {}
 
 void ProgramManager::recvRecord(const rapidjson::Document &row) {
+    SPDLOG_DEBUG("Received program {}", util::jsonToStr(row));
+
 #if ENABLE_GRAPHICS
     if (context.has<render::Renderer>()) {
         context.get<render::Renderer>().clearSeries();
@@ -30,8 +32,7 @@ void ProgramManager::recvRecord(const rapidjson::Document &row) {
     }
 
     if (!row.IsArray()) {
-        spdlog::warn("Top-level program node must be an array");
-        spdlog::info("For line: {}", util::jsonToStr(row));
+        SPDLOG_WARN("Top-level program node must be an array for line {}", util::jsonToStr(row));
         return;
     }
 
@@ -53,7 +54,7 @@ void ProgramManager::recvRecord(const rapidjson::Document &row) {
                 throw InvalidProgramException("Value for top-level entry at index " + std::to_string(i) + " is a " + progObjTypeNames[obj.index()] + ", but must be a series renderer or an output emitter");
             }
         } catch (const InvalidProgramException &ex) {
-            spdlog::warn("InvalidProgramException: {}", ex.what());
+            SPDLOG_WARN("InvalidProgramException: {}", ex.what());
         }
     }
 

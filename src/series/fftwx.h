@@ -7,14 +7,17 @@
 
 #include <fftw3.h>
 
-#include "spdlog/spdlog.h"
+#include "log.h"
 
 #include "jw_util/thread.h"
 #include "jw_util/typename.h"
+#include "jw_util/baseexception.h"
 
 #include "app/options.h"
 
 #include "series/chunksize.h"
+
+#include "defs/FFTWX_PLANNING_LEVEL.h"
 
 namespace {
 
@@ -77,16 +80,18 @@ template<> struct fftwx_impl<double> {
     static void cleanup() { fftw_cleanup(); }
 };
 
+class FftwMissingWisdomException : public jw_util::BaseException {
+public:
+    FftwMissingWisdomException(const std::string &msg)
+        : BaseException(msg)
+    {}
+};
+
 extern std::mutex fftwMutex;
 
 template <typename ElementType>
 class FftwPlanner {
     typedef fftwx_impl<ElementType> fftwx;
-
-//    static constexpr unsigned int planningLevel = FFTW_ESTIMATE;
-//    static constexpr unsigned int planningLevel = FFTW_MEASURE;
-    static constexpr unsigned int planningLevel = FFTW_PATIENT;
-//    static constexpr unsigned int planningLevel = FFTW_EXHAUSTIVE;
 
 public:
     struct IO {
@@ -119,6 +124,7 @@ public:
         assert(isInit);
         static constexpr unsigned int planIndex = exactLog2<planSize>();
         static_assert(planIndex < planFwds.size());
+        assert(planFwds[planIndex]);
         return planFwds[planIndex];
     }
 
@@ -127,6 +133,7 @@ public:
         assert(isInit);
         static constexpr unsigned int planIndex = exactLog2<planSize>();
         static_assert(planIndex < planBwds.size());
+        assert(planBwds[planIndex]);
         return planBwds[planIndex];
     }
 
@@ -210,34 +217,65 @@ public:
 
         static const std::string tn = jw_util::TypeName::get<FftwPlanner<ElementType>>();
 
-        static const std::string filename = "fftw_wisdom_" + jw_util::TypeName::get<ElementType>() + ".bin";
+        static const std::string filename = app::Options::getInstance().wisdomDir + "/fftw_wisdom_" + jw_util::TypeName::get<ElementType>() + ".bin";
+        static const std::string tmpFilename = filename + ".tmp";
 
         bool importSuccess = fftwx::import_wisdom_from_filename(filename.data());
         if (importSuccess) {
-            spdlog::info("{}::init() - Import from {} was successful", tn, filename);
+            SPDLOG_INFO("{}::init() - Import from {} was successful", tn, filename);
+        } else if (app::Options::getInstance().requireExistingWisdom) {
+            throw FftwMissingWisdomException("Missing requried wisdom file at " + filename);
         } else {
-            spdlog::warn("{}::init() - Import from {} failed. No worries, we can regenerate it, but it might take a minute or so.", tn, filename);
+            SPDLOG_WARN("{}::init() - Import from {} failed. No worries, we can regenerate it, but it might take a minute or so.", tn, filename);
         }
 
         IO io = request();
-        for (unsigned int i = 0; i < planFwds.size(); i++) {
-            if (!importSuccess) spdlog::debug("{}::init() - Preparing forward fft of size 2^{} = {}", tn, i, 1u << i);
-            planFwds[i] = fftwx::plan_dft_r2c_1d(1u << i, io.real, io.complex, planningLevel | FFTW_DESTROY_INPUT);
-        }
-        for (unsigned int i = 0; i < planBwds.size(); i++) {
-            if (!importSuccess) spdlog::debug("{}::init() - Preparing backward fft of size 2^{} = {}", tn, i, 1u << i);
-            planBwds[i] = fftwx::plan_dft_c2r_1d(1u << i, io.complex, io.real, planningLevel | FFTW_DESTROY_INPUT);
-        }
-        release(io);
 
-        if (app::Options::getInstance().writeWisdom) {
-            bool exportSuccess = fftwx::export_wisdom_to_filename(filename.data());
-            if (exportSuccess) {
-                spdlog::info("{}::init() - Export to {} was successful", tn, filename);
+        auto tryCreatePlan = [](unsigned int sizeLog2, auto creatorFunc, const std::string &name) -> typename fftwx::Plan {
+            static constexpr unsigned int baseFlags = FFTWX_PLANNING_LEVEL | FFTW_DESTROY_INPUT;
+
+            typename fftwx::Plan res = creatorFunc(1u << sizeLog2, baseFlags | FFTW_WISDOM_ONLY);
+
+            if (res) {
+                SPDLOG_INFO("{}::init() - Loaded {}", tn, name);
             } else {
-                spdlog::error("{}::init() - Export to {} FAILED", tn, filename);
+                if (app::Options::getInstance().requireExistingWisdom) {
+                    throw FftwMissingWisdomException("Wisdom file at " + filename + " does not include plan for " + name);
+                } else {
+                    SPDLOG_WARN("{}::init() - Generating {}...", tn, name);
+                    res = creatorFunc(1u << sizeLog2, baseFlags);
+                    assert(res);
+
+                    if (app::Options::getInstance().writeWisdom) {
+                        bool exportSuccess = fftwx::export_wisdom_to_filename(tmpFilename.data());
+                        if (exportSuccess) {
+                            int failed = std::rename(tmpFilename.data(), filename.data());
+                            if (failed) {
+                                SPDLOG_ERROR("{}::init() - Rename {} to {} FAILED with return value {} and errno {}", tn, tmpFilename, filename, failed, errno);
+                            } else {
+                                SPDLOG_INFO("{}::init() - Export to {} was successful", tn, filename);
+                            }
+                        } else {
+                            SPDLOG_ERROR("{}::init() - Export to {} FAILED", tn, tmpFilename);
+                        }
+                    }
+                }
             }
+
+            return res;
+        };
+
+        auto fwdCreator = [io](unsigned int size, unsigned int flags) { return fftwx::plan_dft_r2c_1d(size, io.real, io.complex, flags); };
+        for (unsigned int i = 0; i < planFwds.size(); i++) {
+            planFwds[i] = tryCreatePlan(i, fwdCreator, "forward fft of size 2^" + std::to_string(i));
         }
+
+        auto bwdCreator = [io](unsigned int size, unsigned int flags) { return fftwx::plan_dft_c2r_1d(size, io.complex, io.real, flags); };
+        for (unsigned int i = 0; i < planBwds.size(); i++) {
+            planBwds[i] = tryCreatePlan(i, bwdCreator, "backward fft of size 2^" + std::to_string(i));
+        }
+
+        release(io);
     }
 
     static void cleanup() {

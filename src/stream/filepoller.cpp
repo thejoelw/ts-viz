@@ -4,7 +4,9 @@
 #include <chrono>
 #include <csignal>
 
-#include "spdlog/spdlog.h"
+#include "log.h"
+
+#include "defs/ENABLE_FILEPOLLER_YIELDING.h"
 
 namespace {
 
@@ -49,6 +51,11 @@ void FilePoller::tick(app::TickerContext &tickerContext) {
 
         Message msg;
         while (file.messages.try_dequeue(msg)) {
+            static constexpr const char *yieldKeyword = "yield";
+            if (ENABLE_FILEPOLLER_YIELDING && msg.size == 5 && std::equal(yieldKeyword, yieldKeyword + 5, msg.data)) {
+                break;
+            }
+
             msg.dispatch(context, msg.data, msg.size);
 
             if (std::chrono::steady_clock::now() - start > std::chrono::milliseconds(10)) {
@@ -63,7 +70,7 @@ void FilePoller::loop(FilePoller *filePoller, File &file) {
 
     int fileNo = file.path != "-" ? open(file.path.data(), O_RDONLY) : STDIN_FILENO;
     if (fileNo == -1) {
-        spdlog::error("Syscall open() returned -1 and set errno == {}", errno);
+        SPDLOG_ERROR("Syscall open() returned -1 and set errno == {}", errno);
         return;
     }
 
@@ -79,7 +86,7 @@ void FilePoller::loop(FilePoller *filePoller, File &file) {
             if (errno == EINTR) {
                 continue;
             }
-            spdlog::error("Syscall read() returned -1 and set errno == {}", errno);
+            SPDLOG_ERROR("Syscall read() returned -1 and set errno == {}", errno);
             break;
         } else if (readBytes == 0) {
             break;

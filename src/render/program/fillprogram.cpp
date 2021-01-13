@@ -3,7 +3,7 @@
 
 #include "fillprogram.h"
 
-#include "spdlog/spdlog.h"
+#include "log.h"
 
 #include "graphics/type/point.h"
 #include "render/shaders.h"
@@ -24,11 +24,11 @@ void FillProgram::insertDefines() {
 void FillProgram::setupProgram() {
     Program::setupProgram();
 
-    spdlog::debug("Compiling fill vertex shader");
+    SPDLOG_DEBUG("Compiling fill vertex shader");
     std::string vertShaderStr = std::string(Shaders::fillVert);
     attachShader(GL_VERTEX_SHADER, std::move(vertShaderStr), defines);
 
-    spdlog::debug("Compiling fill fragment shader");
+    SPDLOG_DEBUG("Compiling fill fragment shader");
     std::string fragShaderStr = std::string(Shaders::fillFrag);
     attachShader(GL_FRAGMENT_SHADER, std::move(fragShaderStr), defines);
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 namespace app {
 
 class Options {
@@ -12,6 +14,8 @@ public:
         return instance;
     }
 
+    std::string wisdomDir;
+    bool requireExistingWisdom = false;
     bool writeWisdom = true;
 };
 

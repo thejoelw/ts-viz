@@ -7,7 +7,7 @@
 #include "defs/ENABLE_CHUNK_MULTITHREADING.h"
 
 #if ENABLE_CHUNK_NAMES
-#include "spdlog/spdlog.h"
+#include "log.h"
 #endif
 
 namespace series {
@@ -59,24 +59,24 @@ std::chrono::duration<float> ChunkBase::getCriticalPathDuration() const {
 
 void ChunkBase::notify() {
 #if ENABLE_CHUNK_NAMES
-    spdlog::debug(getIndentation(2) + "{}.notify() {{", name);
+    SPDLOG_TRACE(getIndentation(2) + "{}.notify() {{", name);
 #endif
 
 #if ENABLE_CHUNK_MULTITHREADING
     unsigned int n = notifies++;
 #if ENABLE_CHUNK_NAMES
-    spdlog::debug(getIndentation(0) + "previousNotifies: {}", n);
+    SPDLOG_TRACE(getIndentation(0) + "previousNotifies: {}", n);
 #endif
 
     if (n == 0) {
 #if ENABLE_CHUNK_NAMES
-        spdlog::debug(getIndentation(0) + "isDone: {}", isDone());
+        SPDLOG_TRACE(getIndentation(0) + "isDone: {}", isDone());
 #endif
         if (!isDone()) {
             static constexpr std::chrono::duration<float> taskLengthThreshold = std::chrono::microseconds(20);
             bool runInThread = ds->getAvgRunDuration() > taskLengthThreshold;
 #if ENABLE_CHUNK_NAMES
-            spdlog::debug(getIndentation(0) + "runInThread: {}", runInThread);
+            SPDLOG_TRACE(getIndentation(0) + "runInThread: {}", runInThread);
 #endif
             if (runInThread) {
                 ds->getContext().get<util::TaskScheduler<ChunkBase>>().addTask(this);
@@ -87,7 +87,7 @@ void ChunkBase::notify() {
     }
 #else
 #if ENABLE_CHUNK_NAMES
-    spdlog::debug(getIndentation(0) + "isDone: {}", isDone());
+    SPDLOG_TRACE(getIndentation(0) + "isDone: {}", isDone());
 #endif
     if (!isDone()) {
         exec();
@@ -95,7 +95,7 @@ void ChunkBase::notify() {
 #endif
 
 #if ENABLE_CHUNK_NAMES
-    spdlog::debug(getIndentation(-2) + "}} // {}.notify()", name);
+    SPDLOG_TRACE(getIndentation(-2) + "}} // {}.notify()", name);
 #endif
 }
 

@@ -8,7 +8,7 @@
 #endif
 
 #if ENABLE_CHUNK_NAMES
-#include "spdlog/spdlog.h"
+#include "log.h"
 #ifdef NDEBUG
     static_assert(false, "Should not have ENABLE_CHUNK_NAMES enabled in release variant!");
 #endif
@@ -54,7 +54,7 @@ public:
         computedCount = count;
 
 #if ENABLE_CHUNK_NAMES
-        spdlog::debug(getIndentation(0) + "count: {} -> {}", prevCount, count);
+        SPDLOG_TRACE(getIndentation(0) + "count: {} -> {}", prevCount, count);
 #endif
 
         if (
@@ -76,7 +76,7 @@ public:
                 }
 
 #if ENABLE_CHUNK_NAMES
-                spdlog::debug(getIndentation(2) + "notifying dependents: {{");
+                SPDLOG_TRACE(getIndentation(2) + "notifying dependents: {{");
 #endif
 
 #if ENABLE_CHUNK_MULTITHREADING
@@ -108,7 +108,7 @@ public:
 #endif
 
 #if ENABLE_CHUNK_NAMES
-                spdlog::debug(getIndentation(-2) + "}} // notifying dependents");
+                SPDLOG_TRACE(getIndentation(-2) + "}} // notifying dependents");
 #endif
             }
         } else {

@@ -367,7 +367,31 @@ public:
 
                         FftwPlanner<ElementType>::release(planIO);
                     } else {
-                        assert(false);
+                        const ChunkPtr<ElementType> &tc = tsChunks.back().first;
+                        const ChunkPtr<ElementType> &kc = kernelChunks.front().first;
+
+                        static constexpr signed int kiBegin = std::max<signed int>(0, stepSpec.kernelIndex + stepSpec.kernelOffsetFromIndex);
+                        static constexpr signed int kiEnd = stepSpec.kernelIndex + stepSpec.kernelOffsetFromIndex + stepSpec.kernelSize;
+
+                        signed int tiBegin = std::max<signed int>(0, computedCount + (stepSpec.tsIndexOffsetFromCc + stepSpec.tsOffsetFromIndex));
+                        signed int tiEnd = computedCount + (stepSpec.tsIndexOffsetFromCc + stepSpec.tsOffsetFromIndex + stepSpec.tsSize);
+
+                        static_assert(stepSpec.resultSize == stepSpec.dstSize, "stepSpec.resultSize != stepSpec.dstSize");
+                        for (unsigned int i = 0; i < stepSpec.resultSize; i++) {
+                            unsigned int dstIndex = computedCount + stepSpec.dstOffsetFromCc + i;
+                            assert(dstIndex < CHUNK_SIZE);
+
+                            ElementType sum = 0.0;
+                            signed int end = std::min<signed int>(kiEnd, i - tiBegin + 1);
+                            for (signed int ki = std::max<signed int>(kiBegin, i - tiEnd + 1); ki < end; ki++) {
+                                signed int ti = i - ki;
+                                assert(ti >= tiBegin && ti < tiEnd);
+                                assert(ti + ki == i);
+                                sum += kc->getElement(ki) * tc->getElement(ti);
+                            }
+
+                            dst[dstIndex] += sum;
+                        }
                     }
 
                     computedCount += stepSpec.computedIncrement;
@@ -403,10 +427,10 @@ template <typename ElementType, std::size_t partitionSize, signed int srcOffset,
 auto getKernelPartitionFfts(app::AppContext &context, DataSeries<ElementType> &kernel, Wrapper<FftSeries<ElementType, partitionSize, srcOffset, copySize, dstOffset, std::ratio<1, partitionSize * 2>>>) {
     static constexpr unsigned int sizeLog2 = exactLog2<partitionSize>();
     if constexpr (sizeLog2 >= CONV_USE_FFT_ABOVE_SIZE_LOG2 && sizeLog2 >= CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2) {
-#ifndef NDEBUG
-        static bool printed = false;
+#if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_DEBUG
+        static thread_local bool printed = false;
         if (!printed) {
-            spdlog::info("For kernel, requesting {} fft chunks of partitionSize={}, srcOffset={}, copySize={}, dstOffset={}", 2, partitionSize, srcOffset, copySize, dstOffset);
+            SPDLOG_DEBUG("For kernel, requesting {} fft chunks of ElementType={}, partitionSize={}, srcOffset={}, copySize={}, dstOffset={}", 2, jw_util::TypeName::get<ElementType>(), partitionSize, srcOffset, copySize, dstOffset);
             printed = true;
         }
 #endif
@@ -420,10 +444,10 @@ template <typename ElementType, std::size_t partitionSize, signed int srcOffset,
 auto getTsPartitionFfts(app::AppContext &context, DataSeries<ElementType> &ts, std::size_t offset, Wrapper<FftSeries<ElementType, partitionSize, srcOffset, copySize, dstOffset>>) {
     static constexpr unsigned int sizeLog2 = exactLog2<partitionSize>();
     if constexpr (sizeLog2 >= CONV_USE_FFT_ABOVE_SIZE_LOG2 && sizeLog2 >= CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2) {
-#ifndef NDEBUG
-        static bool printed = false;
+#if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_DEBUG
+        static thread_local bool printed = false;
         if (!printed) {
-            spdlog::info("For ts, requesting {} fft chunks of partitionSize={}, srcOffset={}, copySize={}, dstOffset={}", CHUNK_SIZE / partitionSize, partitionSize, srcOffset, copySize, dstOffset);
+            SPDLOG_DEBUG("For ts, requesting {} fft chunks of ElementType={}, partitionSize={}, srcOffset={}, copySize={}, dstOffset={}", CHUNK_SIZE / partitionSize, jw_util::TypeName::get<ElementType>(), partitionSize, srcOffset, copySize, dstOffset);
             printed = true;
         }
 #endif

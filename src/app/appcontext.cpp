@@ -1,15 +1,15 @@
 #include "appcontext.h"
 
-#include "spdlog/spdlog.h"
+#include "log.h"
 
 namespace app {
 
 void AppContext::log(LogLevel level, const std::string &msg) {
     switch (level) {
-        case LogLevel::Trace: spdlog::trace(msg); break;
-        case LogLevel::Info: spdlog::info(msg); break;
-        case LogLevel::Warning: spdlog::warn(msg); break;
-        case LogLevel::Error: spdlog::error(msg); break;
+        case LogLevel::Trace: SPDLOG_TRACE(msg); break;
+        case LogLevel::Info: SPDLOG_INFO(msg); break;
+        case LogLevel::Warning: SPDLOG_WARN(msg); break;
+        case LogLevel::Error: SPDLOG_ERROR(msg); break;
     }
 }
 

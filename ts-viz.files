@@ -87,6 +87,7 @@ src/jw_util/var.h
 src/jw_util/workqueue.h
 src/jw_util/workqueuebase.h
 src/jw_util/workqueueinsomniac.h
+src/log.h
 src/main.cpp
 src/program/progobj.h
 src/program/programmanager.cpp

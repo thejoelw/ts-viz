@@ -7,7 +7,7 @@
 
 #include "defs/PRINT_TICK_ORDER.h"
 #if PRINT_TICK_ORDER
-#include "spdlog/spdlog.h"
+#include "log.h"
 #endif
 
 namespace app {
@@ -19,11 +19,11 @@ public:
     public:
         TickCaller(TickerContext &tickerContext) {
 #if PRINT_TICK_ORDER
-            spdlog::debug("> Tick order: Enter {}.tick()", jw_util::TypeName::get<ClassType>());
+            SPDLOG_TRACE("> Tick order: Enter {}.tick()", jw_util::TypeName::get<ClassType>());
 #endif
             tickerContext.getAppContext().template get<ClassType>().tick(tickerContext);
 #if PRINT_TICK_ORDER
-            spdlog::debug("> Tick order: Exit {}.tick()", jw_util::TypeName::get<ClassType>());
+            SPDLOG_TRACE("> Tick order: Exit {}.tick()", jw_util::TypeName::get<ClassType>());
 #endif
         }
     };
@@ -35,21 +35,21 @@ public:
             : tickerContext(tickerContext)
         {
 #if PRINT_TICK_ORDER
-            spdlog::debug("> Tick order: Enter {}.tickOpen()", jw_util::TypeName::get<ClassType>());
+            SPDLOG_TRACE("> Tick order: Enter {}.tickOpen()", jw_util::TypeName::get<ClassType>());
 #endif
             tickerContext.getAppContext().template get<ClassType>().tickOpen(tickerContext);
 #if PRINT_TICK_ORDER
-            spdlog::debug("> Tick order: Exit {}.tickOpen()", jw_util::TypeName::get<ClassType>());
+            SPDLOG_TRACE("> Tick order: Exit {}.tickOpen()", jw_util::TypeName::get<ClassType>());
 #endif
         }
 
         ~ScopedCaller() {
 #if PRINT_TICK_ORDER
-            spdlog::debug("> Tick order: Enter {}.tickClose()", jw_util::TypeName::get<ClassType>());
+            SPDLOG_TRACE("> Tick order: Enter {}.tickClose()", jw_util::TypeName::get<ClassType>());
 #endif
             tickerContext.getAppContext().template get<ClassType>().tickClose(tickerContext);
 #if PRINT_TICK_ORDER
-            spdlog::debug("> Tick order: Exit  {}.tickClose()", jw_util::TypeName::get<ClassType>());
+            SPDLOG_TRACE("> Tick order: Exit  {}.tickClose()", jw_util::TypeName::get<ClassType>());
 #endif
         }
 
