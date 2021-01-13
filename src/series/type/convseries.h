@@ -273,6 +273,7 @@ public:
                 }, [dst, &computedCount, &kernelChunks, &tsChunks, &kernelPartitionFfts, &tsPartitionFfts](auto stepSpec) {
                     typedef typename decltype(stepSpec)::template KernelFft<ElementType> KernelFft;
                     typedef typename decltype(stepSpec)::template TsFft<ElementType> TsFft;
+                    typedef std::make_signed<std::size_t>::type signed_size_t;
 
                     if constexpr (stepSpec.fftSizeLog2 > CONV_USE_FFT_ABOVE_SIZE_LOG2) {
                         const typename FftwPlanner<ElementType>::IO planIO = FftwPlanner<ElementType>::request();
@@ -289,13 +290,13 @@ public:
                             kernelFft = kc->getData();
                         } else {
                             static_assert(stepSpec.strideSize < CHUNK_SIZE, "CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2 is too big");
-                            static constexpr std::make_signed<std::size_t>::type centerOffset = kernelIndex * stepSpec.strideSize + KernelFft::splitOffset;
+                            static constexpr signed_size_t centerOffset = kernelIndex * stepSpec.strideSize + KernelFft::splitOffset;
 
                             kernelFft = planIO.complex;
                             ChunkPtr<ElementType> np = ChunkPtr<ElementType>::null();
                             KernelFft::doFft(
                                 const_cast<decltype(planIO.complex)>(kernelFft),
-                                centerOffset >= stepSpec.strideSize ? kernelChunks.front().first : np,
+                                centerOffset >= static_cast<signed_size_t>(stepSpec.strideSize) ? kernelChunks.front().first : np,
                                 KernelFft::hasRightChunk && centerOffset >= 0 ? kernelChunks.front().first : np,
                                 centerOffset,
                                 planIO.real
@@ -315,7 +316,7 @@ public:
                             tsFft = tc->getData();
                         } else {
                             static_assert(stepSpec.strideSize < CHUNK_SIZE, "CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2 is too big");
-                            std::make_signed<std::size_t>::type centerOffset = tsOffset + TsFft::splitOffset;
+                            signed_size_t centerOffset = tsOffset + TsFft::splitOffset;
 
                             if constexpr (stepSpec.fftSizeLog2 > CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2) {
                                 tsFft = planIO.complex;
@@ -327,7 +328,7 @@ public:
                             ChunkPtr<ElementType> np = ChunkPtr<ElementType>::null();
                             TsFft::doFft(
                                 const_cast<decltype(planIO.complex)>(tsFft),
-                                centerOffset >= stepSpec.strideSize ? tsChunks.back().first : np,
+                                centerOffset >= static_cast<signed_size_t>(stepSpec.strideSize) ? tsChunks.back().first : np,
                                 TsFft::hasRightChunk && centerOffset >= 0 ? tsChunks.back().first : np,
                                 centerOffset,
                                 planIO.real

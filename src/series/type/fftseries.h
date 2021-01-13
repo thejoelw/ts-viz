@@ -144,7 +144,7 @@ public:
     Chunk<ComplexType, fftSize> *makeChunk(std::size_t chunkIndex) override {
         signed_size_t centerOffset = chunkIndex * partitionSize + splitOffset;
 
-        ChunkPtr<ElementType> leftChunk = centerOffset >= partitionSize
+        ChunkPtr<ElementType> leftChunk = centerOffset >= static_cast<signed_size_t>(partitionSize)
                 ? arg.getChunk(static_cast<std::size_t>(centerOffset - partitionSize) / CHUNK_SIZE)
                 : ChunkPtr<ElementType>::null();
         ChunkPtr<ElementType> rightChunk = hasRightChunk && centerOffset >= 0
@@ -180,7 +180,7 @@ public:
 
         static constexpr unsigned int dstSplit = dstOffset - beginOffsetFromSplit;
 
-        assert(leftChunk.has() == (centerOffset >= partitionSize));
+        assert(leftChunk.has() == (centerOffset >= static_cast<signed_size_t>(partitionSize)));
         if (leftChunk.has()) {
             zeroRange<0, dstOffset>(scratch);
 
@@ -206,7 +206,7 @@ public:
             static_assert(!hasRightChunk || size > 0, "Right chunk's size is not positive");
             static_assert(size <= partitionSize, "Right chunk's size is too big");
 
-            unsigned int srcChunkOffset = centerOffset % CHUNK_SIZE;
+            unsigned int srcChunkOffset = static_cast<std::size_t>(centerOffset) % CHUNK_SIZE;
             for (std::size_t i = 0; i < size; i++) {
                 ElementType val = rightChunk->getElement(srcChunkOffset + i);
                 scratch[dstSplit + i] = std::isnan(val) ? 0.0 : val * factor;
@@ -220,7 +220,7 @@ public:
 #ifndef NDEBUG
         if (leftChunk.has() && hasRightChunk && rightChunk.has()) {
             bool isSameChunks = leftChunk.operator->() == rightChunk.operator->();
-            bool shouldBeSame = (centerOffset + beginOffsetFromSplit) / CHUNK_SIZE == centerOffset / CHUNK_SIZE;
+            bool shouldBeSame = static_cast<std::size_t>(centerOffset + beginOffsetFromSplit) / CHUNK_SIZE == static_cast<std::size_t>(centerOffset) / CHUNK_SIZE;
             assert(isSameChunks == shouldBeSame);
         }
 #endif

@@ -11,7 +11,7 @@ class DispatchToLambda {
 public:
     template <typename ReturnType, typename FuncType>
     static ReturnType call(ValueType value, FuncType func) {
-        assert(value < count);
+        assert(static_cast<std::size_t>(value) < count);
         return call<ReturnType, FuncType>(std::forward<ValueType>(value), std::forward<FuncType>(func), std::make_index_sequence<count>{});
     }
 
