@@ -26,18 +26,20 @@ module.exports = (variant) => ({
 
 	ENABLE_CHUNK_MULTITHREADING: 0,
 	ENABLE_FILEPOLLER_YIELDING:
-		variant === 'qtc' || variant.match(/\btest\b/) ? 1 : 0, // Only used for tests; works better when multithreading is disabled
+		variant === 'qtc' || variant.match(/\btest\b/) ? 1 : 0, // Only used for tests; has a more predictable effect when multithreading is disabled
 
 	INPUT_SERIES_ELEMENT_TYPE: 'double',
 
 	CHUNK_SIZE_LOG2:
 		{
-			release: 10,
-			'release-headless': 10,
-			debug: 10,
-			qtc: 8,
+			release: 14,
+			'release-headless': 14,
+			debug: 14,
+			'debug-headless': 14,
+			qtc: 16,
 		}[variant] || variant.match(/\bcsl2-(\d+)\b/)[1],
 
+	// CHUNK_SIZE_LOG2:20,
 	CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2: 6,
 	CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2: 6,
 	CONV_USE_FFT_ABOVE_SIZE_LOG2: 0, // TODO: Increase this

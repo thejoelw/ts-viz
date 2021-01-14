@@ -19,7 +19,9 @@ typedef CONV_VARIANT ConvVariant;
 namespace {
 
 template <typename Type>
-struct Wrapper {};
+struct Wrapper {
+    typedef Type type;
+};
 
 }
 
@@ -280,7 +282,7 @@ public:
 
                         static constexpr unsigned int kernelIndex = stepSpec.kernelIndex / stepSpec.strideSize;
                         const typename fftwx::Complex *kernelFft;
-                        if constexpr (stepSpec.fftSizeLog2 > CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2) {
+                        if constexpr (shouldCacheKernelFft(Wrapper<KernelFft>())) {
                             static_assert(stepSpec.kernelIndex % stepSpec.strideSize == 0, "The kernel index must be a multiple of the stride size");
                             static_assert(kernelIndex < 2, "KernelIndex is too big! We'd need to prepare more chunks for this.");
                             // If std::get fails to compile because of duplicate types, this probably means there are distinct kernel FftSeries that generate the same ChunkPtr type.
@@ -306,7 +308,7 @@ public:
                         unsigned int tsOffset = computedCount + stepSpec.tsIndexOffsetFromCc;
                         assert(tsOffset % stepSpec.strideSize == 0);
                         const typename fftwx::Complex *tsFft;
-                        if constexpr (stepSpec.fftSizeLog2 > CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2) {
+                        if constexpr (shouldCacheTsFft(Wrapper<TsFft>())) {
                             unsigned int tsIndex = tsOffset / stepSpec.strideSize;
                             assert(tsIndex < CHUNK_SIZE / stepSpec.strideSize);
                             // If std::get fails to compile because of duplicate types, this probably means there are distinct TS FftSeries that generate the same ChunkPtr type.
@@ -425,9 +427,23 @@ constexpr unsigned int exactLog2() {
 }
 
 template <typename ElementType, std::size_t partitionSize, signed int srcOffset, unsigned int copySize, unsigned int dstOffset>
-auto getKernelPartitionFfts(app::AppContext &context, DataSeries<ElementType> &kernel, Wrapper<FftSeries<ElementType, partitionSize, srcOffset, copySize, dstOffset, std::ratio<1, partitionSize * 2>>>) {
-    static constexpr unsigned int sizeLog2 = exactLog2<partitionSize>();
-    if constexpr (sizeLog2 >= CONV_USE_FFT_ABOVE_SIZE_LOG2 && sizeLog2 >= CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2) {
+constexpr bool shouldCacheKernelFft(Wrapper<FftSeries<ElementType, partitionSize, srcOffset, copySize, dstOffset, std::ratio<1, partitionSize * 2>>> wrapper) {
+    typedef typename decltype(wrapper)::type Series;
+    constexpr unsigned int sizeLog2 = exactLog2<partitionSize>();
+    return (sizeLog2 >= CONV_USE_FFT_ABOVE_SIZE_LOG2 && sizeLog2 >= CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2) || std::is_same<Series, ConvVariant::PriorChunkStepSpec::KernelFft<ElementType>>::value;
+}
+
+template <typename ElementType, std::size_t partitionSize, signed int srcOffset, unsigned int copySize, unsigned int dstOffset>
+constexpr bool shouldCacheTsFft(Wrapper<FftSeries<ElementType, partitionSize, srcOffset, copySize, dstOffset>> wrapper) {
+    typedef typename decltype(wrapper)::type Series;
+    constexpr unsigned int sizeLog2 = exactLog2<partitionSize>();
+    return (sizeLog2 >= CONV_USE_FFT_ABOVE_SIZE_LOG2 && sizeLog2 >= CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2) || std::is_same<Series, ConvVariant::PriorChunkStepSpec::TsFft<ElementType>>::value;
+}
+
+template <typename ElementType, std::size_t partitionSize, signed int srcOffset, unsigned int copySize, unsigned int dstOffset>
+auto getKernelPartitionFfts(app::AppContext &context, DataSeries<ElementType> &kernel, Wrapper<FftSeries<ElementType, partitionSize, srcOffset, copySize, dstOffset, std::ratio<1, partitionSize * 2>>> wrapper) {
+    typedef typename decltype(wrapper)::type Series;
+    if constexpr (shouldCacheKernelFft(wrapper)) {
 #if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_DEBUG
         static thread_local bool printed = false;
         if (!printed) {
@@ -435,16 +451,16 @@ auto getKernelPartitionFfts(app::AppContext &context, DataSeries<ElementType> &k
             printed = true;
         }
 #endif
-        return std::make_tuple(getFftArr(FftSeries<ElementType, partitionSize, srcOffset, copySize, dstOffset, std::ratio<1, partitionSize * 2>>::create(context, kernel), 0, std::make_index_sequence<2>{}));
+        return std::make_tuple(getFftArr(Series::create(context, kernel), 0, std::make_index_sequence<2>{}));
     } else {
         return std::tuple<>();
     }
 }
 
 template <typename ElementType, std::size_t partitionSize, signed int srcOffset, unsigned int copySize, unsigned int dstOffset>
-auto getTsPartitionFfts(app::AppContext &context, DataSeries<ElementType> &ts, std::size_t offset, Wrapper<FftSeries<ElementType, partitionSize, srcOffset, copySize, dstOffset>>) {
-    static constexpr unsigned int sizeLog2 = exactLog2<partitionSize>();
-    if constexpr (sizeLog2 >= CONV_USE_FFT_ABOVE_SIZE_LOG2 && sizeLog2 >= CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2) {
+auto getTsPartitionFfts(app::AppContext &context, DataSeries<ElementType> &ts, std::size_t offset, Wrapper<FftSeries<ElementType, partitionSize, srcOffset, copySize, dstOffset>> wrapper) {
+    typedef typename decltype(wrapper)::type Series;
+    if constexpr (shouldCacheTsFft(wrapper)) {
 #if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_DEBUG
         static thread_local bool printed = false;
         if (!printed) {
@@ -452,7 +468,7 @@ auto getTsPartitionFfts(app::AppContext &context, DataSeries<ElementType> &ts, s
             printed = true;
         }
 #endif
-        return std::make_tuple(getFftArr(FftSeries<ElementType, partitionSize, srcOffset, copySize, dstOffset>::create(context, ts), offset, std::make_index_sequence<CHUNK_SIZE / partitionSize>{}));
+        return std::make_tuple(getFftArr(Series::create(context, ts), offset, std::make_index_sequence<CHUNK_SIZE / partitionSize>{}));
     } else {
         return std::tuple<>();
     }
