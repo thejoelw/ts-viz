@@ -14,7 +14,7 @@ printf "$3" > $TMP_DIR/input.jsons
 printf "$4" > $TMP_DIR/program.jsons
 printf "$5" > $TMP_DIR/expected_output.jsons
 
-cmd="'$2' --require-existing-wisdom --dont-write-wisdom --log-level warn $TMP_DIR/program.jsons $TMP_DIR/input.jsons"
+cmd="'$2' --require-existing-wisdom --dont-write-wisdom --wisdom-dir wisdom --log-level warn $TMP_DIR/program.jsons $TMP_DIR/input.jsons"
 
 eval $cmd > $TMP_DIR/actual_output.jsons & pid=$!
 ( sleep 2 ; kill $pid ) & watcher=$!

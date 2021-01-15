@@ -18,6 +18,7 @@
 #include "util/testrunner.h"
 
 #include "defs/CHUNK_SIZE_LOG2.h"
+#include "defs/ENABLE_CONV_MIN_COMPUTE_FLAG.h"
 
 int main(int argc, char **argv) {
     // Setup argument parser
@@ -51,6 +52,11 @@ int main(int argc, char **argv) {
             .default_value(false)
             .implicit_value(true);
 
+    program.add_argument("--conv-min-compute-log2")
+            .help("For calculating convolutions, advance in (2 ^ value) element increments")
+            .default_value(0u)
+            .action([](const std::string& value) -> unsigned int { return std::max(0, std::min(std::stoi(value), CHUNK_SIZE_LOG2)); });
+
     try {
         program.parse_args(argc, argv);
     }
@@ -63,6 +69,7 @@ int main(int argc, char **argv) {
     app::Options::getMutableInstance().wisdomDir = program.get<std::string>("--wisdom-dir");
     app::Options::getMutableInstance().requireExistingWisdom = program.get<bool>("--require-existing-wisdom");
     app::Options::getMutableInstance().writeWisdom = !program.get<bool>("--dont-write-wisdom");
+    app::Options::getMutableInstance().convMinComputeLog2 = program.get<unsigned int>("--conv-min-compute-log2");
 
     // Setup logger
     spdlog::set_default_logger(nullptr);

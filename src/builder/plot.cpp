@@ -9,9 +9,9 @@
 
 template <typename RealType>
 void declPlot(app::AppContext &context, program::Resolver &resolver) {
-    resolver.decl("plot", [&context](series::DataSeries<RealType> *s, const std::string &name, program::UncastNumber r, program::UncastNumber g, program::UncastNumber b, program::UncastNumber a) {
+    resolver.decl("plot", [&context](const std::string &name, series::DataSeries<RealType> *s, program::UncastNumber r, program::UncastNumber g, program::UncastNumber b, program::UncastNumber a) {
 #if ENABLE_GRAPHICS
-        render::DataSeriesRenderer<RealType> *res = new render::DataSeriesRenderer<RealType>(context, s, name);
+        render::DataSeriesRenderer<RealType> *res = new render::DataSeriesRenderer<RealType>(context, name, s);
         res->getDrawStyle().color[0] = r.value;
         res->getDrawStyle().color[1] = g.value;
         res->getDrawStyle().color[2] = b.value;

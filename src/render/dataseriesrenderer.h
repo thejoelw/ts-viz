@@ -11,7 +11,7 @@ namespace render {
 template <typename ElementType>
 class DataSeriesRenderer : public SeriesRenderer {
 public:
-    DataSeriesRenderer(app::AppContext &context, series::DataSeries<ElementType> *data, const std::string &name)
+    DataSeriesRenderer(app::AppContext &context, const std::string &name, series::DataSeries<ElementType> *data)
         : SeriesRenderer(context, name)
         , data(data)
         , remoteBuffer(GL_ARRAY_BUFFER, GL_STREAM_DRAW)

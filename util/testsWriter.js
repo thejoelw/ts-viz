@@ -5,6 +5,8 @@ const { stringify } = require('../program/stringify');
 
 const variant = process.argv[2];
 
+const computeWisdom = false;
+
 // Generate wisdom before so our tests don't time out
 let isWisdomPrepared = false;
 const writePrepareWisdom = () => {
@@ -65,9 +67,11 @@ const serializeLines = (lines) =>
 				program = processProgram(program);
 				output = processJsonStream(output);
 
-				writePrepareWisdom();
+				computeWisdom && writePrepareWisdom();
 				console.log(
-					`: $(BIN_TARGET) fftw_wisdom_float.bin fftw_wisdom_double.bin |> ^ bash util/run_test.bash '${variant} - ${file} - ${name}' [arguments omitted]^ bash util/run_test.bash '${variant} - ${file} - ${name}' '$(BIN_TARGET)' '${input}' '${program}' '${output}' |>`,
+					`: $(BIN_TARGET) ${
+						computeWisdom ? 'fftw_wisdom_float.bin fftw_wisdom_double.bin' : ''
+					} |> ^ bash util/run_test.bash '${variant} - ${file} - ${name}' [arguments omitted]^ bash util/run_test.bash '${variant} - ${file} - ${name}' '$(BIN_TARGET)' '${input}' '${program}' '${output}' |>`,
 				);
 			});
 	});

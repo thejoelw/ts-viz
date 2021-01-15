@@ -26,13 +26,14 @@ let latSum = 0;
 let count = 0;
 const lats = [];
 rl.on('line', (line) => {
-	const data = JSON.parse(line);
-	const latency = data.time ? Date.now() - data.time : 0;
+	const { time, ...rest } = JSON.parse(line);
+	console.log(JSON.stringify(rest));
+
+	const latency = time ? Date.now() - time : 0;
+	lats.push(latency);
 
 	latSum += latency;
 	count++;
-
-	lats.push(latency);
 });
 
 const runCmd = (cmd, args) => {
@@ -156,7 +157,7 @@ const getStats = (pid) =>
 setInterval(
 	() =>
 		getStats(tsViz.pid).then((stats) =>
-			console.log(
+			console.error(
 				JSON.stringify({
 					line_count: count,
 					avg_full_latency_ms: latSum / count,

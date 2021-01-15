@@ -16,6 +16,8 @@
 #include "series/type/convvariant/zpkernel.h"
 typedef CONV_VARIANT ConvVariant;
 
+// Very helpful url: https://g2384.github.io/collection/ConvolutionCalculator.html
+
 namespace {
 
 template <typename Type>
@@ -111,7 +113,8 @@ public:
             nanEnd,
             checkProgress
         ](ElementType *dst, unsigned int computedCount) mutable -> unsigned int {
-            unsigned int endCount = tsChunks.back().first->getComputedCount();
+            unsigned int endCount = getEndCount(tsChunks);
+            assert(endCount >= computedCount);
             if (endCount == computedCount) {
                 return computedCount;
             }
@@ -217,7 +220,7 @@ public:
                 }
 
                 // The chunk initialization could have taken awhile, so go ahead and make sure we're processing the maximum number of samples possible
-                unsigned int newEndCount = tsChunks.back().first->getComputedCount();
+                unsigned int newEndCount = getEndCount(tsChunks);
                 assert(newEndCount >= endCount);
                 endCount = newEndCount;
             }
@@ -417,6 +420,13 @@ private:
 
     unsigned int kernelSize;
     bool backfillZeros;
+
+    static unsigned int getEndCount(const std::vector<std::pair<ChunkPtr<ElementType>, ChunkPtr<typename fftwx::Complex, CHUNK_SIZE * 2>>> &tsChunks) {
+        unsigned int endCount = tsChunks.back().first->getComputedCount();
+        unsigned int mcl2 = app::Options::getInstance().convMinComputeLog2;
+        assert(mcl2 < 32);
+        return (endCount >> mcl2) << mcl2;
+    }
 };
 
 

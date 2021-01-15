@@ -17,6 +17,7 @@ public:
     std::string wisdomDir;
     bool requireExistingWisdom = false;
     bool writeWisdom = true;
+    unsigned int convMinComputeLog2 = 0;
 };
 
 }
