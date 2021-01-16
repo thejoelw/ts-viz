@@ -43,11 +43,12 @@ module.exports = (variant) => {
 		INPUT_SERIES_ELEMENT_TYPE: 'double',
 
 		CHUNK_SIZE_LOG2,
-		CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2: 6,
-		CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2: CHUNK_SIZE_LOG2 - 2,
-		CONV_USE_FFT_ABOVE_SIZE_LOG2: 0, // TODO: Increase this
+		CONV_CACHE_KERNEL_FFT_GTE_SIZE_LOG2: 10,
+		// CONV_CACHE_TS_FFT_GTE_SIZE_LOG2: CHUNK_SIZE_LOG2 - 2,
+		CONV_CACHE_TS_FFT_GTE_SIZE_LOG2: CHUNK_SIZE_LOG2,
+		CONV_USE_FFT_GTE_SIZE_LOG2: 0, // TODO: Increase this
 
-		ENABLE_CONV_MIN_COMPUTE_FLAG: ENABLE_GRAPHICS,
+		ENABLE_CONV_MIN_COMPUTE_FLAG: ENABLE_GRAPHICS, // --conv-min-compute-log2
 
 		// Refer to https://docs.google.com/spreadsheets/d/1bx1zbFPLz8JTu8aoTONM20n3F2VC5FLHwV885wqKi4I/edit for information on how they work
 		CONV_VARIANT: 'series::convvariant::ZpTs1',

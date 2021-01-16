@@ -6,9 +6,9 @@
 #include "series/invalidparameterexception.h"
 #include "util/uniquetuple.h"
 
-#include "defs/CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2.h"
-#include "defs/CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2.h"
-#include "defs/CONV_USE_FFT_ABOVE_SIZE_LOG2.h"
+#include "defs/CONV_CACHE_KERNEL_FFT_GTE_SIZE_LOG2.h"
+#include "defs/CONV_CACHE_TS_FFT_GTE_SIZE_LOG2.h"
+#include "defs/CONV_USE_FFT_GTE_SIZE_LOG2.h"
 #include "defs/CONV_VARIANT.h"
 
 #include "series/type/convvariant/zpts1.h"
@@ -243,9 +243,12 @@ public:
 
             while (computedCount < endCount) {
                 bool success = ConvVariant::withStepSpec(computedCount, endCount, [computedCount, &kernelPartitionFfts, &tsPartitionFfts](auto stepSpec) {
-                    if constexpr (stepSpec.fftSizeLog2 > CONV_USE_FFT_ABOVE_SIZE_LOG2) {
+                    typedef typename decltype(stepSpec)::template KernelFft<ElementType> KernelFft;
+                    typedef typename decltype(stepSpec)::template TsFft<ElementType> TsFft;
+
+                    if constexpr (stepSpec.fftSizeLog2 >= CONV_USE_FFT_GTE_SIZE_LOG2) {
                         static constexpr unsigned int kernelIndex = stepSpec.kernelIndex / stepSpec.strideSize;
-                        if constexpr (stepSpec.fftSizeLog2 > CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2) {
+                        if constexpr (shouldCacheKernelFft(Wrapper<KernelFft>())) {
                             static_assert(stepSpec.kernelIndex % stepSpec.strideSize == 0, "The kernel index must be a multiple of the stride size");
                             static_assert(kernelIndex < 2, "KernelIndex is too big! We'd need to prepare more chunks for this.");
                             // If std::get fails to compile because of duplicate types, this probably means there are distinct kernel FftSeries that generate the same ChunkPtr type.
@@ -259,7 +262,7 @@ public:
 
                         unsigned int tsOffset = computedCount + stepSpec.tsIndexOffsetFromCc;
                         assert(tsOffset % stepSpec.strideSize == 0);
-                        if constexpr (stepSpec.fftSizeLog2 > CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2) {
+                        if constexpr (shouldCacheTsFft(Wrapper<TsFft>())) {
                             unsigned int tsIndex = tsOffset / stepSpec.strideSize;
                             assert(tsIndex < CHUNK_SIZE / stepSpec.strideSize);
                             // If std::get fails to compile because of duplicate types, this probably means there are distinct TS FftSeries that generate the same ChunkPtr type.
@@ -280,7 +283,7 @@ public:
                     typedef typename decltype(stepSpec)::template TsFft<ElementType> TsFft;
                     typedef std::make_signed<std::size_t>::type signed_size_t;
 
-                    if constexpr (stepSpec.fftSizeLog2 > CONV_USE_FFT_ABOVE_SIZE_LOG2) {
+                    if constexpr (stepSpec.fftSizeLog2 >= CONV_USE_FFT_GTE_SIZE_LOG2) {
                         const typename FftwPlanner<ElementType>::IO planIO = FftwPlanner<ElementType>::request();
 
                         static constexpr unsigned int kernelIndex = stepSpec.kernelIndex / stepSpec.strideSize;
@@ -294,7 +297,7 @@ public:
                             assert(kc->getComputedCount() == stepSpec.fftSize);
                             kernelFft = kc->getData();
                         } else {
-                            static_assert(stepSpec.strideSize < CHUNK_SIZE, "CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2 is too big");
+                            static_assert(stepSpec.strideSize < CHUNK_SIZE, "CONV_CACHE_KERNEL_FFT_GTE_SIZE_LOG2 is too big");
                             static constexpr signed_size_t centerOffset = kernelIndex * stepSpec.strideSize + KernelFft::splitOffset;
 
                             kernelFft = planIO.complex;
@@ -320,13 +323,13 @@ public:
                             assert(tc->getComputedCount() == stepSpec.fftSize);
                             tsFft = tc->getData();
                         } else {
-                            static_assert(stepSpec.strideSize < CHUNK_SIZE, "CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2 is too big");
+                            static_assert(stepSpec.strideSize < CHUNK_SIZE, "CONV_CACHE_TS_FFT_GTE_SIZE_LOG2 is too big");
                             signed_size_t centerOffset = tsOffset + TsFft::splitOffset;
 
-                            if constexpr (stepSpec.fftSizeLog2 > CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2) {
+                            if constexpr (shouldCacheKernelFft(Wrapper<KernelFft>())) {
                                 tsFft = planIO.complex;
                             } else {
-                                static_assert(stepSpec.fftSize * 2 <= CHUNK_SIZE * 2, "Not enough room in the PlanIO for two ffts. This probably means CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2 and CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2 are too big.");
+                                static_assert(stepSpec.fftSize * 2 <= CHUNK_SIZE * 2, "Not enough room in the PlanIO for two ffts. This probably means CONV_CACHE_TS_FFT_GTE_SIZE_LOG2 and CONV_CACHE_KERNEL_FFT_GTE_SIZE_LOG2 are too big.");
                                 tsFft = planIO.complex + stepSpec.fftSize;
                             }
 
@@ -423,9 +426,9 @@ private:
 
     static unsigned int getEndCount(const std::vector<std::pair<ChunkPtr<ElementType>, ChunkPtr<typename fftwx::Complex, CHUNK_SIZE * 2>>> &tsChunks) {
         unsigned int endCount = tsChunks.back().first->getComputedCount();
-        unsigned int mcl2 = app::Options::getInstance().convMinComputeLog2;
-        assert(mcl2 < 32);
-        return (endCount >> mcl2) << mcl2;
+        unsigned int minComputeLog2 = app::Options::getInstance().convMinComputeLog2;
+        assert(minComputeLog2 < 32);
+        return (endCount >> minComputeLog2) << minComputeLog2;
     }
 };
 
@@ -440,14 +443,14 @@ template <typename ElementType, std::size_t partitionSize, signed int srcOffset,
 constexpr bool shouldCacheKernelFft(Wrapper<FftSeries<ElementType, partitionSize, srcOffset, copySize, dstOffset, std::ratio<1, partitionSize * 2>>> wrapper) {
     typedef typename decltype(wrapper)::type Series;
     constexpr unsigned int sizeLog2 = exactLog2<partitionSize>();
-    return (sizeLog2 >= CONV_USE_FFT_ABOVE_SIZE_LOG2 && sizeLog2 >= CONV_CACHE_KERNEL_FFT_ABOVE_SIZE_LOG2) || std::is_same<Series, ConvVariant::PriorChunkStepSpec::KernelFft<ElementType>>::value;
+    return (sizeLog2 >= CONV_USE_FFT_GTE_SIZE_LOG2 && sizeLog2 >= CONV_CACHE_KERNEL_FFT_GTE_SIZE_LOG2) || std::is_same<Series, ConvVariant::PriorChunkStepSpec::KernelFft<ElementType>>::value;
 }
 
 template <typename ElementType, std::size_t partitionSize, signed int srcOffset, unsigned int copySize, unsigned int dstOffset>
 constexpr bool shouldCacheTsFft(Wrapper<FftSeries<ElementType, partitionSize, srcOffset, copySize, dstOffset>> wrapper) {
     typedef typename decltype(wrapper)::type Series;
     constexpr unsigned int sizeLog2 = exactLog2<partitionSize>();
-    return (sizeLog2 >= CONV_USE_FFT_ABOVE_SIZE_LOG2 && sizeLog2 >= CONV_CACHE_TS_FFT_ABOVE_SIZE_LOG2) || std::is_same<Series, ConvVariant::PriorChunkStepSpec::TsFft<ElementType>>::value;
+    return (sizeLog2 >= CONV_USE_FFT_GTE_SIZE_LOG2 && sizeLog2 >= CONV_CACHE_TS_FFT_GTE_SIZE_LOG2) || std::is_same<Series, ConvVariant::PriorChunkStepSpec::TsFft<ElementType>>::value;
 }
 
 template <typename ElementType, std::size_t partitionSize, signed int srcOffset, unsigned int copySize, unsigned int dstOffset>
@@ -488,9 +491,19 @@ template <typename ElementType, std::size_t partitionSize, signed int srcOffset,
 static auto getFftArr(FftSeries<ElementType, partitionSize, srcOffset, copySize, dstOffset, scale> &fft, std::size_t offset, std::index_sequence<is...>) {
     assert(offset % partitionSize == 0);
 
-    return std::array<ChunkPtr<typename fftwx_impl<ElementType>::Complex, partitionSize * 2>, sizeof...(is)>{
-        fft.template getChunk<partitionSize * 2>(offset / partitionSize + is)...
-    };
+    typedef ChunkPtr<typename fftwx_impl<ElementType>::Complex, partitionSize * 2> FftChunkPtr;
+
+    unsigned int minComputeLog2 = app::Options::getInstance().convMinComputeLog2;
+    assert(minComputeLog2 < 32);
+    if (partitionSize >= 1u << minComputeLog2) {
+        return std::array<FftChunkPtr, sizeof...(is)>{
+            fft.template getChunk<partitionSize * 2>(offset / partitionSize + is)...
+        };
+    } else {
+        return std::array<FftChunkPtr, sizeof...(is)>{
+            (is, FftChunkPtr::null())...
+        };
+    }
 }
 
 }
