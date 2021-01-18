@@ -32,7 +32,6 @@ protected:
         : ChunkPtrBase(ptr)
     {
         assert(ptr);
-        ptr->recordAccess();
     }
 
     ChunkPtr(std::nullptr_t)

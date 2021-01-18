@@ -21,9 +21,6 @@ namespace series {
 
 class ChunkBase {
 public:
-    typedef std::chrono::time_point<std::chrono::steady_clock, std::chrono::duration<float>> AccessInstant;
-    static_assert(sizeof(AccessInstant) == 4, "Unexpected sizeof(AccessInstant), expecting 4!");
-
     ChunkBase(DataSeriesBase *ds);
     virtual ~ChunkBase();
 
@@ -46,15 +43,16 @@ public:
     virtual bool isDone() const = 0;
 
     void recordAccess();
-    AccessInstant getLastAccess() const;
+    unsigned int getLastAccess() const;
 
     void incRefs();
     void decRefs();
+    unsigned int refCount() const;
 
 protected:
     DataSeriesBase *ds;
 
-    AccessInstant lastAccess;
+    std::atomic<unsigned int> lastAccessTime;
 
 #if ENABLE_CHUNK_MULTITHREADING
     std::atomic<unsigned int> refs = 0;
@@ -80,6 +78,8 @@ protected:
 
     std::string name;
 #endif
+
+    void updateMemoryUsage(std::make_signed<std::size_t>::type inc);
 };
 
 }

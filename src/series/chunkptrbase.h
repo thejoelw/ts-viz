@@ -21,8 +21,7 @@ public:
     }
 
     ChunkPtrBase &operator=(ChunkPtrBase &&other) {
-        target = std::move(other.target);
-        other.target = 0;
+        std::swap(target, other.target);
         return *this;
     }
 

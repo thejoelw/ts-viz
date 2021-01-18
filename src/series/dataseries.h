@@ -9,6 +9,7 @@
 #include "series/chunkptr.h"
 #include "series/chunk.h"
 #include "series/chunkimpl.h"
+#include "series/garbagecollector.h"
 
 namespace series {
 
@@ -21,6 +22,12 @@ public:
         : DataSeriesBase(context)
     {
         jw_util::Thread::set_main_thread();
+
+        context.get<GarbageCollector>().registerDataSeries(this);
+    }
+
+    ~DataSeries() {
+        context.get<GarbageCollector>().unregisterDataSeries(this);
     }
 
 #if ENABLE_CHUNK_NAMES
@@ -28,6 +35,15 @@ public:
         name = std::move(newName);
     }
 #endif
+
+    template <typename FuncType>
+    void foreachChunk(FuncType func) {
+        for (ChunkPtr<ElementType, size> &chunk : chunks) {
+            if (chunk.has()) {
+                func(chunk);
+            }
+        }
+    }
 
     template <std::size_t desiredSize = CHUNK_SIZE>
     ChunkPtr<ElementType, size> getChunk(std::size_t chunkIndex) {

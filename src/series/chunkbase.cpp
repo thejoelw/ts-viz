@@ -3,6 +3,7 @@
 #include "app/appcontext.h"
 #include "series/dataseriesbase.h"
 #include "util/taskscheduler.h"
+#include "series/garbagecollector.h"
 
 #include "defs/ENABLE_CHUNK_MULTITHREADING.h"
 
@@ -17,6 +18,7 @@ ChunkBase::ChunkBase(DataSeriesBase *ds)
     , followingDuration(NAN)
 {
     jw_util::Thread::assert_main_thread();
+    recordAccess();
 }
 
 ChunkBase::~ChunkBase() {
@@ -100,19 +102,27 @@ void ChunkBase::notify() {
 }
 
 void ChunkBase::recordAccess() {
-    lastAccess = std::chrono::steady_clock::now();
+    lastAccessTime = GarbageCollector::getCurrentTime();
 }
-ChunkBase::AccessInstant ChunkBase::getLastAccess() const {
-    return lastAccess;
+unsigned int ChunkBase::getLastAccess() const {
+    return lastAccessTime;
 }
 
 void ChunkBase::incRefs() {
     refs++;
 }
 void ChunkBase::decRefs() {
-    if (--refs == 0) {
-        delete this;
+    switch (--refs) {
+        case 0: delete this; break;
+        case 1: recordAccess(); break;
     }
+}
+unsigned int ChunkBase::refCount() const {
+    return refs;
+}
+
+void ChunkBase::updateMemoryUsage(std::make_signed<std::size_t>::type inc) {
+    ds->getContext().get<GarbageCollector>().updateMemoryUsage(inc);
 }
 
 }
