@@ -48,10 +48,6 @@ public:
         dsCollections.pop_back();
     }
 
-    void setMemoryLimit(std::size_t limit) {
-        memoryLimit = limit;
-    }
-
     void updateMemoryUsage(std::make_signed<std::size_t>::type inc);
 
     static unsigned int getCurrentTime() {
@@ -62,7 +58,6 @@ private:
     inline static std::atomic<unsigned int> currentTime = 0;
 
     std::size_t memoryUsage = 0;
-    std::size_t memoryLimit = static_cast<std::size_t>(-1);
 
     std::vector<std::pair<void (*)(void *, ChunkIterator &), void *>> dsCollections;
 

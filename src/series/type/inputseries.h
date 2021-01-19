@@ -12,7 +12,7 @@ template <typename ElementType>
 class InputSeries : public DataSeries<ElementType> {
 public:
     InputSeries(app::AppContext &context, const std::string &name)
-        : DataSeries<ElementType>(context)
+        : DataSeries<ElementType>(context, false)
     {
         (void) name;
     }
@@ -22,13 +22,14 @@ public:
             (void) dst;
             (void) computedCount;
 
-            std::size_t finishedChunks = nextIndex / CHUNK_SIZE;
+            unsigned int ni = nextIndex;
+            std::size_t finishedChunks = ni / CHUNK_SIZE;
             if (chunkIndex < finishedChunks) {
                 return CHUNK_SIZE;
             } else if (chunkIndex > finishedChunks) {
                 return 0;
             } else {
-                return nextIndex % CHUNK_SIZE;
+                return ni % CHUNK_SIZE;
             }
         });
     }

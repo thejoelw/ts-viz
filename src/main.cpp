@@ -57,6 +57,11 @@ int main(int argc, char **argv) {
             .default_value(0u)
             .action([](const std::string& value) -> unsigned int { return std::max(0, std::min(std::stoi(value), CHUNK_SIZE_LOG2)); });
 
+    program.add_argument("--gc-memory-limit")
+            .help("Enable garbage collector above this value")
+            .default_value(static_cast<std::size_t>(-1))
+            .action([](const std::string& value) -> std::size_t { return std::stoull(value); });
+
     try {
         program.parse_args(argc, argv);
     }
@@ -70,6 +75,7 @@ int main(int argc, char **argv) {
     app::Options::getMutableInstance().requireExistingWisdom = program.get<bool>("--require-existing-wisdom");
     app::Options::getMutableInstance().writeWisdom = !program.get<bool>("--dont-write-wisdom");
     app::Options::getMutableInstance().convMinComputeLog2 = program.get<unsigned int>("--conv-min-compute-log2");
+    app::Options::getMutableInstance().gcMemoryLimit = program.get<std::size_t>("--gc-memory-limit");
 
     // Setup logger
     spdlog::set_default_logger(nullptr);

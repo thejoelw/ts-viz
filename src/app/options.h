@@ -17,7 +17,10 @@ public:
     std::string wisdomDir;
     bool requireExistingWisdom = false;
     bool writeWisdom = true;
+
     unsigned int convMinComputeLog2 = 0;
+
+    std::size_t gcMemoryLimit = static_cast<std::size_t>(-1);
 };
 
 }

@@ -3,11 +3,11 @@ module.exports = (variant) => {
 
 	const CHUNK_SIZE_LOG2 =
 		{
-			release: 20,
-			'release-headless': 20,
-			debug: 20,
-			'debug-headless': 20,
-			qtc: 20,
+			release: 16,
+			'release-headless': 16,
+			debug: 16,
+			'debug-headless': 16,
+			qtc: 16,
 		}[variant] || variant.match(/\bcsl2-(\d+)\b/)[1];
 
 	return {

@@ -1,17 +1,18 @@
 const child_process = require('child_process');
 const readline = require('readline');
 
-if (process.argv.length < 4) {
+if (process.argv.length < 5) {
 	throw new Error(
 		`Usage: node ${
 			process.argv[1]
-		} [generate lines per second] [command] [args]...`,
+		} [generate lines per second] [stat interval] [command] [args]...`,
 	);
 }
 
 const lps = parseFloat(process.argv[2]);
-const command = process.argv[3];
-const args = process.argv.slice(4);
+const interval = parseFloat(process.argv[3]);
+const command = process.argv[4];
+const args = process.argv.slice(5);
 
 const tsViz = child_process.spawn(command, args, {
 	stdio: [lps ? 'pipe' : 'inherit', 'pipe', 'inherit'],
@@ -69,6 +70,7 @@ const getStats = (pid) =>
 				);
 			},
 		),
+
 		runCmd('vmmap', ['-summary', pid])
 			.then((out) => {
 				const parseMemEntry = (regex, skipCount) => {
@@ -157,8 +159,9 @@ const getStats = (pid) =>
 setInterval(
 	() =>
 		getStats(tsViz.pid).then((stats) =>
-			console.error(
+			console.log(
 				JSON.stringify({
+					_type: 'monitor',
 					line_count: count,
 					avg_full_latency_ms: latSum / count,
 					avg_last_1k_latency_ms:
@@ -168,7 +171,7 @@ setInterval(
 				}),
 			),
 		),
-	1000,
+	interval,
 );
 
 if (lps) {

@@ -18,16 +18,18 @@ class DataSeries : public DataSeriesBase {
 public:
     static constexpr std::size_t size = _size;
 
-    DataSeries(app::AppContext &context)
+    DataSeries(app::AppContext &context, bool isTransient = true)
         : DataSeriesBase(context)
     {
         jw_util::Thread::set_main_thread();
 
-        context.get<GarbageCollector>().registerDataSeries(this);
+        if (isTransient) {
+            context.get<GarbageCollector>().registerDataSeries(this);
+        }
     }
 
     ~DataSeries() {
-        context.get<GarbageCollector>().unregisterDataSeries(this);
+        assert(false);
     }
 
 #if ENABLE_CHUNK_NAMES

@@ -1,6 +1,8 @@
 #include "garbagecollector.h"
 
+#include "app/options.h"
 #include "series/chunkbase.h"
+#include "log.h"
 
 namespace series {
 
@@ -12,10 +14,9 @@ void GarbageCollector::tick(app::TickerContext &tickerContext) {
     jw_util::Thread::assert_main_thread();
     (void) tickerContext;
 
-    return;
-
     currentTime++;
 
+    std::size_t memoryLimit = app::Options::getInstance().gcMemoryLimit;
     if (memoryUsage > memoryLimit) {
         ChunkIterator it;
 
@@ -23,13 +24,17 @@ void GarbageCollector::tick(app::TickerContext &tickerContext) {
             col.first(col.second, it);
         }
 
+        unsigned int deleted = 0;
         while (!it.queue.empty() && memoryUsage > memoryLimit) {
             // TODO: What happens if a chunk is running while this tries to delete it?
-            // We could just increment the counter while it's running, but that's not atomic.
+            // We could just increment the ref counter while it's running, but that's not atomic. Actually it is.
             // We could only decrement the counter when the chunk finishes computing, but them we can't delete in-progress chunks.
             *it.queue.top() = ChunkPtrBase::null();
             it.queue.pop();
+            deleted++;
         }
+
+        // TODO: Log
     }
 }
 

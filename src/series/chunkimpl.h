@@ -40,12 +40,14 @@ public:
         isRunning = true;
 #endif
 
-        return computer(dst, computedCount);
+        unsigned int res = computer(dst, computedCount);
 
 #ifndef NDEBUG
         assert(isRunning);
         isRunning = false;
 #endif
+
+        return res;
     }
 
     void releaseComputer() override {
