@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cmath>
 #include <vector>
+#include <atomic>
 
 #include "jw_util/thread.h"
 

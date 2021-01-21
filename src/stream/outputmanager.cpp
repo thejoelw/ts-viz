@@ -6,8 +6,13 @@
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 
+#include "log.h"
 #include "app/options.h"
+#include "app/quitexception.h"
 #include "stream/inputmanager.h"
+#include "series/garbagecollector.h"
+
+#include "defs/ENABLE_PMUOI_FLAG.h"
 
 namespace stream {
 
@@ -31,7 +36,16 @@ void OutputManager::addEmitter(SeriesEmitter *emitter) {
 
 void OutputManager::tick(app::TickerContext &tickerContext) {
     (void) tickerContext;
-    emit();
+
+    if (ENABLE_PMUOI_FLAG && app::Options::getInstance().printMemoryUsageOutputIndex != static_cast<std::size_t>(-1)) {
+        for (SeriesEmitter *emitter : emitters) {
+            emitter->getValue(app::Options::getInstance().printMemoryUsageOutputIndex);
+        }
+        SPDLOG_CRITICAL("Initialized all the emitters; memory usage is at {}", context.get<series::GarbageCollector>().getMemoryUsage());
+        throw app::QuitException();
+    } else {
+        emit();
+    }
 }
 
 void OutputManager::emit() {

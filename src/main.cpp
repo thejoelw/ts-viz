@@ -19,6 +19,7 @@
 
 #include "defs/CHUNK_SIZE_LOG2.h"
 #include "defs/ENABLE_CONV_MIN_COMPUTE_FLAG.h"
+#include "defs/ENABLE_PMUOI_FLAG.h"
 
 int main(int argc, char **argv) {
     // Setup argument parser
@@ -52,15 +53,24 @@ int main(int argc, char **argv) {
             .default_value(false)
             .implicit_value(true);
 
+#if ENABLE_CONV_MIN_COMPUTE_FLAG
     program.add_argument("--conv-min-compute-log2")
             .help("For calculating convolutions, advance in (2 ^ value) element increments")
             .default_value(0u)
             .action([](const std::string& value) -> unsigned int { return std::max(0, std::min(std::stoi(value), CHUNK_SIZE_LOG2)); });
+#endif
 
     program.add_argument("--gc-memory-limit")
             .help("Enable garbage collector above this value")
             .default_value(static_cast<std::size_t>(-1))
             .action([](const std::string& value) -> std::size_t { return std::stoull(value); });
+
+#if ENABLE_PMUOI_FLAG
+    program.add_argument("--print-memory-usage-output-index")
+            .help("Prints the memory usage required to compute and output the nth record")
+            .default_value(static_cast<std::size_t>(-1))
+            .action([](const std::string& value) -> std::size_t { return std::stoull(value); });
+#endif
 
     try {
         program.parse_args(argc, argv);
@@ -74,15 +84,20 @@ int main(int argc, char **argv) {
     app::Options::getMutableInstance().wisdomDir = program.get<std::string>("--wisdom-dir");
     app::Options::getMutableInstance().requireExistingWisdom = program.get<bool>("--require-existing-wisdom");
     app::Options::getMutableInstance().writeWisdom = !program.get<bool>("--dont-write-wisdom");
+#if ENABLE_CONV_MIN_COMPUTE_FLAG
     app::Options::getMutableInstance().convMinComputeLog2 = program.get<unsigned int>("--conv-min-compute-log2");
+#endif
     app::Options::getMutableInstance().gcMemoryLimit = program.get<std::size_t>("--gc-memory-limit");
+#if ENABLE_PMUOI_FLAG
+    app::Options::getMutableInstance().printMemoryUsageOutputIndex = program.get<std::size_t>("--print-memory-usage-output-index");
+#endif
 
     // Setup logger
     spdlog::set_default_logger(nullptr);
     spdlog::set_default_logger(spdlog::stderr_color_mt(""));
 
     spdlog::level::level_enum logLevel = program.get<spdlog::level::level_enum>("--log-level");
-    if (logLevel < SPDLOG_ACTIVE_LEVEL) {
+    if (logLevel >= 0 && logLevel < SPDLOG_ACTIVE_LEVEL) {
         spdlog::critical("Tried to set --log-level flag to {}, which is below (more verbose) than the compile-time SPDLOG_ACTIVE_LEVEL, which is {}", spdlog::level::level_string_views[logLevel], spdlog::level::level_string_views[SPDLOG_ACTIVE_LEVEL]);
         return 1;
     } else {
@@ -103,6 +118,7 @@ int main(int argc, char **argv) {
 
     SPDLOG_INFO("A pointer is {} bits", sizeof(void*) * CHAR_BIT);
     SPDLOG_INFO("An unsigned int is {} bits", sizeof(unsigned int) * CHAR_BIT);
+    SPDLOG_INFO("An unsigned long long is {} bits", sizeof(unsigned long long) * CHAR_BIT);
     SPDLOG_INFO("Chunk size log2 is: {}", CHUNK_SIZE_LOG2);
 
     SPDLOG_INFO("Running tests...");

@@ -1,5 +1,5 @@
 module.exports = (variant) => {
-	const ENABLE_GRAPHICS = !variant.match(/\b(?:headless|test)\b/);
+	const ENABLE_GRAPHICS = !variant.match(/\b(?:headless|test|qtc)\b/);
 
 	const CHUNK_SIZE_LOG2 =
 		{
@@ -12,8 +12,8 @@ module.exports = (variant) => {
 
 	return {
 		// The --log-level flag can further raise this, but this eliminates logs below this level at compile-time
-		// SPDLOG_ACTIVE_LEVEL: 'SPDLOG_LEVEL_TRACE',
-		SPDLOG_ACTIVE_LEVEL: 'SPDLOG_LEVEL_DEBUG',
+		SPDLOG_ACTIVE_LEVEL: 'SPDLOG_LEVEL_TRACE',
+		// SPDLOG_ACTIVE_LEVEL: 'SPDLOG_LEVEL_DEBUG',
 		// SPDLOG_ACTIVE_LEVEL: 'SPDLOG_LEVEL_INFO',
 		// SPDLOG_ACTIVE_LEVEL: 'SPDLOG_LEVEL_WARN',
 		// SPDLOG_ACTIVE_LEVEL: 'SPDLOG_LEVEL_ERROR',
@@ -34,11 +34,13 @@ module.exports = (variant) => {
 		GLVAO_ASSERT_BINDINGS: '!defined(NDEBUG) && 1',
 
 		PRINT_TICK_ORDER: '!defined(NDEBUG) && 0', // Also requires SPDLOG_ACTIVE_LEVEL to be 'SPDLOG_LEVEL_TRACE' and --log-level trace
-		ENABLE_CHUNK_NAMES: '!defined(NDEBUG) && 0', // Also requires SPDLOG_ACTIVE_LEVEL to be 'SPDLOG_LEVEL_TRACE' and --log-level trace
+		ENABLE_CHUNK_NAMES: '!defined(NDEBUG) && 1', // Also requires SPDLOG_ACTIVE_LEVEL to be 'SPDLOG_LEVEL_TRACE' and --log-level trace
 
 		ENABLE_CHUNK_MULTITHREADING: 0,
 		ENABLE_FILEPOLLER_YIELDING:
 			variant === 'qtc' || variant.match(/\btest\b/) ? 1 : 0, // Only used for tests; has a more predictable effect when multithreading is disabled
+
+		ENABLE_PMUOI_FLAG: 1, // --print-memory-usage-output-index
 
 		INPUT_SERIES_ELEMENT_TYPE: 'double',
 

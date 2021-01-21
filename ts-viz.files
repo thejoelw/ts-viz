@@ -23,6 +23,7 @@ src/builder/delay.cpp
 src/builder/delta.cpp
 src/builder/emit.cpp
 src/builder/inf.cpp
+src/builder/info.cpp
 src/builder/input.cpp
 src/builder/norm.cpp
 src/builder/plot.cpp

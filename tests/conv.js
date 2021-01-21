@@ -22,6 +22,7 @@ const kernel = (spec) => {
 	}
 	const width = i64(els.length);
 	return {
+		name: 'customKernel',
 		width,
 		kernel: norm(toTs(arr(...els)), width),
 	};

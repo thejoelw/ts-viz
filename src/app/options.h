@@ -21,6 +21,7 @@ public:
     unsigned int convMinComputeLog2 = 0;
 
     std::size_t gcMemoryLimit = static_cast<std::size_t>(-1);
+    std::size_t printMemoryUsageOutputIndex = static_cast<std::size_t>(-1);
 };
 
 }

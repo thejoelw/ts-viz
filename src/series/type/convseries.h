@@ -10,6 +10,7 @@
 #include "defs/CONV_CACHE_TS_FFT_GTE_SIZE_LOG2.h"
 #include "defs/CONV_USE_FFT_GTE_SIZE_LOG2.h"
 #include "defs/CONV_VARIANT.h"
+#include "defs/ENABLE_CONV_MIN_COMPUTE_FLAG.h"
 
 #include "series/type/convvariant/zpts1.h"
 #include "series/type/convvariant/zpts2.h"
@@ -426,8 +427,12 @@ private:
 
     static unsigned int getEndCount(const std::vector<std::pair<ChunkPtr<ElementType>, ChunkPtr<typename fftwx::Complex, CHUNK_SIZE * 2>>> &tsChunks) {
         unsigned int endCount = tsChunks.back().first->getComputedCount();
+#if ENABLE_CONV_MIN_COMPUTE_FLAG
         unsigned int minComputeLog2 = app::Options::getInstance().convMinComputeLog2;
         assert(minComputeLog2 < 32);
+#else
+        static constexpr unsigned int minComputeLog2 = 0;
+#endif
         return (endCount >> minComputeLog2) << minComputeLog2;
     }
 };
@@ -493,8 +498,12 @@ static auto getFftArr(FftSeries<ElementType, partitionSize, srcOffset, copySize,
 
     typedef ChunkPtr<typename fftwx_impl<ElementType>::Complex, partitionSize * 2> FftChunkPtr;
 
+#if ENABLE_CONV_MIN_COMPUTE_FLAG
     unsigned int minComputeLog2 = app::Options::getInstance().convMinComputeLog2;
     assert(minComputeLog2 < 32);
+#else
+    static constexpr unsigned int minComputeLog2 = 0;
+#endif
     if (partitionSize >= 1u << minComputeLog2) {
         return std::array<FftChunkPtr, sizeof...(is)>{
             fft.template getChunk<partitionSize * 2>(offset / partitionSize + is)...

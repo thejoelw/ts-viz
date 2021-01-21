@@ -21,6 +21,7 @@ private:
         }
 
         static bool cmp(ChunkPtrBase *a, ChunkPtrBase *b) {
+            // TODO: Fix subtraction when values are very large and one overflows
             return (*a)->getLastAccess() > (*b)->getLastAccess();
         }
         std::priority_queue<ChunkPtrBase *, std::vector<ChunkPtrBase *>, bool (*)(ChunkPtrBase *, ChunkPtrBase *)> queue;
@@ -48,6 +49,9 @@ public:
         dsCollections.pop_back();
     }
 
+    std::size_t getMemoryUsage() const {
+        return memoryUsage;
+    }
     void updateMemoryUsage(std::make_signed<std::size_t>::type inc);
 
     static unsigned int getCurrentTime() {
@@ -60,6 +64,8 @@ private:
     std::size_t memoryUsage = 0;
 
     std::vector<std::pair<void (*)(void *, ChunkIterator &), void *>> dsCollections;
+
+    void runGc();
 
     template <typename DataSeriesType>
     static std::pair<void (*)(void *, ChunkIterator &), void *> makeNeedle(DataSeriesType *ds) {

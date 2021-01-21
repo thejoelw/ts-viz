@@ -1,6 +1,7 @@
 #pragma once
 
 #include "series/chunk.h"
+#include "log.h"
 
 namespace series {
 
@@ -11,6 +12,12 @@ public:
         : Chunk<ElementType, size>(ds)
         , computer(std::move(computer))
     {
+#if ENABLE_CHUNK_NAMES
+        SPDLOG_DEBUG("Creating chunk with name {} and size {}", this->name, sizeof(*this));
+#else
+        SPDLOG_DEBUG("Creating chunk with size {}", sizeof(*this));
+#endif
+
         this->updateMemoryUsage(sizeof(*this));
     }
 
@@ -28,6 +35,12 @@ public:
 #endif
 
         this->updateMemoryUsage(-sizeof(*this));
+
+#if ENABLE_CHUNK_NAMES
+        SPDLOG_DEBUG("Destroying chunk with name {} and size {}", this->name, sizeof(*this));
+#else
+        SPDLOG_DEBUG("Destroying chunk with size {}", sizeof(*this));
+#endif
     }
 
     unsigned int compute(ElementType *dst, unsigned int computedCount) override {

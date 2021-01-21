@@ -81,7 +81,7 @@ ProgObj Resolver::execDecl(const std::string &name, const std::vector<ProgObj> &
 
     ProgObj res = foundImpl->second->invoke(args);
 #if ENABLE_CHUNK_NAMES
-    std::visit([name](auto &arg){setName(arg, name, 0);}, res);
+    std::visit([name](auto &arg) {setName(arg, name, 0);}, res);
 #endif
     return res;
 }
