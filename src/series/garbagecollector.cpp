@@ -17,7 +17,7 @@ void GarbageCollector::tick(app::TickerContext &tickerContext) {
     currentTime++;
 
 #if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_TRACE
-    static thread_local std::size_t ctr = 0;
+    static thread_local unsigned int ctr = 0;
     ctr++;
     if (ctr % 65536 == 0) {
         SPDLOG_TRACE("Memory usage is at {} / {}", memoryUsage, app::Options::getInstance().gcMemoryLimit);

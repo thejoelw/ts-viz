@@ -33,7 +33,7 @@ public:
             if (std::isnan(factor)) {
                 for (std::size_t i = 0; i < normChunks.size(); i++) {
                     assert(normSize > i * CHUNK_SIZE);
-                    unsigned int minCount = std::min<std::size_t>(normSize - i * CHUNK_SIZE, CHUNK_SIZE);
+                    unsigned int minCount = std::min<std::uint64_t>(normSize - static_cast<std::uint64_t>(i) * CHUNK_SIZE, CHUNK_SIZE);
 
                     if (normChunks[i]->getComputedCount() < minCount) {
                         assert(computedCount == 0);

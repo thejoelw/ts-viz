@@ -18,8 +18,8 @@ public:
         return this->constructChunk([this, chunkIndex](ElementType *dst, unsigned int computedCount) -> unsigned int {
             assert(computedCount == 0);
 
-            for (std::size_t i = 0; i < CHUNK_SIZE; i++) {
-                dst[i] = op(chunkIndex * CHUNK_SIZE + i);
+            for (unsigned int i = 0; i < CHUNK_SIZE; i++) {
+                dst[i] = op(static_cast<std::uint64_t>(chunkIndex) * CHUNK_SIZE + i);
             }
 
             return CHUNK_SIZE;

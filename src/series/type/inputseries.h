@@ -22,7 +22,7 @@ public:
             (void) dst;
             (void) computedCount;
 
-            unsigned int ni = nextIndex;
+            std::uint64_t ni = nextIndex;
             std::size_t finishedChunks = ni / CHUNK_SIZE;
             if (chunkIndex < finishedChunks) {
                 return CHUNK_SIZE;
@@ -34,14 +34,14 @@ public:
         });
     }
 
-    void propagateUntil(std::size_t index) {
+    void propagateUntil(std::uint64_t index) {
         wrapNotify([this, index]() {
             propagateUntilImpl(index);
             assert(nextIndex == index);
         });
     }
 
-    void set(std::size_t index, ElementType value) {
+    void set(std::uint64_t index, ElementType value) {
         wrapNotify([this, index, value]() {
             propagateUntilImpl(index);
             assert(nextIndex == index);
@@ -57,12 +57,12 @@ private:
     ElementType prevValue = NAN;
 
 #if ENABLE_CHUNK_MULTITHREADING
-    std::atomic<std::size_t> nextIndex = 0;
+    std::atomic<std::uint64_t> nextIndex = 0;
 #else
-    std::size_t nextIndex = 0;
+    std::uint64_t nextIndex = 0;
 #endif
 
-    void propagateUntilImpl(std::size_t index) {
+    void propagateUntilImpl(std::uint64_t index) {
         assert(nextIndex <= index);
         while (nextIndex < index) {
             this->getChunk(nextIndex / CHUNK_SIZE)->getMutableData()[nextIndex % CHUNK_SIZE] = prevValue;

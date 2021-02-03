@@ -48,7 +48,7 @@ template <std::size_t partitionSize, signed int srcOffset, unsigned int copySize
 struct MaxNumChunksCalculator {
 private:
     static constexpr unsigned int partitionSizeLsb = sizeof(unsigned int) * CHAR_BIT - 1 - __builtin_clz(partitionSize ^ (partitionSize - 1));
-    static constexpr std::size_t minPartitionOffset = 1u << std::min<unsigned int>(partitionSizeLsb, CHUNK_SIZE_LOG2);
+    static constexpr unsigned int minPartitionOffset = 1u << std::min<unsigned int>(partitionSizeLsb, CHUNK_SIZE_LOG2);
     static constexpr signed int latestPartitionBegin = remFloor<signed int>(srcOffset, minPartitionOffset) - minPartitionOffset;
     static_assert(latestPartitionBegin < 0, "Partition doesn't begin in previous chunk");
     static constexpr std::size_t maxNumChunks = (latestPartitionBegin + copySize + CHUNK_SIZE * 2 - 1) / CHUNK_SIZE;
@@ -111,7 +111,9 @@ private:
 
 public:
     static SelfType &create(app::AppContext &context, DataSeries<ElementType> &arg) {
-        static std::unordered_map<DataSeries<ElementType> *, SelfType *> cache;
+        jw_util::Thread::assert_main_thread();
+
+        static thread_local std::unordered_map<DataSeries<ElementType> *, SelfType *> cache;
         auto foundValue = cache.emplace(&arg, static_cast<SelfType *>(0));
         if (foundValue.second) {
             foundValue.first->second = new SelfType(context, arg);
@@ -128,6 +130,11 @@ private:
         , arg(arg)
     {
         FftwPlanner<ElementType>::init();
+    }
+
+    // Don't allow deletion
+    ~FftSeries() {
+        assert(false);
     }
 
 public:

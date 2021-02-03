@@ -13,9 +13,10 @@
 
 namespace series {
 
-template <typename ElementType, std::size_t _size>
+template <typename _ElementType, std::size_t _size>
 class DataSeries : public DataSeriesBase {
 public:
+    typedef _ElementType ElementType;
     static constexpr std::size_t size = _size;
 
     DataSeries(app::AppContext &context, bool isTransient = true)
@@ -86,7 +87,7 @@ protected:
     }
 
 private:
-//    std::size_t offset = 0;
+//    std::uint64_t offset = 0;
     std::vector<ChunkPtr<ElementType, size>> chunks;
 
 #if ENABLE_CHUNK_NAMES

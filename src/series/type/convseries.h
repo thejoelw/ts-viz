@@ -57,7 +57,7 @@ public:
     ~ConvSeries() {}
 
     Chunk<ElementType> *makeChunk(std::size_t chunkIndex) override {
-        std::size_t offset = chunkIndex * CHUNK_SIZE;
+        std::uint64_t offset = static_cast<std::uint64_t>(chunkIndex) * CHUNK_SIZE;
 
         auto kernelPartitionFfts = std::apply([this](auto... stepSpecs) {
             typedef typename util::BuildUniqueTuple<std::tuple<>, std::tuple<Wrapper<typename decltype(stepSpecs)::template KernelFft<ElementType>>...>>::type KernelWrappers;
@@ -476,7 +476,7 @@ auto getKernelPartitionFfts(app::AppContext &context, DataSeries<ElementType> &k
 }
 
 template <typename ElementType, std::size_t partitionSize, signed int srcOffset, unsigned int copySize, unsigned int dstOffset>
-auto getTsPartitionFfts(app::AppContext &context, DataSeries<ElementType> &ts, std::size_t offset, Wrapper<FftSeries<ElementType, partitionSize, srcOffset, copySize, dstOffset>> wrapper) {
+auto getTsPartitionFfts(app::AppContext &context, DataSeries<ElementType> &ts, std::uint64_t offset, Wrapper<FftSeries<ElementType, partitionSize, srcOffset, copySize, dstOffset>> wrapper) {
     typedef typename decltype(wrapper)::type Series;
     if constexpr (shouldCacheTsFft(wrapper)) {
 #if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_DEBUG
@@ -493,7 +493,7 @@ auto getTsPartitionFfts(app::AppContext &context, DataSeries<ElementType> &ts, s
 }
 
 template <typename ElementType, std::size_t partitionSize, signed int srcOffset, unsigned int copySize, unsigned int dstOffset, typename scale, std::size_t... is>
-static auto getFftArr(FftSeries<ElementType, partitionSize, srcOffset, copySize, dstOffset, scale> &fft, std::size_t offset, std::index_sequence<is...>) {
+static auto getFftArr(FftSeries<ElementType, partitionSize, srcOffset, copySize, dstOffset, scale> &fft, std::uint64_t offset, std::index_sequence<is...>) {
     assert(offset % partitionSize == 0);
 
     typedef ChunkPtr<typename fftwx_impl<ElementType>::Complex, partitionSize * 2> FftChunkPtr;

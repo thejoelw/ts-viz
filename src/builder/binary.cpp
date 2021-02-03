@@ -5,13 +5,14 @@ template <typename RealType> struct FuncMod { RealType operator()(RealType a, Re
 template <typename RealType> struct FuncMinimum { RealType operator()(RealType a, RealType b) const { return std::fmin(a, b); } };
 template <typename RealType> struct FuncMaximum { RealType operator()(RealType a, RealType b) const { return std::fmax(a, b); } };
 template <typename RealType> struct FuncShrink { RealType operator()(RealType a, RealType b) const { return a > 0 ? (a <= b ? 0 : a - b) : a < 0 ? (a >= -b ? 0 : a + b) : a; } };
+template <typename RealType> struct FuncClamp { RealType operator()(RealType a, RealType b) const { return std::fmax(-b, std::fmin(a, b)); } };
 
 template <template <typename> typename Operator>
 void declBinaryOp(app::AppContext &context, program::Resolver &resolver, const char *funcName) {
-    resolver.decl(funcName, [](float a, float b){return Operator<float>()(a, b);});
-    resolver.decl(funcName, [](float a, double b){return Operator<double>()(a, b);});
-    resolver.decl(funcName, [](double a, float b){return Operator<double>()(a, b);});
-    resolver.decl(funcName, [](double a, double b){return Operator<double>()(a, b);});
+    resolver.decl(funcName, [](float a, float b) -> float { return Operator<float>()(a, b); });
+    resolver.decl(funcName, [](float a, double b) -> double { return Operator<double>()(a, b); });
+    resolver.decl(funcName, [](double a, float b) -> double { return Operator<double>()(a, b); });
+    resolver.decl(funcName, [](double a, double b) -> double { return Operator<double>()(a, b); });
     resolver.decl(funcName, [&context](series::DataSeries<float> *a, float b){
         auto op = [b](float a) {return Operator<float>()(a, b);};
         return new series::ParallelOpSeries<float, decltype(op), series::DataSeries<float>>(context, op, *a);
@@ -47,4 +48,5 @@ static int _ = program::Resolver::registerBuilder([](app::AppContext &context, p
     declBinaryOp<FuncMinimum>(context, resolver, "min");
     declBinaryOp<FuncMaximum>(context, resolver, "max");
     declBinaryOp<FuncShrink>(context, resolver, "shrink");
+    declBinaryOp<FuncClamp>(context, resolver, "clamp");
 });

@@ -27,6 +27,7 @@ src/builder/info.cpp
 src/builder/input.cpp
 src/builder/norm.cpp
 src/builder/plot.cpp
+src/builder/random.cpp
 src/builder/scan.cpp
 src/builder/unary.cpp
 src/graphics/gl.cpp
@@ -145,6 +146,7 @@ src/series/type/deltaseries.h
 src/series/type/fftseries.h
 src/series/type/helper/stepspecwrapper.h
 src/series/type/inputseries.h
+src/series/type/lastnseries.h
 src/series/type/normalizedseries.h
 src/series/type/parallelopseries.h
 src/series/type/scannedseries.h
