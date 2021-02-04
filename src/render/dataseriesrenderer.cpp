@@ -1,15 +1,17 @@
 #include "defs/ENABLE_GRAPHICS.h"
-#if ENABLE_GRAPHICS
 
 #include "dataseriesrenderer.h"
 
+#if ENABLE_GRAPHICS
 #include "graphics/imgui.h"
 #include "render/camera.h"
+#endif
 
 namespace render {
 
 template <typename ElementType>
 void DataSeriesRenderer<ElementType>::draw(std::size_t begin, std::size_t end, std::size_t stride) {
+#if ENABLE_GRAPHICS
     assert(begin <= end);
 
     static thread_local std::vector<ElementType> sample;
@@ -72,8 +74,16 @@ void DataSeriesRenderer<ElementType>::draw(std::size_t begin, std::size_t end, s
     program.draw(begin, stride, 0, sample.size(), drawStyle);
 
     vao.unbind();
+#else
+    (void) begin;
+    (void) end;
+    (void) stride;
+
+    assert(false);
+#endif
 }
 
+#if ENABLE_GRAPHICS
 template <typename ElementType>
 typename DataSeriesRenderer<ElementType>::Actions DataSeriesRenderer<ElementType>::updateDrawStyle() {
     Actions actions;
@@ -95,10 +105,9 @@ typename DataSeriesRenderer<ElementType>::Actions DataSeriesRenderer<ElementType
 
     return actions;
 }
+#endif
 
 template class DataSeriesRenderer<float>;
 template class DataSeriesRenderer<double>;
 
 }
-
-#endif

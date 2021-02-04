@@ -7,6 +7,8 @@
 #include "render/camera.h"
 #include "render/axes.h"
 
+#include "defs/RENDER_RESOLUTION_X.h"
+
 namespace render {
 
 Renderer::Renderer(app::AppContext &context)
@@ -47,7 +49,7 @@ void Renderer::tickClose(app::TickerContext &tickerContext) {
 
     std::size_t minX = std::max(0.0f, std::floorf(context.get<render::Camera>().getMin().x));
     std::size_t maxX = std::max(0.0f, std::ceilf(context.get<render::Camera>().getMax().x)) + 1;
-    std::size_t stride = std::max(static_cast<std::size_t>(1), (maxX - minX) >> 12);
+    std::size_t stride = std::max(static_cast<std::size_t>(1), (maxX - minX) / RENDER_RESOLUTION_X);
 
     for (SeriesRenderer *renderer : added) {
         renderer->draw(minX, maxX, stride);

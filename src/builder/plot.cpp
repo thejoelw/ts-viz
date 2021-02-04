@@ -1,26 +1,11 @@
 #include "program/resolver.h"
 
-#include "defs/ENABLE_GRAPHICS.h"
-#if ENABLE_GRAPHICS
 #include "render/dataseriesrenderer.h"
-#endif
-
-#include "series/invalidparameterexception.h"
 
 template <typename RealType>
 void declPlot(app::AppContext &context, program::Resolver &resolver) {
     resolver.decl("plot", [&context](const std::string &name, series::DataSeries<RealType> *s, program::UncastNumber r, program::UncastNumber g, program::UncastNumber b, program::UncastNumber a) {
-#if ENABLE_GRAPHICS
-        render::DataSeriesRenderer<RealType> *res = new render::DataSeriesRenderer<RealType>(context, name, s);
-        res->getDrawStyle().color[0] = r.value;
-        res->getDrawStyle().color[1] = g.value;
-        res->getDrawStyle().color[2] = b.value;
-        res->getDrawStyle().color[3] = a.value;
-        return res;
-#else
-        throw series::InvalidParameterException("plot command is not available when ENABLE_GRAPHICS is false");
-        return std::monostate();
-#endif
+        return new render::DataSeriesRenderer<RealType>(context, name, s, r.value, g.value, b.value, a.value);
     });
 }
 

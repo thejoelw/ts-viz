@@ -16,8 +16,13 @@ public:
     virtual void linkProgram();
 
     struct DrawStyle {
-        GLfloat color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-        bool smooth = true;
+        DrawStyle(float r = 0.0f, float g = 0.0f, float b = 0.0f, float a = 1.0f, bool smooth = true)
+            : color{r, g, b, a}
+            , smooth(smooth)
+        {}
+
+        GLfloat color[4];
+        bool smooth;
     };
 
     void draw(std::size_t begin, std::size_t stride, std::size_t offsetIndex, std::size_t count, DrawStyle style);

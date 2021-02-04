@@ -23,6 +23,8 @@ module.exports = (variant) => {
 		ENABLE_GRAPHICS,
 		ENABLE_GUI: ENABLE_GRAPHICS,
 
+		RENDER_RESOLUTION_X: 1 << 12,
+
 		// The maximum merge gap in bytes.
 		// When updating flags, flags separated by a gap smaller than this value will be merged.
 		GLBUFFER_MAX_MERGE_GAP: 64,
