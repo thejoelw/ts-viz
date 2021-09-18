@@ -5,14 +5,14 @@ const { stringify } = require('../program/stringify');
 
 const variant = process.argv[2];
 
-const computeWisdom = false;
+const computeWisdom = true;
 
 // Generate wisdom before so our tests don't time out
 let isWisdomPrepared = false;
 const writePrepareWisdom = () => {
 	if (!isWisdomPrepared) {
 		console.log(
-			`: $(BIN_TARGET) |> bash util/prepare_wisdom.bash '${variant}' '$(BIN_TARGET)' |> fftw_wisdom_float.bin fftw_wisdom_double.bin`,
+			`: $(BIN_TARGET) |> bash util/prepare_wisdom.bash '${variant}' '$(BIN_TARGET)' |> wisdom/fftw_wisdom_float.bin wisdom/fftw_wisdom_double.bin`,
 		);
 		isWisdomPrepared = true;
 	}
@@ -70,7 +70,7 @@ const serializeLines = (lines) =>
 				computeWisdom && writePrepareWisdom();
 				console.log(
 					`: $(BIN_TARGET) ${
-						computeWisdom ? 'fftw_wisdom_float.bin fftw_wisdom_double.bin' : ''
+						computeWisdom ? 'wisdom/fftw_wisdom_float.bin wisdom/fftw_wisdom_double.bin' : ''
 					} |> ^ bash util/run_test.bash '${variant} - ${file} - ${name}' [arguments omitted]^ bash util/run_test.bash '${variant} - ${file} - ${name}' '$(BIN_TARGET)' '${input}' '${program}' '${output}' |>`,
 				);
 			});

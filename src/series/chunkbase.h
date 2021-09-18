@@ -4,6 +4,7 @@
 #include <cmath>
 #include <vector>
 #include <atomic>
+#include <string>
 
 #include "jw_util/thread.h"
 

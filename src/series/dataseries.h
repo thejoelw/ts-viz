@@ -30,7 +30,9 @@ public:
     }
 
     ~DataSeries() {
-        assert(false);
+	// This is being destructed when an exception is thrown from the constructor.
+	// TODO: Figure out how to catch bad destructions.
+        // assert(false);
     }
 
 #if ENABLE_CHUNK_NAMES

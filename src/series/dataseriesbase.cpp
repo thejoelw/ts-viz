@@ -1,5 +1,7 @@
 #include "dataseriesbase.h"
 
+#include <atomic>
+
 #include "jw_util/thread.h"
 
 #include "app/tickercontext.h"

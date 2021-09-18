@@ -10,7 +10,7 @@ TMP_DIR=$(mktemp -d)
 echo '{}' > $TMP_DIR/input.jsons
 echo '[["emit","out_float",["conv",["to_ts",["cast_float",0]],["to_ts",["cast_float",0]],["cast_int64",2],false]],["emit","out_double",["conv",["to_ts",["cast_double",0]],["to_ts",["cast_double",0]],["cast_int64",2],false]]]' > $TMP_DIR/program.jsons
 
-"$2" --log-level warn $TMP_DIR/program.jsons $TMP_DIR/input.jsons > /dev/null
+"$2" --log-level warn --wisdom-dir wisdom $TMP_DIR/program.jsons $TMP_DIR/input.jsons > /dev/null
 
 echo -e "\033[0;32mFINISHED PREPARING WISDOM\033[0m: $1"
 
