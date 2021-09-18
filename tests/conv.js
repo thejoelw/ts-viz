@@ -7,8 +7,8 @@ import {
   norm,
   toTs,
   windowRect,
-} from '../../trader-exprs/modules/base.ts';
-import { range } from '../../trader-exprs/modules/util.ts';
+} from '../trader-exprs/modules/base.ts';
+import { range } from '../trader-exprs/modules/util.ts';
 
 const r = d;
 

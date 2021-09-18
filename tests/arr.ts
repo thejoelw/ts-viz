@@ -1,4 +1,4 @@
-import { arr, d, toTs } from '../../trader-exprs/modules/base.ts';
+import { arr, d, toTs } from '../trader-exprs/modules/base.ts';
 
 const r = d;
 

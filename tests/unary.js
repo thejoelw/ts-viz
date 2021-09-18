@@ -8,7 +8,7 @@ import {
   sgn,
   sqrt,
   square,
-} from '../../trader-exprs/modules/base.ts';
+} from '../trader-exprs/modules/base.ts';
 
 const r = d;
 
