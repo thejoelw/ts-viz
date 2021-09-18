@@ -5,6 +5,7 @@ src/app/appcontext.cpp
 src/app/appcontext.h
 src/app/mainloop.cpp
 src/app/mainloop.h
+src/app/options.cpp
 src/app/options.h
 src/app/quitexception.h
 src/app/signalhandler.cpp

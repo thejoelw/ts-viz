@@ -1,6 +1,6 @@
 include_rules
 
-run node util/definesWriter.js "@(NAME)"
+run deno --quiet run --allow-read util/definesWriter.ts "@(NAME)"
 
 # Compile sources
 : foreach $(SRC_PATH)/main.cpp | $(ROOT)/<gen_headers> |> !cpp |>
@@ -29,4 +29,4 @@ else
 endif
 
 preload tests
-run node util/testsWriter.js "@(NAME)"
+run deno --quiet run --allow-read util/testsWriter.ts "@(NAME)"
