@@ -37,6 +37,10 @@ template <typename RealType> struct FuncFwdFillZero {
     RealType operator()(RealType a, RealType b) const { return b == static_cast<RealType>(0.0) ? a : b; }
 };
 
+template <typename RealType> struct Monotonify {
+    RealType operator()(RealType a, RealType b) const { return std::max(a, b); }
+};
+
 template <template <typename> typename Operator> struct FuncSafeOp {
     template <typename RealType>
     struct type : private Operator<RealType> {
@@ -86,4 +90,5 @@ static int _ = program::Resolver::registerBuilder([](app::AppContext &context, p
     declScanOp<FuncSafeOp<std::multiplies>::type>(context, resolver, "cum_prod", 1.0);
     declScanOp<FuncSafeOp<LogSumExp>::type>(context, resolver, "cum_log_sum_exp", 0.0);
     declScanOp<FuncSafeOp<FuncFwdFillZero>::type>(context, resolver, "fwd_fill_zero", 0.0);
+    declScanOp<FuncSafeOp<Monotonify>::type>(context, resolver, "monotonify", -INFINITY);
 });
