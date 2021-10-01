@@ -29,6 +29,8 @@ public:
     glm::vec2 getOffset() const { return offset; }
     glm::vec2 getScale() const { return scale; }
 
+    glm::vec2 getMousePos() const;
+
 private:
     static constexpr float mouseRegionSize = 0.2f;
 

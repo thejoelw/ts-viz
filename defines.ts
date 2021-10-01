@@ -1,5 +1,5 @@
 export default (variant: string) => {
-  const ENABLE_GRAPHICS = !variant.match(/\b(?:headless|test|qtc)\b/);
+  const ENABLE_GRAPHICS = !variant.match(/\b(?:headless|test)\b/);
 
   const CHUNK_SIZE_LOG2 =
     (

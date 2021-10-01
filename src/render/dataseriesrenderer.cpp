@@ -89,15 +89,27 @@ typename DataSeriesRenderer<ElementType>::Actions DataSeriesRenderer<ElementType
     Actions actions;
 
     if (ImGui::Begin("Series")) {
+        float x = context.get<Camera>().getMousePos().x;
+        ElementType y;
+        bool hasY = false;
+        if (x >= 0.0f) {
+            std::size_t ix = x;
+            series::ChunkPtr<ElementType> chunk0 = data->getChunk(ix / CHUNK_SIZE);
+            series::ChunkPtr<ElementType> chunk1 = data->getChunk((ix + 1) / CHUNK_SIZE);
+            if (ix % CHUNK_SIZE < chunk0->getComputedCount() && (ix + 1) % CHUNK_SIZE < chunk1->getComputedCount()) {
+                ElementType y0 = chunk0->getElement(ix % CHUNK_SIZE);
+                ElementType y1 = chunk1->getElement((ix + 1) % CHUNK_SIZE);
+                y = y0 * ((ix + 1) - x) + y1 * (x - ix);
+                hasY = true;
+            }
+        }
+
         std::string uuid = std::to_string(reinterpret_cast<std::uintptr_t>(this));
-        ImGui::Text("%s", name.data());
         ImGui::ColorEdit4(("color##" + uuid).data(), drawStyle.color, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel);
-        ImGui::SameLine(35);
-        drawStyle.smooth &= !ImGui::Button(("normal##" + uuid).data());
-        ImGui::SameLine(90);
-        drawStyle.smooth |= ImGui::Button(("bold##" + uuid).data());
-        ImGui::SameLine(145);
-        if (ImGui::Button(("fit-y##" + uuid).data())) {
+        ImGui::SameLine(32);
+        ImGui::Text("%s", name.data());
+        ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - 90);
+        if (ImGui::Button(("y:" + (hasY ? std::to_string(y) : "?") + "##" + uuid).data(), ImVec2(90, 0))) {
             actions.fitY = true;
         }
     }
