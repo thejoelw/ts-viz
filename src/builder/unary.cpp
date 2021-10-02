@@ -17,6 +17,9 @@ template <typename RealType> struct FuncLog { RealType operator()(RealType a) co
 template <typename RealType> struct FuncFloor { RealType operator()(RealType a) const { return std::floor(a); } };
 template <typename RealType> struct FuncCeil { RealType operator()(RealType a) const { return std::ceil(a); } };
 template <typename RealType> struct FuncRound { RealType operator()(RealType a) const { return std::round(a); } };
+template <typename RealType> struct FuncNot { RealType operator()(RealType a) const { return !a; } };
+template <typename RealType> struct FuncIsNan { RealType operator()(RealType a) const { return std::isnan(a); } };
+template <typename RealType> struct FuncIsNum { RealType operator()(RealType a) const { return !std::isnan(a); } };
 
 template <template <typename> typename Operator>
 void declUnaryOp(app::AppContext &context, program::Resolver &resolver, const char *funcName) {
@@ -41,4 +44,7 @@ static int _ = program::Resolver::registerBuilder([](app::AppContext &context, p
     declUnaryOp<FuncFloor>(context, resolver, "floor");
     declUnaryOp<FuncCeil>(context, resolver, "ceil");
     declUnaryOp<FuncRound>(context, resolver, "round");
+    declUnaryOp<FuncNot>(context, resolver, "not");
+    declUnaryOp<FuncIsNan>(context, resolver, "is_nan");
+    declUnaryOp<FuncIsNum>(context, resolver, "is_num");
 });
