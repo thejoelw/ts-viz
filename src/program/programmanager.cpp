@@ -72,7 +72,7 @@ ProgObj ProgramManager::makeProgObj(const std::string &path, const rapidjson::Va
     ProgObj res;
 
     switch (value.GetType()) {
-        case rapidjson::Type::kNullType: break;
+        case rapidjson::Type::kNullType: res = UncastNumber(NAN); break;
         case rapidjson::Type::kFalseType: res = false; break;
         case rapidjson::Type::kTrueType: res = true; break;
         case rapidjson::Type::kNumberType: res = UncastNumber(value.GetDouble()); break;

@@ -37,8 +37,12 @@ template <typename RealType> struct FuncFwdFillZero {
     RealType operator()(RealType a, RealType b) const { return b == static_cast<RealType>(0.0) ? a : b; }
 };
 
-template <typename RealType> struct Monotonify {
+template <typename RealType> struct FuncMonotonify {
     RealType operator()(RealType a, RealType b) const { return std::max(a, b); }
+};
+
+template <typename RealType> struct FuncScanIf {
+    RealType operator()(RealType prev, RealType cond, RealType _else) const { return cond ? prev : _else; }
 };
 
 template <template <typename> typename Operator> struct FuncSafeOp {
@@ -83,6 +87,18 @@ void declScanOpP1(app::AppContext &context, program::Resolver &resolver, const c
     });
 }
 
+
+template <template <typename> typename Operator, typename RealType>
+void declScanTernaryOp(app::AppContext &context, program::Resolver &resolver, const char *funcName) {
+    resolver.decl(funcName, [&context](series::DataSeries<RealType> *a, RealType b, RealType initialValue){
+        auto op = [b](RealType prev, RealType a) {return Operator<RealType>()(prev, a, b);};
+        return new series::ScannedSeries<RealType, decltype(op), series::DataSeries<RealType>>(context, op, initialValue, *a);
+    });
+    resolver.decl(funcName, [&context](series::DataSeries<RealType> *a, series::DataSeries<RealType> *b, RealType initialValue){
+        return new series::ScannedSeries<RealType, Operator<RealType>, series::DataSeries<RealType>, series::DataSeries<RealType>>(context, Operator<RealType>(), initialValue, *a, *b);
+    });
+}
+
 static int _ = program::Resolver::registerBuilder([](app::AppContext &context, program::Resolver &resolver) {
     declScanOp<FuncSafeOp<std::plus>::type>(context, resolver, "cum_sum", 0.0);
     declScanOp<FuncSafeOp<ClampedSum>::type>(context, resolver, "cum_sum_clamped", 0.0);
@@ -90,5 +106,7 @@ static int _ = program::Resolver::registerBuilder([](app::AppContext &context, p
     declScanOp<FuncSafeOp<std::multiplies>::type>(context, resolver, "cum_prod", 1.0);
     declScanOp<FuncSafeOp<LogSumExp>::type>(context, resolver, "cum_log_sum_exp", 0.0);
     declScanOp<FuncSafeOp<FuncFwdFillZero>::type>(context, resolver, "fwd_fill_zero", 0.0);
-    declScanOp<FuncSafeOp<Monotonify>::type>(context, resolver, "monotonify", -INFINITY);
+    declScanOp<FuncSafeOp<FuncMonotonify>::type>(context, resolver, "monotonify", -INFINITY);
+    declScanTernaryOp<FuncScanIf, float>(context, resolver, "scan_if");
+    declScanTernaryOp<FuncScanIf, double>(context, resolver, "scan_if");
 });
