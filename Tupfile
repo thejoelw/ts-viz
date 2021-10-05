@@ -9,10 +9,10 @@ run deno --quiet run --allow-read util/definesWriter.ts "@(NAME)"
 : foreach $(SRC_PATH)/builder/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 : foreach $(SRC_PATH)/graphics/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 : foreach $(SRC_PATH)/graphics/type/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
-: foreach $(SRC_PATH)/imgui/*.cpp | $(ROOT)/<gen_headers> |> !cpp -I$(THIRD_PARTY_PATH)/imgui/ -I$(THIRD_PARTY_PATH)/imgui/examples/ |>
+: foreach $(SRC_PATH)/imgui/*.cpp | $(ROOT)/<gen_headers> |> !cpp -I$(THIRD_PARTY_PATH)/imgui/ -I$(THIRD_PARTY_PATH)/imgui/backends/ |>
 : foreach $(SRC_PATH)/jw_util/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 : foreach $(SRC_PATH)/program/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
-: foreach $(SRC_PATH)/render/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
+: foreach $(SRC_PATH)/render/*.cpp | $(ROOT)/<gen_headers> |> !cpp -I$(THIRD_PARTY_PATH)/imgui/ -I$(THIRD_PARTY_PATH)/imgui/backends/ |>
 : foreach $(SRC_PATH)/render/program/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 : foreach $(SRC_PATH)/series/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>
 : foreach $(SRC_PATH)/series/type/*.cpp | $(ROOT)/<gen_headers> |> !cpp |>

@@ -4,8 +4,8 @@
 #include "imguirenderer.h"
 
 #include "graphics/imgui.h"
-#include "imgui/examples/imgui_impl_glfw.h"
-#include "imgui/examples/imgui_impl_opengl3.h"
+#include "imgui/backends/imgui_impl_glfw.h"
+#include "imgui/backends/imgui_impl_opengl3.h"
 
 #include "app/window.h"
 
@@ -17,17 +17,21 @@ ImguiRenderer::ImguiRenderer(app::AppContext &context)
 #if ENABLE_GUI
     GLFWwindow *glfwWindow = context.get<app::Window>().getGlfwWindow();
 
+//    glfwSetMouseButtonCallback(glfwWindow, ImGui_ImplGlfw_MouseButtonCallback);
+//    glfwSetScrollCallback(glfwWindow, ImGui_ImplGlfw_ScrollCallback);
+//    glfwSetKeyCallback(glfwWindow, ImGui_ImplGlfw_KeyCallback);
+//    glfwSetCharCallback(glfwWindow, ImGui_ImplGlfw_CharCallback);
+
+    IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
-    ImGui_ImplGlfw_InitForOpenGL(glfwWindow, false);
 
-    prevMouseButtonCallback = glfwSetMouseButtonCallback(glfwWindow, mouseButtonCallback);
-    prevScrollCallback = glfwSetScrollCallback(glfwWindow, scrollCallback);
-    prevKeyCallback = glfwSetKeyCallback(glfwWindow, keyCallback);
-    prevCharCallback = glfwSetCharCallback(glfwWindow, charCallback);
+    ImGui::StyleColorsDark();
+    // ImGui::StyleColorsClassic();
 
+    ImGui_ImplGlfw_InitForOpenGL(glfwWindow, true);
     ImGui_ImplOpenGL3_Init("#version 150");
 
     // Setup style
@@ -79,41 +83,6 @@ void ImguiRenderer::tickClose(app::TickerContext &tickerContext) {
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 #endif
 }
-
-#if ENABLE_GUI
-void ImguiRenderer::mouseButtonCallback(GLFWwindow *window, int button, int action, int mods) {
-    ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
-    if (prevMouseButtonCallback && !ImGui::GetIO().WantCaptureMouse) {
-        prevMouseButtonCallback(window, button, action, mods);
-    }
-}
-
-void ImguiRenderer::scrollCallback(GLFWwindow *window, double xoffset, double yoffset) {
-    ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
-    if (prevScrollCallback) {
-        prevScrollCallback(window, xoffset, yoffset);
-    }
-}
-
-void ImguiRenderer::keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods) {
-    ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
-    if (prevKeyCallback && !ImGui::GetIO().WantCaptureKeyboard) {
-        prevKeyCallback(window, key, scancode, action, mods);
-    }
-}
-
-void ImguiRenderer::charCallback(GLFWwindow *window, unsigned int c) {
-    ImGui_ImplGlfw_CharCallback(window, c);
-    if (prevCharCallback && !ImGui::GetIO().WantCaptureKeyboard) {
-        prevCharCallback(window, c);
-    }
-}
-
-GLFWmousebuttonfun ImguiRenderer::prevMouseButtonCallback;
-GLFWscrollfun ImguiRenderer::prevScrollCallback;
-GLFWkeyfun ImguiRenderer::prevKeyCallback;
-GLFWcharfun ImguiRenderer::prevCharCallback;
-#endif
 
 }
 
