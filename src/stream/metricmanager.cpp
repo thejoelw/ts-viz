@@ -1,6 +1,7 @@
 #include "metricmanager.h"
 
 #include <iostream>
+#include <cmath>
 
 #include "rapidjson/document.h"
 #include "rapidjson/stringbuffer.h"
