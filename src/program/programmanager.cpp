@@ -7,10 +7,12 @@
 #include "render/renderer.h"
 #endif
 
-#include "stream/outputmanager.h"
+#include "stream/emitmanager.h"
+#include "stream/metricmanager.h"
 #include "program/resolver.h"
 #include "series/invalidparameterexception.h"
 #include "util/jsontostring.h"
+#include "app/options.h"
 
 namespace program {
 
@@ -27,8 +29,8 @@ void ProgramManager::recvRecord(const rapidjson::Document &row) {
     }
 #endif
 
-    if (context.has<stream::OutputManager>()) {
-        context.get<stream::OutputManager>().clearEmitters();
+    if (context.has<stream::EmitManager>()) {
+        context.get<stream::EmitManager>().clearEmitters();
     }
 
     if (!row.IsArray()) {
@@ -46,16 +48,22 @@ void ProgramManager::recvRecord(const rapidjson::Document &row) {
                 context.get<render::Renderer>().addSeries(std::get<render::SeriesRenderer *>(obj));
             } else
 #endif
-            if (std::holds_alternative<stream::SeriesEmitter *>(obj)) {
-                context.get<stream::OutputManager>().addEmitter(std::get<stream::SeriesEmitter *>(obj));
+            if (app::Options::getInstance().enableEmit && std::holds_alternative<stream::SeriesEmitter *>(obj)) {
+                context.get<stream::EmitManager>().addEmitter(std::get<stream::SeriesEmitter *>(obj));
+            } else if (std::holds_alternative<stream::SeriesMetric *>(obj)) {
+                context.get<stream::MetricManager>().addMetric(std::get<stream::SeriesMetric *>(obj));
             } else if (std::holds_alternative<std::monostate>(obj)) {
                 // Do nothing
             } else {
-                throw InvalidProgramException("Value for top-level entry at index " + std::to_string(i) + " is a " + progObjTypeNames[obj.index()] + ", but must be a series renderer or an output emitter");
+                throw InvalidProgramException("Value for top-level entry at index " + std::to_string(i) + " is a " + progObjTypeNames[obj.index()] + ", but must be a series renderer (if ENABLE_GRAPHICS), an output emitter (if not --disable-emit), or a meter");
             }
         } catch (const InvalidProgramException &ex) {
             SPDLOG_WARN("InvalidProgramException: {}", ex.what());
         }
+    }
+
+    if (context.has<stream::MetricManager>()) {
+        context.get<stream::MetricManager>().submitMetrics();
     }
 
     hasProgram = true;
@@ -64,8 +72,6 @@ void ProgramManager::recvRecord(const rapidjson::Document &row) {
 void ProgramManager::end() {
     assert(running);
     running = false;
-
-
 }
 
 ProgObj ProgramManager::makeProgObj(const std::string &path, const rapidjson::Value &value, std::unordered_map<std::string, ProgObj> &cache) {

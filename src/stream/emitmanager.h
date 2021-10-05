@@ -7,22 +7,20 @@
 
 namespace stream {
 
-class OutputManager : public app::TickerContext::TickableBase<OutputManager> {
+class EmitManager : public app::TickerContext::TickableBase<EmitManager> {
 public:
-    OutputManager(app::AppContext &context);
-    ~OutputManager();
+    EmitManager(app::AppContext &context);
+    ~EmitManager();
 
     void clearEmitters();
     void addEmitter(SeriesEmitter *emitter);
 
     void tick(app::TickerContext &tickerContext);
 
-    bool isRunning() const;
-
 private:
     std::size_t nextEmitIndex = 0;
 
-    std::vector<SeriesEmitter *> emitters;
+    std::vector<SeriesEmitter *> curEmitters;
 
     void emit();
 };

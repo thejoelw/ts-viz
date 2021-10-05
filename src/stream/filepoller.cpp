@@ -7,6 +7,7 @@
 #include "log.h"
 
 #include "defs/ENABLE_FILEPOLLER_YIELDING.h"
+#include "defs/FILEPOLLER_TICK_TIMEOUT_MS.h"
 
 namespace {
 
@@ -47,7 +48,7 @@ void FilePoller::tick(app::TickerContext &tickerContext) {
     (void) tickerContext;
 
     for (File &file : files) {
-        std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+        std::chrono::steady_clock::time_point timeout = std::chrono::steady_clock::now() + std::chrono::milliseconds(FILEPOLLER_TICK_TIMEOUT_MS);
 
         Message msg;
         while (file.messages.try_dequeue(msg)) {
@@ -58,7 +59,7 @@ void FilePoller::tick(app::TickerContext &tickerContext) {
 
             msg.dispatch(context, msg.data, msg.size);
 
-            if (std::chrono::steady_clock::now() - start > std::chrono::milliseconds(10)) {
+            if (std::chrono::steady_clock::now() > timeout) {
                 break;
             }
         }

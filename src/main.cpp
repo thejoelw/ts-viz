@@ -16,6 +16,7 @@
 #include "program/programmanager.h"
 #include "stream/inputmanager.h"
 #include "util/testrunner.h"
+#include "util/wrapper.h"
 
 #include "defs/CHUNK_SIZE_LOG2.h"
 #include "defs/ENABLE_CONV_MIN_COMPUTE_FLAG.h"
@@ -72,6 +73,39 @@ int main(int argc, char **argv) {
             .action([](const std::string& value) -> std::size_t { return std::stoull(value); });
 #endif
 
+    program.add_argument("--disable-emit")
+            .help("Disable emitting")
+            .default_value(false)
+            .implicit_value(true);
+
+    program.add_argument("--meter-indices")
+            .help("Output meter records at these indices")
+            .default_value(util::PrivateWrapper<std::vector<std::size_t>>())
+            .action([](const std::string& value) -> util::PrivateWrapper<std::vector<std::size_t>> {
+        auto parse = [](std::string_view str) -> std::size_t {
+            std::size_t num;
+            std::from_chars_result res = std::from_chars(str.data(), str.data() + str.size(), num);
+            if (res.ec == std::errc()) {
+                return num;
+            } else {
+                throw std::runtime_error("Invalid number in --meter-indices");
+            }
+        };
+
+        util::PrivateWrapper<std::vector<std::size_t>> res;
+        std::size_t idx = 0;
+        while (true) {
+            std::size_t found = value.find(',', idx);
+            if (found == std::string::npos) {
+                res.val.push_back(parse(value.substr(idx)));
+                break;
+            }
+            res.val.push_back(parse(value.substr(idx, found - idx)));
+            idx = found + 1;
+        }
+        return res;
+    });
+
     try {
         program.parse_args(argc, argv);
     }
@@ -91,6 +125,8 @@ int main(int argc, char **argv) {
 #if ENABLE_PMUOI_FLAG
     app::Options::getMutableInstance().printMemoryUsageOutputIndex = program.get<std::size_t>("--print-memory-usage-output-index");
 #endif
+    app::Options::getMutableInstance().enableEmit = !program.get<bool>("--disable-emit");
+    app::Options::getMutableInstance().meterIndices = program.get<util::PrivateWrapper<std::vector<std::size_t>>>("--meter-indices").val;
 
     // Setup logger
     spdlog::set_default_logger(nullptr);

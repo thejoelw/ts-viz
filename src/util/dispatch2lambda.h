@@ -1,5 +1,6 @@
 #pragma once
 
+#include <assert.h>
 #include <utility>
 
 #include "util/tag.h"

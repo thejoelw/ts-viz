@@ -8,13 +8,13 @@ namespace app { class AppContext; }
 
 namespace stream {
 
+// An emitter should have getValue called with an incremental, monotonic argument.
+
 class SeriesEmitter {
 public:
-    SeriesEmitter(app::AppContext &context, const std::string &key)
+    SeriesEmitter(const std::string &key)
         : key(key)
-    {
-        (void) context;
-    }
+    {}
 
     virtual std::pair<bool, double> getValue(std::size_t index) = 0;
 

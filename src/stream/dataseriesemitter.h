@@ -8,8 +8,8 @@ namespace stream {
 template <typename ElementType>
 class DataSeriesEmitter : public SeriesEmitter {
 public:
-    DataSeriesEmitter(app::AppContext &context, const std::string &key, series::DataSeries<ElementType> *data)
-        : SeriesEmitter(context, key)
+    DataSeriesEmitter(const std::string &key, series::DataSeries<ElementType> *data)
+        : SeriesEmitter(key)
         , data(data)
         , chunkIndex(static_cast<std::size_t>(-1))
         , curChunk(series::ChunkPtr<ElementType>::null())

@@ -5,7 +5,7 @@
 #include "app/tickercontext.h"
 #include "program/programmanager.h"
 #include "stream/inputmanager.h"
-#include "stream/outputmanager.h"
+#include "stream/metricmanager.h"
 
 namespace app {
 
@@ -23,7 +23,7 @@ bool MainLoop::shouldRun() const {
     return false
             || context.get<program::ProgramManager>().isRunning()
             || context.get<stream::InputManager>().isRunning()
-            || context.get<stream::OutputManager>().isRunning();
+            || context.get<stream::MetricManager>().isRunning();
 }
 
 }

@@ -1,4 +1,4 @@
-#include "outputmanager.h"
+#include "emitmanager.h"
 
 #include <iostream>
 
@@ -16,29 +16,30 @@
 
 namespace stream {
 
-OutputManager::OutputManager(app::AppContext &context)
+EmitManager::EmitManager(app::AppContext &context)
     : TickableBase(context)
 {
     context.get<InputManager>();
+    assert(app::Options::getInstance().enableEmit);
 }
 
-OutputManager::~OutputManager() {
+EmitManager::~EmitManager() {
     emit();
 }
 
-void OutputManager::clearEmitters() {
-    emitters.clear();
+void EmitManager::clearEmitters() {
+    curEmitters.clear();
 }
 
-void OutputManager::addEmitter(SeriesEmitter *emitter) {
-    emitters.push_back(emitter);
+void EmitManager::addEmitter(SeriesEmitter *emitter) {
+    curEmitters.push_back(emitter);
 }
 
-void OutputManager::tick(app::TickerContext &tickerContext) {
+void EmitManager::tick(app::TickerContext &tickerContext) {
     (void) tickerContext;
 
     if (ENABLE_PMUOI_FLAG && app::Options::getInstance().printMemoryUsageOutputIndex != static_cast<std::size_t>(-1)) {
-        for (SeriesEmitter *emitter : emitters) {
+        for (SeriesEmitter *emitter : curEmitters) {
             emitter->getValue(app::Options::getInstance().printMemoryUsageOutputIndex);
         }
         SPDLOG_CRITICAL("Initialized all the emitters; memory usage is at {}", context.get<series::GarbageCollector>().getMemoryUsage());
@@ -48,7 +49,7 @@ void OutputManager::tick(app::TickerContext &tickerContext) {
     }
 }
 
-void OutputManager::emit() {
+void EmitManager::emit() {
     static thread_local rapidjson::StringBuffer buffer;
     static thread_local rapidjson::Writer<rapidjson::StringBuffer> writer;
 
@@ -59,7 +60,7 @@ void OutputManager::emit() {
 
         writer.StartObject();
 
-        for (SeriesEmitter *emitter : emitters) {
+        for (SeriesEmitter *emitter : curEmitters) {
             std::pair<bool, double> res = emitter->getValue(nextEmitIndex);
             if (!res.first) {
                 goto finishLoop;
@@ -81,11 +82,6 @@ void OutputManager::emit() {
         nextEmitIndex++;
     }
     finishLoop:;
-}
-
-bool OutputManager::isRunning() const {
-    assert(nextEmitIndex <= context.get<InputManager>().getIndex());
-    return nextEmitIndex < context.get<InputManager>().getIndex();
 }
 
 }

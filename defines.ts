@@ -44,6 +44,8 @@ export default (variant: string) => {
     ENABLE_FILEPOLLER_YIELDING:
       variant === 'qtc' || variant.match(/\btest\b/) ? 1 : 0, // Only used for tests; has a more predictable effect when multithreading is disabled
 
+    FILEPOLLER_TICK_TIMEOUT_MS: ENABLE_GRAPHICS ? 10 : 1000,
+
     ENABLE_PMUOI_FLAG: 1, // --print-memory-usage-output-index
 
     INPUT_SERIES_ELEMENT_TYPE: 'double',
