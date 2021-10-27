@@ -56,6 +56,8 @@ public:
 
     std::vector<std::size_t> meterIndices;
 
+    std::size_t maxFps = 0;
+
 private:
 //    std::unordered_multimap<std::string, std::function<void(const std::string &value)>> listeners;
 };

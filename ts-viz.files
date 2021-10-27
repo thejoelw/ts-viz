@@ -32,6 +32,7 @@ src/builder/random.cpp
 src/builder/scan.cpp
 src/builder/ternary.cpp
 src/builder/unary.cpp
+src/builder/var.cpp
 src/graphics/gl.cpp
 src/graphics/gl.h
 src/graphics/glbuffer.h
@@ -98,6 +99,9 @@ src/program/programmanager.cpp
 src/program/programmanager.h
 src/program/resolver.cpp
 src/program/resolver.h
+src/program/variable.h
+src/program/variablemanager.cpp
+src/program/variablemanager.h
 src/render/axes.cpp
 src/render/axes.h
 src/render/camera.cpp

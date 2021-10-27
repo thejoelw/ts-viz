@@ -106,6 +106,11 @@ int main(int argc, char **argv) {
         return res;
     });
 
+    program.add_argument("--max-fps")
+            .help("Cap frames per second at this value, or zero to disable")
+            .default_value(static_cast<std::size_t>(0))
+            .action([](const std::string& value) -> std::size_t { return std::stoull(value); });
+
     try {
         program.parse_args(argc, argv);
     }
@@ -127,6 +132,7 @@ int main(int argc, char **argv) {
 #endif
     app::Options::getMutableInstance().enableEmit = !program.get<bool>("--disable-emit");
     app::Options::getMutableInstance().meterIndices = program.get<util::PrivateWrapper<std::vector<std::size_t>>>("--meter-indices").val;
+    app::Options::getMutableInstance().maxFps = program.get<std::size_t>("--max-fps");
 
     // Setup logger
     spdlog::set_default_logger(nullptr);

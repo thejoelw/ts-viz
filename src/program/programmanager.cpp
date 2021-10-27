@@ -13,6 +13,7 @@
 #include "series/invalidparameterexception.h"
 #include "util/jsontostring.h"
 #include "app/options.h"
+#include "program/variablemanager.h"
 
 namespace program {
 
@@ -38,6 +39,8 @@ void ProgramManager::recvRecord(const rapidjson::Document &row) {
         return;
     }
 
+    context.get<VariableManager>().clearVariables();
+
     std::unordered_map<std::string, ProgObj> cache;
 
     for (rapidjson::SizeType i = 0; i < row.Size(); i++) {
@@ -52,6 +55,8 @@ void ProgramManager::recvRecord(const rapidjson::Document &row) {
                 context.get<stream::EmitManager>().addEmitter(std::get<stream::SeriesEmitter *>(obj));
             } else if (std::holds_alternative<stream::SeriesMetric *>(obj)) {
                 context.get<stream::MetricManager>().addMetric(std::get<stream::SeriesMetric *>(obj));
+            } else if (std::holds_alternative<Variable *>(obj)) {
+                context.get<VariableManager>().addVariable(std::get<Variable *>(obj));
             } else if (std::holds_alternative<std::monostate>(obj)) {
                 // Do nothing
             } else {

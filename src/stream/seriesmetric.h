@@ -2,10 +2,6 @@
 
 #include <string>
 
-#include "jw_util/baseexception.h"
-
-namespace app { class AppContext; }
-
 namespace stream {
 
 // A metric should have getValue called with a small number of values (possibly very distant).

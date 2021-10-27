@@ -15,9 +15,7 @@ namespace program {
 class ProgramManager {
 public:
     class InvalidProgramException : public jw_util::BaseException {
-        friend class ProgramManager;
-
-    private:
+    public:
         InvalidProgramException(const std::string &msg)
             : BaseException(msg)
         {}

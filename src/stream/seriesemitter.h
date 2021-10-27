@@ -2,10 +2,6 @@
 
 #include <string>
 
-#include "jw_util/baseexception.h"
-
-namespace app { class AppContext; }
-
 namespace stream {
 
 // An emitter should have getValue called with an incremental, monotonic argument.
