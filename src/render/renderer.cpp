@@ -38,6 +38,12 @@ void Renderer::addSeries(SeriesRenderer *renderer) {
     added.push_back(renderer);
 }
 
+void Renderer::updateTransform(float offset, float scale) {
+    for (SeriesRenderer *renderer : added) {
+        renderer->updateTransform(offset, scale);
+    }
+}
+
 void Renderer::tickOpen(app::TickerContext &tickerContext) {
     tickerContext.get<Camera::Ticker>();
 }

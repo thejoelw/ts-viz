@@ -37,6 +37,8 @@ private:
     glm::vec2 mousePosition;
     MouseRegion mouseRegion;
 
+    float rmbDownY = NAN;
+
     glm::vec2 min;
     glm::vec2 max;
 

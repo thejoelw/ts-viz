@@ -12,6 +12,8 @@ public:
 
     virtual void draw(std::size_t begin, std::size_t end, std::size_t stride) = 0;
 
+    virtual void updateTransform(float offset, float scale) {}
+
     const std::string &getName() const {
         return name;
     }

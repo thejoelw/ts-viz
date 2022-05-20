@@ -15,14 +15,16 @@ namespace render {
 template <typename ElementType>
 class DataSeriesRenderer : public SeriesRenderer {
 public:
-    DataSeriesRenderer(app::AppContext &context, const std::string &name, series::DataSeries<ElementType> *data, float r, float g, float b, float a)
+    DataSeriesRenderer(app::AppContext &context, const std::string &name, series::DataSeries<ElementType> *data, bool offset, float r, float g, float b, float a)
         : SeriesRenderer(context, name)
         , data(data)
 #if ENABLE_GRAPHICS
+        , originalOffset(offset)
         , remoteBuffer(GL_ARRAY_BUFFER, GL_STREAM_DRAW)
         , drawStyle(r, g, b, a, true)
 #endif
     {
+        (void) offset;
         (void) r;
         (void) g;
         (void) b;
@@ -30,6 +32,8 @@ public:
     }
 
     void draw(std::size_t begin, std::size_t end, std::size_t stride);
+
+    void updateTransform(float offset, float scale);
 
 #if ENABLE_GRAPHICS
     typename LineStripProgram<ElementType>::DrawStyle &getDrawStyle() {
@@ -41,6 +45,11 @@ private:
     series::DataSeries<ElementType> *data;
 
 #if ENABLE_GRAPHICS
+    bool originalOffset;
+    float offset = 0.0f;
+    float scale = 1.0f;
+    bool selected = false;
+
     graphics::GlVao vao;
     graphics::GlBuffer<ElementType> remoteBuffer;
 

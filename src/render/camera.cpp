@@ -7,6 +7,7 @@
 #include "render/imguirenderer.h"
 #include "app/window.h"
 #include "render/program/fillprogram.h"
+#include "render/renderer.h"
 
 namespace render {
 
@@ -46,6 +47,17 @@ void Camera::tickOpen(app::TickerContext &tickerContext) {
         delta *= (max - min) * glm::vec2(-0.5f, 0.5f);
         max += delta;
         min += delta;
+    }
+
+    if (window.isMouseButtonPressed(GLFW_MOUSE_BUTTON_RIGHT) && !ImGui::GetIO().WantCaptureMouse) {
+        float y = getMousePos().y;
+        if (std::isnan(rmbDownY)) {
+            rmbDownY = y;
+        }
+
+        tickerContext.getAppContext().get<Renderer>().updateTransform(rmbDownY, y - rmbDownY);
+    } else {
+        rmbDownY = NAN;
     }
 #endif
 

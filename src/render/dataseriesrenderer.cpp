@@ -1,5 +1,8 @@
 #include "defs/ENABLE_GRAPHICS.h"
 
+// TODO: Remove
+#include <iostream>
+
 #include "dataseriesrenderer.h"
 
 #if ENABLE_GRAPHICS
@@ -20,7 +23,7 @@ void DataSeriesRenderer<ElementType>::draw(std::size_t begin, std::size_t end, s
     for (std::size_t i = begin; i < end; i += stride) {
         series::ChunkPtr<ElementType> chunk = data->getChunk(i / CHUNK_SIZE);
         if (i % CHUNK_SIZE < chunk->getComputedCount()) {
-            sample.push_back(chunk->getElement(i % CHUNK_SIZE));
+            sample.push_back(chunk->getElement(i % CHUNK_SIZE) * scale + offset);
         } else {
             sample.push_back(NAN);
         }
@@ -83,6 +86,18 @@ void DataSeriesRenderer<ElementType>::draw(std::size_t begin, std::size_t end, s
 #endif
 }
 
+template <typename ElementType>
+void DataSeriesRenderer<ElementType>::updateTransform(float offset, float scale) {
+#if ENABLE_GRAPHICS
+    if (selected) {
+        this->offset = offset;
+        if (scale) {
+            this->scale = scale;
+        }
+    }
+#endif
+}
+
 #if ENABLE_GRAPHICS
 template <typename ElementType>
 typename DataSeriesRenderer<ElementType>::Actions DataSeriesRenderer<ElementType>::updateDrawStyle() {
@@ -105,13 +120,20 @@ typename DataSeriesRenderer<ElementType>::Actions DataSeriesRenderer<ElementType
         }
 
         std::string uuid = std::to_string(reinterpret_cast<std::uintptr_t>(this));
+
         ImGui::ColorEdit4(("color##" + uuid).data(), drawStyle.color, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel);
+
         ImGui::SameLine(32);
         ImGui::Text("%s", name.data());
-        ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - 90);
+
+        ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - 116);
         if (ImGui::Button(("y:" + (hasY ? std::to_string(y) : "?") + "##" + uuid).data(), ImVec2(90, 0))) {
             actions.fitY = true;
         }
+
+        ImGui::SameLine();
+        ImGui::GetStyle().Colors[ImGuiCol_FrameBg] = originalOffset ? ImVec4(0.16f, 0.29f, 0.48f, 0.54f) : ImVec4(0.40f, 0.55f, 0.75f, 0.54f);
+        ImGui::Checkbox(("selected##" + uuid).data(), &selected);
     }
     ImGui::End();
 
