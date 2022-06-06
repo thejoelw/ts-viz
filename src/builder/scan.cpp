@@ -42,7 +42,7 @@ template <typename RealType> struct FuncMonotonify {
 };
 
 template <typename RealType> struct FuncScanIf {
-    RealType operator()(RealType prev, RealType cond, RealType _else) const { return cond ? prev : _else; }
+    RealType operator()(RealType prev, RealType cond, RealType _else) const { return cond && std::isfinite(cond) ? prev : _else; }
 };
 
 template <template <typename> typename Operator> struct FuncSafeOp {

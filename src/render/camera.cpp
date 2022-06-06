@@ -42,20 +42,23 @@ void Camera::tickOpen(app::TickerContext &tickerContext) {
     }
 
 #if ENABLE_GUI
-    if (window.isMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT) && !ImGui::GetIO().WantCaptureMouse) {
+    bool swapButtons = window.isKeyPressed(GLFW_KEY_LEFT_CONTROL) || window.isKeyPressed(GLFW_KEY_RIGHT_CONTROL);
+    int buttonPan = swapButtons ? GLFW_MOUSE_BUTTON_RIGHT : GLFW_MOUSE_BUTTON_LEFT;
+    int buttonPlace = swapButtons ? GLFW_MOUSE_BUTTON_LEFT : GLFW_MOUSE_BUTTON_RIGHT;
+    if (window.isMouseButtonPressed(buttonPan) && !ImGui::GetIO().WantCaptureMouse) {
         glm::vec2 delta = mousePosition - prevMousePos;
         delta *= (max - min) * glm::vec2(-0.5f, 0.5f);
         max += delta;
         min += delta;
     }
 
-    if (window.isMouseButtonPressed(GLFW_MOUSE_BUTTON_RIGHT) && !ImGui::GetIO().WantCaptureMouse) {
+    if (window.isMouseButtonPressed(buttonPlace) && !ImGui::GetIO().WantCaptureMouse) {
         float y = getMousePos().y;
         if (std::isnan(rmbDownY)) {
             rmbDownY = y;
         }
 
-        tickerContext.getAppContext().get<Renderer>().updateTransform(rmbDownY, y - rmbDownY);
+        tickerContext.getAppContext().get<Renderer>().updateTransform(rmbDownY, std::fabs(y - rmbDownY));
     } else {
         rmbDownY = NAN;
     }

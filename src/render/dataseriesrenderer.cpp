@@ -104,7 +104,7 @@ typename DataSeriesRenderer<ElementType>::Actions DataSeriesRenderer<ElementType
     Actions actions;
 
     if (ImGui::Begin("Series")) {
-        float x = context.get<Camera>().getMousePos().x;
+        ElementType x = context.get<Camera>().getMousePos().x;
         ElementType y;
         bool hasY = false;
         if (x >= 0.0f) {
