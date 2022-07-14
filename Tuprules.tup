@@ -19,9 +19,6 @@ ifeq (@(BUILD_TYPE),debug)
 
     CFLAGS += -O0 -g -fdebug-prefix-map=`pwd`=`pwd | sed 's/\/\.tup\/.*//'`
 endif
-ifeq (@(BUILD_TYPE),release)
-    CFLAGS += -O3 -mcpu=apple-m1 -ffast-math -fno-finite-math-only -fvisibility=hidden -DNDEBUG
-endif
 
 ifeq (@(TUP_PLATFORM),macosx)
     CC = clang
@@ -29,6 +26,10 @@ ifeq (@(TUP_PLATFORM),macosx)
 
     CFLAGS += -stdlib=libc++ `pkg-config --cflags-only-I glfw3 glew fftw3 fftw3f fmt glm`
     LDFLAGS += -framework OpenGL `pkg-config --static --libs glfw3 glew fftw3 fftw3f fmt glm`
+
+    ifeq (@(BUILD_TYPE),release)
+        CFLAGS += -O3 -mcpu=apple-m1 -ffast-math -fno-finite-math-only -fvisibility=hidden -DNDEBUG
+    endif
 else
     CC = gcc
     CXX = g++
@@ -36,6 +37,10 @@ else
     CFLAGS += -Wno-psabi `pkg-config --cflags-only-I gl glfw3 glew fftw3 fftw3f fmt glm`
     LDFLAGS += `pkg-config --static --libs gl glfw3 glew fftw3 fftw3f fmt glm`
     LDFLAGS += -lpthread -latomic -lfftw3 -lfftw3f
+
+    ifeq (@(BUILD_TYPE),release)
+        CFLAGS += -O3 -march=native -ffast-math -fno-finite-math-only -fvisibility=hidden -DNDEBUG
+    endif
 endif
 
 !cpp = |> $(CXX) $(CFLAGS) $(CFLAGS_%f) -c %f -o %o |> %f.o $(ROOT)/<src_objects>
