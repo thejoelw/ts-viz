@@ -4,8 +4,8 @@
 
 template <typename RealType>
 void declPlot(app::AppContext &context, program::Resolver &resolver) {
-    resolver.decl("plot", [&context](const std::string &name, series::DataSeries<RealType> *s, bool offset, program::UncastNumber r, program::UncastNumber g, program::UncastNumber b, program::UncastNumber a) {
-        return new render::DataSeriesRenderer<RealType>(context, name, s, offset, r.value, g.value, b.value, a.value);
+    resolver.decl("plot", [&context](const std::string &name, series::DataSeries<RealType> *s, bool offset, bool enabled, program::UncastNumber r, program::UncastNumber g, program::UncastNumber b, program::UncastNumber a) {
+        return new render::DataSeriesRenderer<RealType>(context, name, s, offset, enabled, r.value, g.value, b.value, a.value);
     });
 }
 
