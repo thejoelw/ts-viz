@@ -111,6 +111,11 @@ int main(int argc, char **argv) {
             .default_value(static_cast<std::size_t>(0))
             .action([](const std::string& value) -> std::size_t { return std::stoull(value); });
 
+    program.add_argument("--dont-exit")
+            .help("Don't exit, even if the program pipe and data pipes end")
+            .default_value(false)
+            .implicit_value(true);
+
     try {
         program.parse_args(argc, argv);
     }
@@ -133,6 +138,7 @@ int main(int argc, char **argv) {
     app::Options::getMutableInstance().enableEmit = !program.get<bool>("--disable-emit");
     app::Options::getMutableInstance().meterIndices = program.get<util::PrivateWrapper<std::vector<std::size_t>>>("--meter-indices").val;
     app::Options::getMutableInstance().maxFps = program.get<std::size_t>("--max-fps");
+    app::Options::getMutableInstance().dontExit = program.get<bool>("--dont-exit");
 
     // Setup logger
     spdlog::set_default_logger(nullptr);
