@@ -34,9 +34,9 @@ else
     CC = gcc
     CXX = g++
 
-    CFLAGS += -Wno-psabi `pkg-config --cflags-only-I gl glfw3 glew fftw3 fftw3f fmt glm`
-    LDFLAGS += `pkg-config --static --libs gl glfw3 glew fftw3 fftw3f fmt glm`
-    LDFLAGS += -lpthread -latomic -lfftw3 -lfftw3f
+    CFLAGS += -Wno-psabi `pkg-config --cflags-only-I gl glfw3 glew fmt glm`
+    LDFLAGS += `pkg-config --static --libs gl glfw3 glew fmt glm`
+    LDFLAGS += -pthread -latomic -lfftw3 -lfftw3f
 
     ifeq (@(BUILD_TYPE),release)
         CFLAGS += -O3 -march=native -ffast-math -fno-finite-math-only -fvisibility=hidden -DNDEBUG
@@ -45,5 +45,5 @@ endif
 
 !cpp = |> $(CXX) $(CFLAGS) $(CFLAGS_%f) -c %f -o %o |> %f.o $(ROOT)/<src_objects>
 # !archive = |> ar rs %o |>
-!link = |> $(CXX) $(CFLAGS) $(LDFLAGS) -o %o %<src_objects> |> $(BIN_TARGET)
-!write_linker_cmd = |> echo "$(CXX) $(CFLAGS) $(LDFLAGS) -o $(BIN_TARGET) %<src_objects>" > %o |> link.sh
+!link = |> $(CXX) $(CFLAGS) -o %o %<src_objects> $(LDFLAGS) |> $(BIN_TARGET)
+!write_linker_cmd = |> echo "$(CXX) $(CFLAGS) -o $(BIN_TARGET) %<src_objects> $(LDFLAGS)" > %o |> link.sh
