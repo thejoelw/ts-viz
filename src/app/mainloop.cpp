@@ -36,6 +36,7 @@ void MainLoop::run() {
 
 bool MainLoop::shouldRun() const {
     return false
+            || app::Options::getInstance().dontExit
             || context.get<program::ProgramManager>().isRunning()
             || context.get<stream::InputManager>().isRunning()
             || context.get<stream::MetricManager>().isRunning();

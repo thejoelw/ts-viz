@@ -14,12 +14,8 @@
 *.gen.c
 *.gen.cpp
 
-/third_party/flatbuffers/
-/third_party/imgui/
-/third_party/readerwriterqueue/
-/third_party/spdlog/
-/third_party/Static-Sort/
-/third_party/THST/
+/third_party/*
+!/third_party/update.bash
 
 /program/
 

@@ -17,6 +17,12 @@ void DataSeriesRenderer<ElementType>::draw(std::size_t begin, std::size_t end, s
 #if ENABLE_GRAPHICS
     assert(begin <= end);
 
+    Actions actions = updateDrawStyle();
+
+    if (!enabled) {
+        return;
+    }
+
     static thread_local std::vector<ElementType> sample;
     sample.clear();
 
@@ -29,7 +35,6 @@ void DataSeriesRenderer<ElementType>::draw(std::size_t begin, std::size_t end, s
         }
     }
 
-    Actions actions = updateDrawStyle();
     if (actions.fitY) {
         ElementType min = std::numeric_limits<float>::infinity();
         ElementType max = -std::numeric_limits<float>::infinity();
@@ -121,19 +126,22 @@ typename DataSeriesRenderer<ElementType>::Actions DataSeriesRenderer<ElementType
 
         std::string uuid = std::to_string(reinterpret_cast<std::uintptr_t>(this));
 
-        ImGui::ColorEdit4(("color##" + uuid).data(), drawStyle.color, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel);
+        ImGui::Checkbox(("##enabled-" + uuid).data(), &enabled);
 
         ImGui::SameLine(32);
+        ImGui::ColorEdit4(("color##color-" + uuid).data(), drawStyle.color, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel);
+
+        ImGui::SameLine(56);
         ImGui::Text("%s", name.data());
 
         ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - 116);
-        if (ImGui::Button(("y:" + (hasY ? std::to_string(y) : "?") + "##" + uuid).data(), ImVec2(90, 0))) {
+        if (ImGui::Button(("y:" + (hasY ? std::to_string(y) : "?") + "##y-" + uuid).data(), ImVec2(90, 0))) {
             actions.fitY = true;
         }
 
         ImGui::SameLine();
         ImGui::GetStyle().Colors[ImGuiCol_FrameBg] = originalOffset ? ImVec4(0.16f, 0.29f, 0.48f, 0.54f) : ImVec4(0.40f, 0.55f, 0.75f, 0.54f);
-        ImGui::Checkbox(("selected##" + uuid).data(), &selected);
+        ImGui::Checkbox(("selected##selected-" + uuid).data(), &selected);
     }
     ImGui::End();
 

@@ -58,6 +58,8 @@ public:
 
     std::size_t maxFps = 0;
 
+    bool dontExit = false;
+
 private:
 //    std::unordered_multimap<std::string, std::function<void(const std::string &value)>> listeners;
 };
