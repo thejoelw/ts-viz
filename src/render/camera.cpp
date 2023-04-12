@@ -14,7 +14,7 @@ namespace render {
 Camera::Camera(app::AppContext &context)
     : TickableBase(context)
     , min(0.0f, 0.0f)
-    , max(100.0f, 10.0f)
+    , max(10000.0f, 20.0f)
     , offset(0.0f)
     , scale(0.01f)
     , remoteBuffer(GL_ARRAY_BUFFER, GL_STATIC_DRAW)

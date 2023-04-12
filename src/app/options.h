@@ -43,6 +43,7 @@ public:
 
     static void setInstance(Options newInstance);
 
+    std::string title;
     std::string wisdomDir;
     bool requireExistingWisdom = false;
     bool writeWisdom = true;

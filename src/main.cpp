@@ -35,6 +35,10 @@ int main(int argc, char **argv) {
             .help("The path to the data file or stream")
             .required();
 
+    program.add_argument("--title")
+            .help("The window title to show")
+            .default_value(std::string("ts-viz"));
+
     program.add_argument("--log-level")
             .help("Minimum logging level to output")
             .default_value(spdlog::level::info)
@@ -125,6 +129,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    app::Options::getMutableInstance().title = program.get<std::string>("--title");
     app::Options::getMutableInstance().wisdomDir = program.get<std::string>("--wisdom-dir");
     app::Options::getMutableInstance().requireExistingWisdom = program.get<bool>("--require-existing-wisdom");
     app::Options::getMutableInstance().writeWisdom = !program.get<bool>("--dont-write-wisdom");

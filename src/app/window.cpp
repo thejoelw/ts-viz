@@ -9,6 +9,7 @@
 #include "app/appcontext.h"
 #include "app/tickercontext.h"
 #include "app/quitexception.h"
+#include "app/options.h"
 
 namespace app {
 
@@ -39,7 +40,7 @@ Window::Window(AppContext &context)
 
     // Create GLFW window
     // http://www.glfw.org/docs/latest/window.html
-    glfwWindow = glfwCreateWindow(static_cast<int>(800), static_cast<int>(600), "Ts-Viz", nullptr, firstWindow);
+    glfwWindow = glfwCreateWindow(static_cast<int>(800), static_cast<int>(600), app::Options::getInstance().title.data(), nullptr, firstWindow);
     if (!glfwWindow) {
         throw Exception("glfwCreateWindow() error");
     }
