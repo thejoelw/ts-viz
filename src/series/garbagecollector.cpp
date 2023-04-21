@@ -45,48 +45,31 @@ void GarbageCollector::runGc() {
     std::size_t memoryLimit = app::Options::getInstance().gcMemoryLimit;
 
     if (prevUsage > memoryLimit) {
-        static thread_local unsigned int backoffCtr = 0;
-        static thread_local unsigned int backoffStart = 1;
-        if (backoffCtr--) {
-            return;
-        }
+        ChunkReleaseQueue queue;
 
-        ChunkIterator it;
-
-        for (std::pair<void (*)(void *, ChunkIterator &), void *> col : dsCollections) {
-            col.first(col.second, it);
+        for (std::pair<void (*)(void *, ChunkReleaseQueue &), void *> col : dsCollections) {
+            col.first(col.second, queue);
         }
 
         // Delete some extra stuff so we don't have to do this again soon
         memoryLimit = static_cast<std::uint64_t>(memoryLimit) * 15 / 16;
 
-        SPDLOG_DEBUG("Running GC; we have {} candidate chunks, trying to delete at least {} bytes", it.queue.size(), prevUsage - memoryLimit);
+        SPDLOG_DEBUG("Running GC; we have {} data series and {} candidate chunks, trying to delete at least {} bytes", dsCollections.size(), queue.size(), prevUsage - memoryLimit);
 
         unsigned int deleted = 0;
-        while (!it.queue.empty() && memoryUsage > memoryLimit) {
+        while (!queue.empty() && memoryUsage > memoryLimit) {
             // TODO: What happens if a chunk is running while this tries to delete it?
             // We could just increment the ref counter while it's running, but that's not atomic. Actually it is.
-            // We could only decrement the counter when the chunk finishes computing, but them we can't delete in-progress chunks.
-            *it.queue.top() = ChunkPtrBase::null();
-            it.queue.pop();
+            // We could only decrement the counter when the chunk finishes computing, but then we can't delete in-progress chunks.
+
+            const ChunkAddress &addr = queue.top();
+            SPDLOG_DEBUG("Deleting chunk with access time {}", addr.lastAccess);
+            addr.release(addr.ds, addr.index);
+            queue.pop();
             deleted++;
         }
 
         SPDLOG_DEBUG("Finished GC; deleted {} chunks, and {} bytes", deleted, prevUsage - memoryUsage);
-
-        if (deleted) {
-            backoffCtr = 0;
-            backoffStart /= 2;
-            if (backoffStart < 1) {
-                backoffStart = 1;
-            }
-        } else {
-            backoffCtr = backoffStart;
-            backoffStart *= 2;
-            if (backoffStart > 65536) {
-                backoffStart = 65536;
-            }
-        }
     }
 }
 

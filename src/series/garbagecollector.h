@@ -5,27 +5,25 @@
 #include "app/tickercontext.h"
 #include "series/chunkbase.h"
 
+// TODO: Remove
+#include "log.h"
+#include "series/dataseriesbase.h"
+
 namespace series {
 
 class GarbageCollector : public app::TickerContext::TickableBase<GarbageCollector> {
 private:
-    struct ChunkIterator {
-        ChunkIterator()
-            : queue(&cmp)
-        {}
+    struct ChunkAddress {
+        unsigned int lastAccess;
+        void *ds;
+        std::size_t index;
+        void (*release)(void *ds, std::size_t index);
 
-        void operator()(ChunkPtrBase &ptr) {
-            if (ptr->refCount() == 1) {
-                queue.push(&ptr);
-            }
+        bool operator<(const ChunkAddress &other) const {
+            return lastAccess > other.lastAccess;
         }
-
-        static bool cmp(ChunkPtrBase *a, ChunkPtrBase *b) {
-            // TODO: Fix subtraction when values are very large and one overflows
-            return (*a)->getLastAccess() > (*b)->getLastAccess();
-        }
-        std::priority_queue<ChunkPtrBase *, std::vector<ChunkPtrBase *>, bool (*)(ChunkPtrBase *, ChunkPtrBase *)> queue;
     };
+    typedef std::priority_queue<ChunkAddress> ChunkReleaseQueue;
 
 public:
     GarbageCollector(app::AppContext &context);
@@ -38,7 +36,7 @@ public:
     }
     template <typename DataSeriesType>
     void unregisterDataSeries(DataSeriesType *ds) {
-        std::vector<std::pair<void (*)(void *, ChunkIterator &), void *>>::iterator pos = std::find(dsCollections.begin(), dsCollections.end(), makeNeedle<DataSeriesType>(ds));
+        std::vector<std::pair<void (*)(void *, ChunkReleaseQueue &), void *>>::iterator pos = std::find(dsCollections.begin(), dsCollections.end(), makeNeedle<DataSeriesType>(ds));
         assert(pos != dsCollections.end());
 
         // TODO: Make sure we're not iterating
@@ -63,18 +61,33 @@ private:
 
     std::size_t memoryUsage = 0;
 
-    std::vector<std::pair<void (*)(void *, ChunkIterator &), void *>> dsCollections;
+    std::vector<std::pair<void (*)(void *, ChunkReleaseQueue &), void *>> dsCollections;
 
     void runGc();
 
     template <typename DataSeriesType>
-    static std::pair<void (*)(void *, ChunkIterator &), void *> makeNeedle(DataSeriesType *ds) {
-        return std::pair<void (*)(void *, ChunkIterator &), void *>(&callForeachChunk<DataSeriesType>, static_cast<void *>(ds));
+    static std::pair<void (*)(void *, ChunkReleaseQueue &), void *> makeNeedle(DataSeriesType *ds) {
+        return std::pair<void (*)(void *, ChunkReleaseQueue &), void *>(&callForeachChunk<DataSeriesType>, static_cast<void *>(ds));
     }
 
     template <typename DataSeriesType>
-    static void callForeachChunk(void *ds, ChunkIterator &it) {
-        static_cast<DataSeriesType *>(ds)->template foreachChunk<ChunkIterator &>(it);
+    static void callForeachChunk(void *ds, ChunkReleaseQueue &queue) {
+        const auto &chunks = static_cast<DataSeriesType *>(ds)->getChunks();
+        for (std::size_t i = 0; i < chunks.size(); i++) {
+            if (chunks[i].has()) {
+                ChunkAddress addr;
+                addr.lastAccess = chunks[i]->getLastAccess();
+                addr.ds = ds;
+                addr.index = i;
+                addr.release = &chunkReleaser<DataSeriesType>;
+                queue.push(addr);
+            }
+        }
+    }
+
+    template <typename DataSeriesType>
+    static void chunkReleaser(void *ds, std::size_t index) {
+        static_cast<DataSeriesType *>(ds)->releaseChunk(index);
     }
 };
 

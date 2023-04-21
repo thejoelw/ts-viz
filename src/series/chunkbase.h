@@ -30,9 +30,13 @@ public:
     void setName(std::string newName) {
         name = std::move(newName);
     }
+    const std::string &getName() const {
+        return name;
+    }
 #endif
 
     void addDependent(ChunkPtrBase dep);
+    void removeDependent(ChunkBase *chunk);
 
 #if ENABLE_CHUNK_MULTITHREADING
     std::chrono::duration<float> getOrdering() const;
@@ -49,7 +53,10 @@ public:
 
     void incRefs();
     void decRefs();
-    unsigned int refCount() const;
+
+    DataSeriesBase *getDataSeries() const {
+        return ds;
+    }
 
 protected:
     DataSeriesBase *ds;

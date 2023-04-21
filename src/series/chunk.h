@@ -1,16 +1,16 @@
 #pragma once
 
 #include "defs/ENABLE_CHUNK_MULTITHREADING.h"
-#include "defs/ENABLE_CHUNK_NAMES.h"
+#include "defs/ENABLE_NOTIFICATION_TRACING.h"
 
 #if ENABLE_CHUNK_MULTITHREADING
 #include <mutex>
 #endif
 
-#if ENABLE_CHUNK_NAMES
+#if ENABLE_NOTIFICATION_TRACING
 #include "log.h"
 #ifdef NDEBUG
-    static_assert(false, "Should not have ENABLE_CHUNK_NAMES enabled in release variant!");
+    static_assert(false, "Should not have ENABLE_NOTIFICATION_TRACING enabled in release variant!");
 #endif
 #endif
 
@@ -53,7 +53,7 @@ public:
         // Set this first so the dependents we notify know what we've computed.
         computedCount = count;
 
-#if ENABLE_CHUNK_NAMES
+#if ENABLE_NOTIFICATION_TRACING
         SPDLOG_TRACE(getIndentation(0) + "count: {} -> {}", prevCount, count);
 #endif
 
@@ -75,7 +75,7 @@ public:
                     releaseComputer();
                 }
 
-#if ENABLE_CHUNK_NAMES
+#if ENABLE_NOTIFICATION_TRACING
                 SPDLOG_TRACE(getIndentation(2) + "notifying dependents: {{");
 #endif
 
@@ -107,7 +107,7 @@ public:
                 }
 #endif
 
-#if ENABLE_CHUNK_NAMES
+#if ENABLE_NOTIFICATION_TRACING
                 SPDLOG_TRACE(getIndentation(-2) + "}} // notifying dependents");
 #endif
             }

@@ -21,6 +21,8 @@ namespace series {
 
 thread_local std::vector<ChunkBase *> DataSeriesBase::dependencyStack;
 
+thread_local bool DataSeriesBase::dryConstruct = false;
+
 DataSeriesBase::DataSeriesBase(app::AppContext &context)
     : context(context)
 #if ENABLE_CHUNK_MULTITHREADING

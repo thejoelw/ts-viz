@@ -35,26 +35,16 @@ public:
         // assert(false);
     }
 
-#if ENABLE_CHUNK_NAMES
-    void setName(std::string newName) {
-        name = std::move(newName);
-    }
-#endif
-
-    template <typename FuncType>
-    void foreachChunk(FuncType func) {
-        for (ChunkPtr<ElementType, size> &chunk : chunks) {
-            if (chunk.has()) {
-                func(chunk);
-            }
-        }
-    }
-
     template <std::size_t desiredSize = CHUNK_SIZE>
     ChunkPtr<ElementType, size> getChunk(std::size_t chunkIndex) {
         static_assert(size == desiredSize, "DataSeries chunk size doesn't match desired size");
 
         jw_util::Thread::assert_main_thread();
+
+        if (dryConstruct) {
+            getDependencyStack().push_back(chunks[chunkIndex].operator->());
+            return ChunkPtr<ElementType, size>::null();
+        }
 
         while (chunks.size() <= chunkIndex) {
             chunks.emplace_back(ChunkPtr<ElementType, size>::null());
@@ -80,21 +70,51 @@ public:
         return chunks[chunkIndex].clone();
     }
 
+    void releaseChunk(std::size_t chunkIndex) {
+        assert(chunkIndex < chunks.size());
+        assert(chunks[chunkIndex].has());
+
+        jw_util::Thread::assert_main_thread();
+
+        std::size_t depStackSize = getDependencyStack().size();
+
+        assert(dryConstruct == false);
+        dryConstruct = true;
+
+        Chunk<ElementType, size> *chunk = makeChunk(chunkIndex);
+        assert(chunk == 0);
+
+        assert(dryConstruct == true);
+        dryConstruct = false;
+
+        assert(getDependencyStack().size() >= depStackSize);
+        while (getDependencyStack().size() > depStackSize) {
+            getDependencyStack().back()->removeDependent(chunks[chunkIndex].operator->());
+            getDependencyStack().pop_back();
+        }
+
+        chunks[chunkIndex] = ChunkPtr<ElementType, size>::null();
+    }
+
     virtual Chunk<ElementType, size> *makeChunk(std::size_t chunkIndex) = 0;
+
+    const std::vector<ChunkPtr<ElementType, size>> &getChunks() const {
+        return chunks;
+    }
 
 protected:
     template <typename ComputerType>
     Chunk<ElementType, size> *constructChunk(ComputerType &&computer) {
-        return new ChunkImpl<ElementType, size, ComputerType>(this, std::move(computer));
+        if (dryConstruct) {
+            return 0;
+        } else {
+            return new ChunkImpl<ElementType, size, ComputerType>(this, std::move(computer));
+        }
     }
 
 private:
 //    std::uint64_t offset = 0;
     std::vector<ChunkPtr<ElementType, size>> chunks;
-
-#if ENABLE_CHUNK_NAMES
-    std::string name = "nameless";
-#endif
 };
 
 }

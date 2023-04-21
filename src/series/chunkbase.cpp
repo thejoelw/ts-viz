@@ -6,8 +6,9 @@
 #include "series/garbagecollector.h"
 
 #include "defs/ENABLE_CHUNK_MULTITHREADING.h"
+#include "defs/ENABLE_NOTIFICATION_TRACING.h"
 
-#if ENABLE_CHUNK_NAMES
+#if ENABLE_NOTIFICATION_TRACING
 #include "log.h"
 #endif
 
@@ -40,6 +41,25 @@ void ChunkBase::addDependent(ChunkPtrBase dep) {
     dependents.push_back(std::move(dep));
 }
 
+void ChunkBase::removeDependent(ChunkBase *chunk) {
+    jw_util::Thread::assert_main_thread();
+
+#if ENABLE_CHUNK_MULTITHREADING
+    std::lock_guard<util::SpinLock> lock(mutex);
+#endif
+
+    for (std::vector<ChunkPtrBase>::iterator i = dependents.begin(); i != dependents.end(); i++) {
+        if (i->operator->() == chunk) {
+            *i = std::move(dependents.back());
+            dependents.pop_back();
+            return;
+        }
+    }
+
+    // If this triggers, the dependent doesn't exist. This might mean chunk construction isn't deterministic.
+    assert(false);
+}
+
 #if ENABLE_CHUNK_MULTITHREADING
 std::chrono::duration<float> ChunkBase::getOrdering() const {
     return getCriticalPathDuration();
@@ -60,24 +80,24 @@ std::chrono::duration<float> ChunkBase::getCriticalPathDuration() const {
 #endif
 
 void ChunkBase::notify() {
-#if ENABLE_CHUNK_NAMES
+#if ENABLE_NOTIFICATION_TRACING
     SPDLOG_TRACE(getIndentation(2) + "{}.notify() {{", name);
 #endif
 
 #if ENABLE_CHUNK_MULTITHREADING
     unsigned int n = notifies++;
-#if ENABLE_CHUNK_NAMES
+#if ENABLE_NOTIFICATION_TRACING
     SPDLOG_TRACE(getIndentation(0) + "previousNotifies: {}", n);
 #endif
 
     if (n == 0) {
-#if ENABLE_CHUNK_NAMES
+#if ENABLE_NOTIFICATION_TRACING
         SPDLOG_TRACE(getIndentation(0) + "isDone: {}", isDone());
 #endif
         if (!isDone()) {
             static constexpr std::chrono::duration<float> taskLengthThreshold = std::chrono::microseconds(20);
             bool runInThread = ds->getAvgRunDuration() > taskLengthThreshold;
-#if ENABLE_CHUNK_NAMES
+#if ENABLE_NOTIFICATION_TRACING
             SPDLOG_TRACE(getIndentation(0) + "runInThread: {}", runInThread);
 #endif
             if (runInThread) {
@@ -88,7 +108,7 @@ void ChunkBase::notify() {
         }
     }
 #else
-#if ENABLE_CHUNK_NAMES
+#if ENABLE_NOTIFICATION_TRACING
     SPDLOG_TRACE(getIndentation(0) + "isDone: {}", isDone());
 #endif
     if (!isDone()) {
@@ -96,7 +116,7 @@ void ChunkBase::notify() {
     }
 #endif
 
-#if ENABLE_CHUNK_NAMES
+#if ENABLE_NOTIFICATION_TRACING
     SPDLOG_TRACE(getIndentation(-2) + "}} // {}.notify()", name);
 #endif
 }
@@ -110,15 +130,13 @@ unsigned int ChunkBase::getLastAccess() const {
 
 void ChunkBase::incRefs() {
     refs++;
+    recordAccess();
 }
 void ChunkBase::decRefs() {
-    switch (--refs) {
-        case 0: delete this; break;
-        case 1: recordAccess(); break;
+    assert(refs > 0);
+    if (--refs == 0) {
+        delete this;
     }
-}
-unsigned int ChunkBase::refCount() const {
-    return refs;
 }
 
 void ChunkBase::updateMemoryUsage(std::make_signed<std::size_t>::type inc) {

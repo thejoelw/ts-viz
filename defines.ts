@@ -39,6 +39,7 @@ export default (variant: string) => {
 
     PRINT_TICK_ORDER: '!defined(NDEBUG) && 0', // Also requires SPDLOG_ACTIVE_LEVEL to be 'SPDLOG_LEVEL_TRACE' and --log-level trace
     ENABLE_CHUNK_NAMES: '!defined(NDEBUG) && 1', // Also requires SPDLOG_ACTIVE_LEVEL to be 'SPDLOG_LEVEL_TRACE' and --log-level trace
+    ENABLE_NOTIFICATION_TRACING: '!defined(NDEBUG) && 0', // Requires ENABLE_CHUNK_NAMES; also requires SPDLOG_ACTIVE_LEVEL to be 'SPDLOG_LEVEL_TRACE' and --log-level trace
 
     ENABLE_CHUNK_MULTITHREADING: 0,
     ENABLE_FILEPOLLER_YIELDING:
