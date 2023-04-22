@@ -94,7 +94,7 @@ void DataSeriesRenderer<ElementType>::draw(std::size_t begin, std::size_t end, s
 template <typename ElementType>
 void DataSeriesRenderer<ElementType>::updateTransform(float offset, float scale) {
 #if ENABLE_GRAPHICS
-    if (selected) {
+    if (isSelected()) {
         this->offset = offset;
         if (scale) {
             this->scale = scale;
@@ -141,11 +141,16 @@ typename DataSeriesRenderer<ElementType>::Actions DataSeriesRenderer<ElementType
 
         ImGui::SameLine();
         ImGui::GetStyle().Colors[ImGuiCol_FrameBg] = originalOffset ? ImVec4(0.16f, 0.29f, 0.48f, 0.54f) : ImVec4(0.40f, 0.55f, 0.75f, 0.54f);
-        ImGui::Checkbox(("selected##selected-" + uuid).data(), &selected);
+        ImGui::Checkbox(("selected##selected-" + uuid).data(), &isSelected());
     }
     ImGui::End();
 
     return actions;
+}
+
+template <typename ElementType>
+bool &DataSeriesRenderer<ElementType>::isSelected() const {
+    return context.get<SelectionRegistry>().registry[tag];
 }
 #endif
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <unordered_map>
+
 #include "render/seriesrenderer.h"
 #include "series/dataseries.h"
 
@@ -14,6 +16,13 @@ namespace render {
 
 template <typename ElementType>
 class DataSeriesRenderer : public SeriesRenderer {
+private:
+    struct SelectionRegistry {
+        SelectionRegistry(app::AppContext &context) {}
+
+        std::unordered_map<std::string, bool> registry;
+    };
+
 public:
     DataSeriesRenderer(app::AppContext &context, const std::string &name, series::DataSeries<ElementType> *data, bool offset, bool enabled, float r, float g, float b, float a)
         : SeriesRenderer(context, name)
@@ -25,11 +34,12 @@ public:
         , drawStyle(r, g, b, a, true)
 #endif
     {
-        (void) offset;
-        (void) r;
-        (void) g;
-        (void) b;
-        (void) a;
+        std::size_t pos = name.find('#');
+        if (pos == std::string::npos) {
+            tag = name;
+        } else {
+            tag = name.substr(pos + 1);
+        }
     }
 
     void draw(std::size_t begin, std::size_t end, std::size_t stride);
@@ -48,10 +58,11 @@ private:
 #if ENABLE_GRAPHICS
     bool enabled;
 
+    std::string tag;
+
     bool originalOffset;
     float offset = 0.0f;
     float scale = 1.0f;
-    bool selected = false;
 
     graphics::GlVao vao;
     graphics::GlBuffer<ElementType> remoteBuffer;
@@ -63,6 +74,8 @@ private:
         bool fitY = false;
     };
     Actions updateDrawStyle();
+
+    bool &isSelected() const;
 #endif
 };
 
