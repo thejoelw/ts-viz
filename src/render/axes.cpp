@@ -22,6 +22,10 @@ void Axes::tickOpen(app::TickerContext &tickerContext) {
 }
 
 void Axes::tickClose(app::TickerContext &tickerContext) {
+    if (!tickerContext.getAppContext().get<app::Window>().shouldRender()) {
+        return;
+    }
+
     static constexpr std::uint32_t axisColor = 0x44000000;
     static constexpr std::uint32_t textColor = 0x88000000;
 

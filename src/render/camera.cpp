@@ -25,12 +25,17 @@ Camera::Camera(app::AppContext &context)
 void Camera::tickOpen(app::TickerContext &tickerContext) {
     tickerContext.get<ImguiRenderer::Ticker>();
 
-    glm::vec2 prevMousePos = mousePosition;
+    if (!tickerContext.getAppContext().get<app::Window>().shouldRender()) {
+        validMousePos = false;
+        return;
+    }
 
     app::Window &window = context.get<app::Window>();
-    app::Window::MousePosition mp = window.getMousePosition();
-    mousePosition.x = 4.0 * mp.x / window.dimensions.width - 1.0;
-    mousePosition.y = 4.0 * mp.y / window.dimensions.height - 1.0;
+
+    glm::vec2 mp = window.getMousePosition();
+    glm::vec2 mouseDelta = validMousePos ? mp - mousePosition : glm::vec2(0.0f, 0.0f);
+    mousePosition = mp;
+    validMousePos = true;
 
     glm::vec2 delta = computeDelta();
     mouseRegion = computeMouseRegion();
@@ -48,10 +53,9 @@ void Camera::tickOpen(app::TickerContext &tickerContext) {
     int buttonPan = swapButtons ? GLFW_MOUSE_BUTTON_RIGHT : GLFW_MOUSE_BUTTON_LEFT;
     int buttonPlace = swapButtons ? GLFW_MOUSE_BUTTON_LEFT : GLFW_MOUSE_BUTTON_RIGHT;
     if (window.isMouseButtonPressed(buttonPan) && !ImGui::GetIO().WantCaptureMouse) {
-        glm::vec2 delta = mousePosition - prevMousePos;
-        delta *= (max - min) * glm::vec2(-0.5f, 0.5f);
-        max += delta;
-        min += delta;
+        mouseDelta *= (max - min) * glm::vec2(-0.5f, 0.5f);
+        max += mouseDelta;
+        min += mouseDelta;
     }
 
     if (window.isMouseButtonPressed(buttonPlace) && !ImGui::GetIO().WantCaptureMouse) {
@@ -81,6 +85,10 @@ void Camera::tickOpen(app::TickerContext &tickerContext) {
 }
 
 void Camera::tickClose(app::TickerContext &tickerContext) {
+    if (!tickerContext.getAppContext().get<app::Window>().shouldRender()) {
+        return;
+    }
+
     static constexpr std::uint32_t axisColor = 0x88000000;
 
     drawMouseRegion();

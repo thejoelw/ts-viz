@@ -97,30 +97,40 @@ void Window::tick(TickerContext &tickerContext) {
 }
 
 void Window::updateFrame() {
-    glFlush();
+    if (shouldRender()) {
+        glFlush();
 #if ENABLE_GUI
-    glfwSwapBuffers(glfwWindow);
+        glfwSwapBuffers(glfwWindow);
 #endif
+    }
 }
 
 void Window::pollEvents() {
 #if ENABLE_GUI
     glfwPollEvents();
 
-    Dimensions newDims;
-    glfwGetFramebufferSize(glfwWindow, &newDims.width, &newDims.height);
+    needsRender = glfwGetWindowAttrib(glfwWindow, GLFW_FOCUSED);
 
-    if (newDims != dimensions) {
-        SPDLOG_DEBUG("Resizing to {} x {}", newDims.width, newDims.height);
-        glViewport(0, 0, newDims.width, newDims.height);
+    if (shouldRender()) {
+        Dimensions newDims;
+        glfwGetFramebufferSize(glfwWindow, &newDims.width, &newDims.height);
 
-        dimensions = newDims;
+        if (newDims != dimensions) {
+            SPDLOG_DEBUG("Resizing to {} x {}", newDims.width, newDims.height);
+            glViewport(0, 0, newDims.width, newDims.height);
+
+            dimensions = newDims;
+        }
     }
 #endif
 
     if (shouldClose()) {
         throw QuitException();
     }
+}
+
+bool Window::shouldRender() const {
+    return needsRender;
 }
 
 bool Window::shouldClose() const {
@@ -147,15 +157,15 @@ bool Window::isMouseButtonPressed(int mouseButton) const {
 #endif
 }
 
-Window::MousePosition Window::getMousePosition() const {
-    MousePosition pos;
+glm::vec2 Window::getMousePosition() const {
 #if ENABLE_GUI
-    glfwGetCursorPos(glfwWindow, &pos.x, &pos.y);
+    double x;
+    double y;
+    glfwGetCursorPos(glfwWindow, &x, &y);
+    return glm::vec2(4.0 * x / dimensions.width - 1.0, 4.0 * y / dimensions.height - 1.0);
 #else
-    pos.x = 0.0;
-    pos.y = 0.0;
+    return glm::vec2(0.0f, 0.0f);
 #endif
-    return pos;
 }
 
 void Window::setMouseVisible(bool visible) {

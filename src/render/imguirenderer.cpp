@@ -3,6 +3,7 @@
 
 #include "imguirenderer.h"
 
+#include "app/window.h"
 #include "graphics/imgui.h"
 #include "imgui/backends/imgui_impl_glfw.h"
 #include "imgui/backends/imgui_impl_opengl3.h"
@@ -67,6 +68,10 @@ void ImguiRenderer::tickOpen(app::TickerContext &tickerContext) {
 #if ENABLE_GUI
     tickerContext.get<app::Window::Ticker>();
 
+    if (!tickerContext.getAppContext().get<app::Window>().shouldRender()) {
+        return;
+    }
+
     // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
     // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application.
     // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
@@ -79,6 +84,10 @@ void ImguiRenderer::tickOpen(app::TickerContext &tickerContext) {
 
 void ImguiRenderer::tickClose(app::TickerContext &tickerContext) {
 #if ENABLE_GUI
+    if (!tickerContext.getAppContext().get<app::Window>().shouldRender()) {
+        return;
+    }
+
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 #endif

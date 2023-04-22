@@ -34,6 +34,7 @@ public:
 private:
     static constexpr float mouseRegionSize = 0.2f;
 
+    bool validMousePos = false;
     glm::vec2 mousePosition;
     MouseRegion mouseRegion;
 

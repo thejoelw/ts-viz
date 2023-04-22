@@ -3,6 +3,7 @@
 
 #include "renderer.h"
 
+#include "app/window.h"
 #include "render/program/linestripprogram.h"
 #include "render/camera.h"
 #include "render/axes.h"
@@ -45,11 +46,13 @@ void Renderer::updateTransform(float offset, float scale) {
 }
 
 void Renderer::tickOpen(app::TickerContext &tickerContext) {
-    tickerContext.get<Camera::Ticker>();
+    tickerContext.get<Camera::Ticker>();    
 }
 
 void Renderer::tickClose(app::TickerContext &tickerContext) {
-    (void) tickerContext;
+    if (!tickerContext.getAppContext().get<app::Window>().shouldRender()) {
+        return;
+    }
 
     glClear(GL_COLOR_BUFFER_BIT);
 

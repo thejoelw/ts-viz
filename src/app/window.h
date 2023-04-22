@@ -7,6 +7,8 @@
 
 #include "app/tickercontext.h"
 #include "graphics/gl.h"
+#include "graphics/glm.h"
+#include <glm/vec2.hpp>
 
 struct GLFWwindow;
 
@@ -50,20 +52,6 @@ public:
         signed int mods;
     };
 
-    struct ScrollEvent {
-
-    };
-
-    struct MousePosition {
-        double x;
-        double y;
-    };
-
-    struct MouseMoveEvent {
-        double x;
-        double y;
-    };
-
     Window(AppContext &context);
     ~Window();
 
@@ -73,10 +61,11 @@ public:
     void updateFrame();
     void pollEvents();
 
+    bool shouldRender() const;
     bool shouldClose() const;
     bool isKeyPressed(int key) const;
     bool isMouseButtonPressed(int mouseButton) const;
-    MousePosition getMousePosition() const;
+    glm::vec2 getMousePosition() const;
 
     void setMouseVisible(bool visible);
 
@@ -87,6 +76,8 @@ public:
 private:
     static GLFWwindow *firstWindow;
     GLFWwindow *glfwWindow = nullptr;
+
+    bool needsRender = ENABLE_GUI;
 
     static void errorCallback(int code, const char *str);
     static void mouseMoveCallback(GLFWwindow *glfwWindow, double x, double y);
