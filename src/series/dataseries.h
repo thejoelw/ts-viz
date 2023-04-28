@@ -23,16 +23,15 @@ public:
         : DataSeriesBase(context)
     {
         jw_util::Thread::set_main_thread();
-
-        if (isTransient) {
-            context.get<GarbageCollector>().registerDataSeries(this);
-        }
+        context.get<GarbageCollector>().registerDataSeries(this);
     }
 
     ~DataSeries() {
-	// This is being destructed when an exception is thrown from the constructor.
-	// TODO: Figure out how to catch bad destructions.
+        // This is being destructed when an exception is thrown from the constructor.
+        // TODO: Figure out how to catch bad destructions.
         // assert(false);
+
+        context.get<GarbageCollector>().unregisterDataSeries(this);
     }
 
     template <std::size_t desiredSize = CHUNK_SIZE>
@@ -102,6 +101,10 @@ public:
         return chunks;
     }
 
+    bool getIsTransient() const {
+        return isTransient;
+    }
+
 protected:
     template <typename ComputerType>
     Chunk<ElementType, size> *constructChunk(ComputerType &&computer) {
@@ -115,6 +118,8 @@ protected:
 private:
 //    std::uint64_t offset = 0;
     std::vector<ChunkPtr<ElementType, size>> chunks;
+
+    bool isTransient;
 };
 
 }

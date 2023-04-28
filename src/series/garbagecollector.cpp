@@ -1,6 +1,7 @@
 #include "garbagecollector.h"
 
 #include "app/options.h"
+#include "program/programmanager.h"
 #include "series/chunkbase.h"
 #include "log.h"
 
@@ -47,8 +48,11 @@ void GarbageCollector::runGc() {
     if (prevUsage > memoryLimit) {
         ChunkReleaseQueue queue;
 
-        for (std::pair<void (*)(void *, ChunkReleaseQueue &), void *> col : dsCollections) {
-            col.first(col.second, queue);
+        // If we're not going to get any more novel programs, we can assume unreferenced inputs won't be referenced again
+        bool canReleaseInputs = !context.get<program::ProgramManager>().isRunning();
+
+        for (std::pair<void (*)(void *, ChunkReleaseQueue &, bool), void *> col : dsCollections) {
+            col.first(col.second, queue, canReleaseInputs);
         }
 
         // Delete some extra stuff so we don't have to do this again soon
@@ -64,7 +68,7 @@ void GarbageCollector::runGc() {
 
             const ChunkAddress &addr = queue.top();
             SPDLOG_DEBUG("Deleting chunk with access time {}", addr.lastAccess);
-            addr.release(addr.ds, addr.index);
+            addr.release(addr.dsPtr, addr.index);
             queue.pop();
             deleted++;
         }

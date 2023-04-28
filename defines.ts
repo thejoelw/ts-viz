@@ -4,8 +4,9 @@ export default (variant: string) => {
   const CHUNK_SIZE_LOG2 =
     (
       {
-        release: 20,
-        'release-headless': 20,
+        // Not sure why it crashes when we set this to 20
+        release: 16,
+        'release-headless': 16,
         debug: 16,
         'debug-headless': 16,
         qtc: 16,
