@@ -34,12 +34,14 @@ public:
         , drawStyle(r, g, b, a, true)
 #endif
     {
+#if ENABLE_GRAPHICS
         std::size_t pos = name.find('#');
         if (pos == std::string::npos) {
             tag = name;
         } else {
             tag = name.substr(pos + 1);
         }
+#endif
     }
 
     void draw(std::size_t begin, std::size_t end, std::size_t stride);
