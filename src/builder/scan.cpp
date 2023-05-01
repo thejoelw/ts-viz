@@ -41,6 +41,20 @@ template <typename RealType> struct FuncMonotonify {
     RealType operator()(RealType a, RealType b) const { return std::max(a, b); }
 };
 
+template <typename RealType> struct FuncSlowPassZero {
+    static constexpr RealType zero = static_cast<RealType>(0.0);
+    static constexpr RealType one = static_cast<RealType>(1.0);
+    RealType operator()(RealType a, RealType b) const {
+        if (a < zero) {
+            return a < -one ? a + one : b > zero ? b : a;
+        } else if (a > zero) {
+            return a > one ? a - one : b < zero ? b : a;
+        } else {
+            return b;
+        }
+    }
+};
+
 template <typename RealType> struct FuncScanIf {
     RealType operator()(RealType prev, RealType cond, RealType _else) const { return cond && std::isfinite(cond) ? prev : _else; }
 };
@@ -107,6 +121,7 @@ static int _ = program::Resolver::registerBuilder([](app::AppContext &context, p
     declScanOp<FuncSafeOp<LogSumExp>::type>(context, resolver, "cum_log_sum_exp", 0.0);
     declScanOp<FuncSafeOp<FuncFwdFillZero>::type>(context, resolver, "fwd_fill_zero", 0.0);
     declScanOp<FuncSafeOp<FuncMonotonify>::type>(context, resolver, "monotonify", -INFINITY);
+    declScanOp<FuncSafeOp<FuncSlowPassZero>::type>(context, resolver, "slow_pass_zero", 0);
     declScanTernaryOp<FuncScanIf, float>(context, resolver, "scan_if");
     declScanTernaryOp<FuncScanIf, double>(context, resolver, "scan_if");
 });
