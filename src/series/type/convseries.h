@@ -228,7 +228,7 @@ public:
 
             for (unsigned int i = computedCount; i < endCount; i++) {
                 if (std::isnan(tsChunks.back().first->getElement(i))) {
-                    assert(i + kernelSize > nanEnd);
+                    assert(i + kernelSize >= nanEnd);
                     nanEnd = i + kernelSize;
                 }
                 if (i < nanEnd) {
