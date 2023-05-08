@@ -28,6 +28,8 @@ private:
     std::unordered_map<std::string, series::InputSeries<INPUT_SERIES_ELEMENT_TYPE> *> inputs;
 
     bool running = true;
+
+    void propagate();
 };
 
 }

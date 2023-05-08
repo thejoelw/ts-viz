@@ -58,16 +58,20 @@ void InputManager::recvRecord(const rapidjson::Document &row) {
 #endif
 
     index++;
+    propagate();
 }
 
 void InputManager::end() {
     assert(running);
     running = false;
 
+    propagate();
+}
+
+void InputManager::propagate() {
     for (const std::pair<std::string, series::InputSeries<INPUT_SERIES_ELEMENT_TYPE> *> entry : inputs) {
         entry.second->propagateUntil(index);
     }
 }
-
 
 }
