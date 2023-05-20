@@ -28,6 +28,7 @@ src/builder/input.cpp
 src/builder/norm.cpp
 src/builder/output.cpp
 src/builder/plot.cpp
+src/builder/quaternary.cpp
 src/builder/random.cpp
 src/builder/scan.cpp
 src/builder/ternary.cpp
