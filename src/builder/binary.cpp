@@ -3,6 +3,7 @@
 
 template <typename RealType> struct FuncMod { RealType operator()(RealType a, RealType b) const { return std::fmod(a, b); } };
 template <typename RealType> struct FuncPow { RealType operator()(RealType a, RealType b) const { return std::pow(a, b); } };
+template <typename RealType> struct FuncAtan2 { RealType operator()(RealType a, RealType b) const { return std::atan2(a, b); } };
 template <typename RealType> struct FuncMinimum { RealType operator()(RealType a, RealType b) const { return std::fmin(a, b); } };
 template <typename RealType> struct FuncMaximum { RealType operator()(RealType a, RealType b) const { return std::fmax(a, b); } };
 template <typename RealType> struct FuncShrink { RealType operator()(RealType a, RealType b) const { return a > 0 ? (a <= b ? 0 : a - b) : a < 0 ? (a >= -b ? 0 : a + b) : a; } };
@@ -46,6 +47,7 @@ static int _ = program::Resolver::registerBuilder([](app::AppContext &context, p
     declBinaryOp<std::divides>(context, resolver, "div");
     declBinaryOp<FuncMod>(context, resolver, "mod");
     declBinaryOp<FuncPow>(context, resolver, "pow");
+    declBinaryOp<FuncAtan2>(context, resolver, "atan2");
     declBinaryOp<std::less>(context, resolver, "lt");
     declBinaryOp<std::less_equal>(context, resolver, "lte");
     declBinaryOp<std::greater>(context, resolver, "gt");
