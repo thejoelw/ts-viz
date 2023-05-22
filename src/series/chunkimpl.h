@@ -12,11 +12,7 @@ public:
         : Chunk<ElementType, size>(ds)
         , computer(std::move(computer))
     {
-#if ENABLE_CHUNK_NAMES
-        SPDLOG_DEBUG("Creating chunk with name {} and size {}", this->name, sizeof(*this));
-#else
-        SPDLOG_DEBUG("Creating chunk with size {}", sizeof(*this));
-#endif
+        SPDLOG_DEBUG("Creating chunk {} with size {}", static_cast<void *>(this), sizeof(*this));
 
         this->updateMemoryUsage(sizeof(*this));
     }
@@ -37,9 +33,9 @@ public:
         this->updateMemoryUsage(-sizeof(*this));
 
 #if ENABLE_CHUNK_NAMES
-        SPDLOG_DEBUG("Destroying chunk with name {} and size {}", this->name, sizeof(*this));
+        SPDLOG_DEBUG("Destroying chunk {} with name {} and size {}", static_cast<void *>(this), this->name, sizeof(*this));
 #else
-        SPDLOG_DEBUG("Destroying chunk with size {}", sizeof(*this));
+        SPDLOG_DEBUG("Destroying chunk {} with size {}", static_cast<void *>(this), sizeof(*this));
 #endif
     }
 
@@ -82,7 +78,8 @@ private:
 
     union {
         ComputerType computer;
-        char _; // Prevent destruction of computer
+        char _; // Prevent destruction of computer.
+        // We have to do this because we want to be able to release the computer before freeing the memory (so dependency refcounts decrement)
     };
 };
 

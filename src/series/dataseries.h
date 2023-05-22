@@ -21,17 +21,12 @@ public:
 
     DataSeries(app::AppContext &context, bool isTransient = true)
         : DataSeriesBase(context)
-    {
-        jw_util::Thread::set_main_thread();
-        context.get<GarbageCollector>().registerDataSeries(this);
-    }
+    {}
 
     ~DataSeries() {
         // This is being destructed when an exception is thrown from the constructor.
         // TODO: Figure out how to catch bad destructions.
         // assert(false);
-
-        context.get<GarbageCollector>().unregisterDataSeries(this);
     }
 
     template <std::size_t desiredSize = CHUNK_SIZE>
@@ -41,16 +36,18 @@ public:
         jw_util::Thread::assert_main_thread();
 
         if (dryConstruct) {
-            getDependencyStack().push_back(chunks[chunkIndex].operator->());
+            if (chunks[chunkIndex]) {
+                getDependencyStack().push_back(chunks[chunkIndex]);
+            }
             return ChunkPtr<ElementType, size>::null();
         }
 
         while (chunks.size() <= chunkIndex) {
-            chunks.emplace_back(ChunkPtr<ElementType, size>::null());
+            chunks.emplace_back(nullptr);
         }
-        if (!chunks[chunkIndex].has()) {
+        if (!chunks[chunkIndex]) {
             std::size_t depStackSize = getDependencyStack().size();
-            chunks[chunkIndex] = ChunkPtr<ElementType, size>::construct(makeChunk(chunkIndex));
+            chunks[chunkIndex] = makeChunk(chunkIndex);
 
 #if ENABLE_CHUNK_NAMES
             chunks[chunkIndex]->setName(name + "[" + std::to_string(chunkIndex) + "]");
@@ -58,20 +55,20 @@ public:
 
             assert(getDependencyStack().size() >= depStackSize);
             while (getDependencyStack().size() > depStackSize) {
-                getDependencyStack().back()->addDependent(chunks[chunkIndex].clone());
+                getDependencyStack().back()->addDependent(chunks[chunkIndex]);
                 getDependencyStack().pop_back();
             }
             chunks[chunkIndex]->notify();
         }
 
-        getDependencyStack().push_back(chunks[chunkIndex].operator->());
+        getDependencyStack().push_back(chunks[chunkIndex]);
 
-        return chunks[chunkIndex].clone();
+        return ChunkPtr<ElementType, size>::construct(chunks[chunkIndex]);
     }
 
-    void releaseChunk(std::size_t chunkIndex) {
-        assert(chunkIndex < chunks.size());
-        assert(chunks[chunkIndex].has());
+    void releaseChunk(const ChunkBase *chunk) {
+        std::size_t chunkIndex = locateChunk(chunk);
+        assert(chunk->canFree());
 
         jw_util::Thread::assert_main_thread();
 
@@ -80,24 +77,25 @@ public:
         assert(dryConstruct == false);
         dryConstruct = true;
 
-        Chunk<ElementType, size> *chunk = makeChunk(chunkIndex);
-        assert(chunk == 0);
+        Chunk<ElementType, size> *dryChunk = makeChunk(chunkIndex);
+        assert(dryChunk == nullptr);
 
         assert(dryConstruct == true);
         dryConstruct = false;
 
         assert(getDependencyStack().size() >= depStackSize);
         while (getDependencyStack().size() > depStackSize) {
-            getDependencyStack().back()->removeDependent(chunks[chunkIndex].operator->());
+            getDependencyStack().back()->removeDependent(chunk);
             getDependencyStack().pop_back();
         }
 
-        chunks[chunkIndex] = ChunkPtr<ElementType, size>::null();
+        SPDLOG_DEBUG("Nullify {}", static_cast<void *>(chunks[chunkIndex]));
+        chunks[chunkIndex] = nullptr;
     }
 
     virtual Chunk<ElementType, size> *makeChunk(std::size_t chunkIndex) = 0;
 
-    const std::vector<ChunkPtr<ElementType, size>> &getChunks() const {
+    const std::vector<Chunk<ElementType, size> *> &getChunks() const {
         return chunks;
     }
 
@@ -109,7 +107,7 @@ protected:
     template <typename ComputerType>
     Chunk<ElementType, size> *constructChunk(ComputerType &&computer) {
         if (dryConstruct) {
-            return 0;
+            return nullptr;
         } else {
             return new ChunkImpl<ElementType, size, ComputerType>(this, std::move(computer));
         }
@@ -117,9 +115,23 @@ protected:
 
 private:
 //    std::uint64_t offset = 0;
-    std::vector<ChunkPtr<ElementType, size>> chunks;
+    std::vector<Chunk<ElementType, size> *> chunks;
 
     bool isTransient;
+
+    std::size_t locateChunk(const ChunkBase *chunk) {
+        // Search backwards because it's more likely that we're searching for a recent chunk.
+        std::size_t idx = chunks.size();
+        while (true) {
+            idx--;
+            if (chunks[idx] == chunk) {
+                return idx;
+            }
+
+            // If this fails, the chunk doesn't exist here
+            assert(idx > 0);
+        }
+    }
 };
 
 }

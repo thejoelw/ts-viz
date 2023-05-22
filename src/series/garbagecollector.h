@@ -1,96 +1,165 @@
 #pragma once
 
-#include <queue>
-
-#include "app/tickercontext.h"
-#include "series/chunkbase.h"
-
-// TODO: Remove
 #include "log.h"
-#include "series/dataseriesbase.h"
+#include "app/tickercontext.h"
+#include "app/options.h"
+#include "jw_util/thread.h"
+
+#include "defs/GARBAGE_COLLECTOR_LEVELS.h"
 
 namespace series {
 
-class GarbageCollector : public app::TickerContext::TickableBase<GarbageCollector> {
-private:
-    struct ChunkAddress {
-        unsigned int lastAccess;
-        void *dsPtr;
-        std::size_t index;
-        void (*release)(void *dsPtr, std::size_t index);
-
-        bool operator<(const ChunkAddress &other) const {
-            return lastAccess > other.lastAccess;
-        }
-    };
-    typedef std::priority_queue<ChunkAddress> ChunkReleaseQueue;
+template <typename ObjectType>
+class GarbageCollector : public app::TickerContext::TickableBase<GarbageCollector<ObjectType>> {
+    static_assert(GARBAGE_COLLECTOR_LEVELS >= 1, "GARBAGE_COLLECTOR_LEVELS must be at least one!");
 
 public:
-    GarbageCollector(app::AppContext &context);
+    class Registration {
+        friend class GarbageCollector;
 
-    void tick(app::TickerContext &tickerContext);
+    private:
+        ObjectType *freeAfter = nullptr;
+        ObjectType *freeBefore = nullptr;
+    };
 
-    template <typename DataSeriesType>
-    void registerDataSeries(DataSeriesType *ds) {
-        dsCollections.push_back(makeNeedle<DataSeriesType>(ds));
+    struct Level {
+        ObjectType *freeNext = nullptr;
+    };
+
+    GarbageCollector(app::AppContext &context)
+        : app::TickerContext::TickableBase<GarbageCollector<ObjectType>>(context)
+    {}
+
+    void tick(app::TickerContext &tickerContext) {
+        runGc();
     }
-    template <typename DataSeriesType>
-    void unregisterDataSeries(DataSeriesType *ds) {
-        std::vector<std::pair<void (*)(void *, ChunkReleaseQueue &, bool), void *>>::iterator pos = std::find(dsCollections.begin(), dsCollections.end(), makeNeedle<DataSeriesType>(ds));
-        assert(pos != dsCollections.end());
 
-        // TODO: Make sure we're not iterating
-        // If so, we need to zero it or something
-        assert(false);
+    void updateMemoryUsage(std::make_signed<std::size_t>::type inc) {
+        jw_util::Thread::assert_main_thread();
 
-        *pos = dsCollections.back();
-        dsCollections.pop_back();
+        memoryUsage += inc;
+        assert(static_cast<std::make_signed<std::size_t>::type>(memoryUsage) >= 0);
+
+        if (inc > 0) {
+            runGc();
+        }
     }
 
     std::size_t getMemoryUsage() const {
         return memoryUsage;
     }
-    void updateMemoryUsage(std::make_signed<std::size_t>::type inc);
 
-    static unsigned int getCurrentTime() {
-        return currentTime;
-    }
+    void runGc() {
+        jw_util::Thread::assert_main_thread();
 
-private:
-    inline static std::atomic<unsigned int> currentTime = 0;
+        std::size_t memoryLimit = app::Options::getInstance().gcMemoryLimit;
+        SPDLOG_DEBUG("Running GC; memory usage is {} / {}", memoryUsage, memoryLimit);
+        while (memoryUsage > memoryLimit) {
+            unsigned int i = 0;
+            while (true) {
+                ObjectType *next = levels[i].freeNext;
+                if (next) {
+                    delete next;
+                    assert(levels[i].freeNext != next);
+                    break;
+                }
 
-    std::size_t memoryUsage = 0;
-
-    std::vector<std::pair<void (*)(void *, ChunkReleaseQueue &, bool), void *>> dsCollections;
-
-    void runGc();
-
-    template <typename DataSeriesType>
-    static std::pair<void (*)(void *, ChunkReleaseQueue &, bool), void *> makeNeedle(DataSeriesType *dsPtr) {
-        return std::pair<void (*)(void *, ChunkReleaseQueue &, bool), void *>(&callForeachChunk<DataSeriesType>, static_cast<void *>(dsPtr));
-    }
-
-    template <typename DataSeriesType>
-    static void callForeachChunk(void *dsPtr, ChunkReleaseQueue &queue, bool canReleaseInputs) {
-        DataSeriesType *ds = static_cast<DataSeriesType *>(dsPtr);
-        if (ds->getIsTransient() || canReleaseInputs) {
-            const auto &chunks = ds->getChunks();
-            for (std::size_t i = 0; i < chunks.size(); i++) {
-                if (chunks[i].has()) {
-                    ChunkAddress addr;
-                    addr.lastAccess = chunks[i]->getLastAccess();
-                    addr.dsPtr = dsPtr;
-                    addr.index = i;
-                    addr.release = &chunkReleaser<DataSeriesType>;
-                    queue.push(addr);
+                if (++i == GARBAGE_COLLECTOR_LEVELS) {
+                    return;
                 }
             }
         }
     }
 
-    template <typename DataSeriesType>
-    static void chunkReleaser(void *ds, std::size_t index) {
-        static_cast<DataSeriesType *>(ds)->releaseChunk(index);
+    void enqueue(ObjectType *obj) {
+        jw_util::Thread::assert_main_thread();
+
+        Level &level = getLevel(obj);
+        Registration &reg = obj->getGcRegistration();
+        assert(!reg.freeAfter == !reg.freeBefore);
+
+        if (reg.freeAfter) {
+            if (level.freeNext == obj) {
+                if (obj->getGcRegistration().freeBefore == obj) {
+                    return;
+                } else {
+                    level.freeNext = obj->getGcRegistration().freeBefore;
+                }
+            }
+
+            // Remove from linked list
+            reg.freeAfter->getGcRegistration().freeBefore = reg.freeBefore;
+            reg.freeBefore->getGcRegistration().freeAfter = reg.freeAfter;
+        }
+
+        if (level.freeNext) {
+            ObjectType *head = level.freeNext;
+            ObjectType *tail = head->getGcRegistration().freeAfter;
+            head->getGcRegistration().freeAfter = obj;
+            tail->getGcRegistration().freeBefore = obj;
+            obj->getGcRegistration().freeAfter = tail;
+            obj->getGcRegistration().freeBefore = head;
+        } else {
+            level.freeNext = obj;
+            obj->getGcRegistration().freeAfter = obj;
+            obj->getGcRegistration().freeBefore = obj;
+        }
+    }
+
+    void dequeue(ObjectType *obj) {
+        jw_util::Thread::assert_main_thread();
+
+        Level &level = getLevel(obj);
+        Registration &reg = obj->getGcRegistration();
+        assert(!reg.freeAfter == !reg.freeBefore);
+
+        if (reg.freeAfter) {
+            if (level.freeNext == obj) {
+                if (obj->getGcRegistration().freeBefore == obj) {
+                    level.freeNext = nullptr;
+                } else {
+                    level.freeNext = obj->getGcRegistration().freeBefore;
+                }
+            }
+
+            // Remove from linked list
+            reg.freeAfter->getGcRegistration().freeBefore = reg.freeBefore;
+            reg.freeBefore->getGcRegistration().freeAfter = reg.freeAfter;
+
+            reg.freeAfter = nullptr;
+            reg.freeBefore = nullptr;
+        }
+    }
+
+    void assertSequence(unsigned int levelIdx, const std::vector<ObjectType *> &seq) const {
+        const Level &level = levels[levelIdx];
+        if (seq.empty()) {
+            assert(level.freeNext == nullptr);
+        } else {
+            assert(level.freeNext == seq.front());
+
+            ObjectType *prev = seq.back();
+            for (ObjectType *obj : seq) {
+                assert(obj->getGcRegistration().freeAfter == prev);
+                assert(prev->getGcRegistration().freeBefore == obj);
+                prev = obj;
+            }
+        }
+    }
+
+private:
+    std::size_t memoryUsage = 0;
+
+    Level levels[GARBAGE_COLLECTOR_LEVELS];
+
+    Level &getLevel(const ObjectType *obj) {
+        if constexpr (GARBAGE_COLLECTOR_LEVELS == 1) {
+            return levels[0];
+        } else {
+            std::uintptr_t x = reinterpret_cast<std::uintptr_t>(obj);
+            x = (13 * x) ^ (x >> 15);
+            return levels[x % GARBAGE_COLLECTOR_LEVELS];
+        }
     }
 };
 

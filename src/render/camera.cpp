@@ -9,6 +9,7 @@
 #include "render/program/fillprogram.h"
 #include "render/renderer.h"
 #include "series/garbagecollector.h"
+#include "series/chunkbase.h"
 #include "app/options.h"
 
 namespace render {
@@ -74,7 +75,7 @@ void Camera::tickOpen(app::TickerContext &tickerContext) {
     offset = -1.0f - scale * min;
 
     if (ImGui::Begin("Series")) {
-        std::size_t memoryUsage = tickerContext.getAppContext().get<series::GarbageCollector>().getMemoryUsage();
+        std::size_t memoryUsage = tickerContext.getAppContext().get<series::GarbageCollector<series::ChunkBase>>().getMemoryUsage();
         std::size_t memoryLimit = app::Options::getInstance().gcMemoryLimit;
         ImGui::Text("memory = %f / %f", static_cast<float>(memoryUsage) / (1024*1024*1024), static_cast<float>(memoryLimit) / (1024*1024*1024));
 

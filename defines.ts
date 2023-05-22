@@ -77,5 +77,7 @@ export default (variant: string) => {
     FFTWX_PLANNING_LEVEL: 'FFTW_MEASURE',
     // FFTWX_PLANNING_LEVEL: 'FFTW_PATIENT',
     // FFTWX_PLANNING_LEVEL: 'FFTW_EXHAUSTIVE',
+
+    GARBAGE_COLLECTOR_LEVELS: 1,
   };
 };

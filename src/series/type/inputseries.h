@@ -6,6 +6,8 @@
 
 #include "defs/ENABLE_CHUNK_MULTITHREADING.h"
 
+// TODO: Hold chunk pointer (prevents refcount thrashing)
+
 namespace series {
 
 template <typename ElementType>

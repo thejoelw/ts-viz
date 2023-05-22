@@ -21,6 +21,8 @@ class DataSeriesBase {
 public:
     DataSeriesBase(app::AppContext &context);
 
+    virtual ~DataSeriesBase() {}
+
     app::AppContext &getContext() {
         return context;
     }
@@ -38,6 +40,8 @@ public:
         return name;
     }
 #endif
+
+    virtual void releaseChunk(const ChunkBase *chunk) = 0;
 
 protected:
     app::AppContext &context;

@@ -102,7 +102,7 @@ public:
                     }
                 }
 #else
-                for (ChunkPtrBase &dep : dependents) {
+                for (ChunkBase *dep : dependents) {
                     dep->notify();
                 }
 #endif

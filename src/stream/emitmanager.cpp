@@ -11,6 +11,7 @@
 #include "app/quitexception.h"
 #include "stream/inputmanager.h"
 #include "series/garbagecollector.h"
+#include "series/chunkbase.h"
 
 #include "defs/ENABLE_PMUOI_FLAG.h"
 
@@ -42,7 +43,7 @@ void EmitManager::tick(app::TickerContext &tickerContext) {
         for (SeriesEmitter *emitter : curEmitters) {
             emitter->getValue(app::Options::getInstance().printMemoryUsageOutputIndex);
         }
-        SPDLOG_CRITICAL("Initialized all the emitters; memory usage is at {}", context.get<series::GarbageCollector>().getMemoryUsage());
+        SPDLOG_CRITICAL("Initialized all the emitters; memory usage is at {}", context.get<series::GarbageCollector<series::ChunkBase>>().getMemoryUsage());
         throw app::QuitException();
     } else {
         emit();

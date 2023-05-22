@@ -1,80 +1,145 @@
 #include "garbagecollector.h"
 
-#include "app/options.h"
-#include "program/programmanager.h"
-#include "series/chunkbase.h"
+#include "util/testrunner.h"
 #include "log.h"
 
-namespace series {
+class Obj {
+public:
+    Obj(app::AppContext &context, unsigned int &extantMask, unsigned int myMask)
+        : context(context)
+        , extantMask(extantMask)
+        , myMask(myMask)
+    {
+        assert((extantMask & myMask) == 0);
+        extantMask |= myMask;
 
-GarbageCollector::GarbageCollector(app::AppContext &context)
-    : TickableBase(context)
-{}
-
-void GarbageCollector::tick(app::TickerContext &tickerContext) {
-    jw_util::Thread::assert_main_thread();
-    (void) tickerContext;
-
-    currentTime++;
-
-#if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_TRACE
-    static thread_local unsigned int ctr = 0;
-    ctr++;
-    if (ctr % 65536 == 0) {
-        SPDLOG_TRACE("Memory usage is at {} / {}", memoryUsage, app::Options::getInstance().gcMemoryLimit);
+        context.get<series::GarbageCollector<Obj>>().updateMemoryUsage(1);
     }
-#endif
 
-    runGc();
-}
+    ~Obj() {
+        assert((extantMask & myMask) == myMask);
+        extantMask &= ~myMask;
 
-void GarbageCollector::updateMemoryUsage(std::make_signed<std::size_t>::type inc) {
-    jw_util::Thread::assert_main_thread();
+        context.get<series::GarbageCollector<Obj>>().updateMemoryUsage(-1);
+        context.get<series::GarbageCollector<Obj>>().dequeue(this);
+    }
 
-    if (inc >= 0) {
-        assert(inc != 0);
-        runGc();
+    series::GarbageCollector<Obj>::Registration &getGcRegistration() {
+        return gcReg;
+    }
+
+private:
+    app::AppContext &context;
+
+    series::GarbageCollector<Obj>::Registration gcReg;
+
+    unsigned int &extantMask;
+    unsigned int myMask;
+};
+
+static int _ = util::TestRunner::getInstance().registerTest([](app::AppContext &context) {
+    if constexpr (GARBAGE_COLLECTOR_LEVELS == 1) {
+        std::size_t origGcMemoryLimit = app::Options::getMutableInstance().gcMemoryLimit;
+        app::Options::getMutableInstance().gcMemoryLimit = 10;
+
+        unsigned int extantMask = 0;
+        Obj *obj0 = new Obj(context, extantMask, 1 << 0);
+        Obj *obj1 = new Obj(context, extantMask, 1 << 1);
+        Obj *obj2 = new Obj(context, extantMask, 1 << 2);
+        Obj *obj3 = new Obj(context, extantMask, 1 << 3);
+
+        SPDLOG_DEBUG("Check empty GC");
+        assert(context.get<series::GarbageCollector<Obj>>().getMemoryUsage() == 4);
+        assert(extantMask == 0b1111);
+        context.get<series::GarbageCollector<Obj>>().assertSequence(0, {});
+
+        SPDLOG_DEBUG("Check enqueue 0->1 works");
+        context.get<series::GarbageCollector<Obj>>().enqueue(obj0);
+        context.get<series::GarbageCollector<Obj>>().assertSequence(0, {obj0});
+
+        SPDLOG_DEBUG("Check enqueue 1->1 works");
+        context.get<series::GarbageCollector<Obj>>().enqueue(obj0);
+        context.get<series::GarbageCollector<Obj>>().assertSequence(0, {obj0});
+
+        SPDLOG_DEBUG("Check dequeue 1->1 works");
+        context.get<series::GarbageCollector<Obj>>().dequeue(obj1);
+        context.get<series::GarbageCollector<Obj>>().assertSequence(0, {obj0});
+
+        SPDLOG_DEBUG("Check dequeue 1->0 works");
+        context.get<series::GarbageCollector<Obj>>().dequeue(obj0);
+        context.get<series::GarbageCollector<Obj>>().assertSequence(0, {});
+
+        SPDLOG_DEBUG("Check dequeue 0->0 works");
+        context.get<series::GarbageCollector<Obj>>().dequeue(obj0);
+        context.get<series::GarbageCollector<Obj>>().assertSequence(0, {});
+
+        SPDLOG_DEBUG("Check enqueue 0->2 works");
+        context.get<series::GarbageCollector<Obj>>().enqueue(obj0);
+        context.get<series::GarbageCollector<Obj>>().enqueue(obj1);
+        context.get<series::GarbageCollector<Obj>>().assertSequence(0, {obj0, obj1});
+
+        SPDLOG_DEBUG("Check enqueue 2->2 (without movement) works");
+        context.get<series::GarbageCollector<Obj>>().enqueue(obj1);
+        context.get<series::GarbageCollector<Obj>>().assertSequence(0, {obj0, obj1});
+
+        SPDLOG_DEBUG("Check enqueue 2->2 (with movement) works");
+        context.get<series::GarbageCollector<Obj>>().enqueue(obj0);
+        context.get<series::GarbageCollector<Obj>>().assertSequence(0, {obj1, obj0});
+
+        SPDLOG_DEBUG("Check dequeue 2->2 works");
+        context.get<series::GarbageCollector<Obj>>().dequeue(obj2);
+        context.get<series::GarbageCollector<Obj>>().assertSequence(0, {obj1, obj0});
+
+        SPDLOG_DEBUG("Check dequeue 2->1 (at tail) works");
+        context.get<series::GarbageCollector<Obj>>().dequeue(obj0);
+        context.get<series::GarbageCollector<Obj>>().assertSequence(0, {obj1});
+
+        SPDLOG_DEBUG("Check dequeue 2->1 (at head) works");
+        context.get<series::GarbageCollector<Obj>>().enqueue(obj0);
+        context.get<series::GarbageCollector<Obj>>().dequeue(obj1);
+        context.get<series::GarbageCollector<Obj>>().assertSequence(0, {obj0});
+
+        SPDLOG_DEBUG("Check dequeue 3->2 (in the middle) works");
+        context.get<series::GarbageCollector<Obj>>().enqueue(obj2);
+        context.get<series::GarbageCollector<Obj>>().enqueue(obj1);
+        context.get<series::GarbageCollector<Obj>>().dequeue(obj2);
+        context.get<series::GarbageCollector<Obj>>().assertSequence(0, {obj0, obj1});
+
+        SPDLOG_DEBUG("Check enqueue 2->4 works");
+        context.get<series::GarbageCollector<Obj>>().enqueue(obj2);
+        context.get<series::GarbageCollector<Obj>>().enqueue(obj3);
+        context.get<series::GarbageCollector<Obj>>().assertSequence(0, {obj0, obj1, obj2, obj3});
+
+        SPDLOG_DEBUG("Check memory at limit is fine");
+        app::Options::getMutableInstance().gcMemoryLimit = 4;
+        context.get<series::GarbageCollector<Obj>>().runGc();
+        assert(context.get<series::GarbageCollector<Obj>>().getMemoryUsage() == 4);
+        assert(extantMask == 0b1111);
+        context.get<series::GarbageCollector<Obj>>().assertSequence(0, {obj0, obj1, obj2, obj3});
+
+        SPDLOG_DEBUG("Check removing one item works");
+        app::Options::getMutableInstance().gcMemoryLimit = 3;
+        context.get<series::GarbageCollector<Obj>>().runGc();
+        assert(context.get<series::GarbageCollector<Obj>>().getMemoryUsage() == 3);
+        assert(extantMask == 0b1110);
+        context.get<series::GarbageCollector<Obj>>().assertSequence(0, {obj1, obj2, obj3});
+
+        SPDLOG_DEBUG("Check removing two items");
+        app::Options::getMutableInstance().gcMemoryLimit = 1;
+        context.get<series::GarbageCollector<Obj>>().runGc();
+        assert(context.get<series::GarbageCollector<Obj>>().getMemoryUsage() == 1);
+        assert(extantMask == 0b1000);
+        context.get<series::GarbageCollector<Obj>>().assertSequence(0, {obj3});
+
+        SPDLOG_DEBUG("Check removing last item");
+        app::Options::getMutableInstance().gcMemoryLimit = 0;
+        context.get<series::GarbageCollector<Obj>>().runGc();
+        assert(context.get<series::GarbageCollector<Obj>>().getMemoryUsage() == 0);
+        assert(extantMask == 0b0000);
+        context.get<series::GarbageCollector<Obj>>().assertSequence(0, {});
+
+        app::Options::getMutableInstance().gcMemoryLimit = origGcMemoryLimit;
     } else {
-        assert(static_cast<std::make_signed<std::size_t>::type>(memoryUsage) >= -inc);
+        SPDLOG_WARN("Skipping GarbageCollector test because GARBAGE_COLLECTOR_LEVELS is not 1, making things non-deterministic");
     }
-
-    memoryUsage += inc;
-}
-
-void GarbageCollector::runGc() {
-    std::size_t prevUsage = memoryUsage;
-    std::size_t memoryLimit = app::Options::getInstance().gcMemoryLimit;
-
-    if (prevUsage > memoryLimit) {
-        ChunkReleaseQueue queue;
-
-        // If we're not going to get any more novel programs, we can assume unreferenced inputs won't be referenced again
-        bool canReleaseInputs = !context.get<program::ProgramManager>().isRunning();
-
-        for (std::pair<void (*)(void *, ChunkReleaseQueue &, bool), void *> col : dsCollections) {
-            col.first(col.second, queue, canReleaseInputs);
-        }
-
-        // Delete some extra stuff so we don't have to do this again soon
-        memoryLimit = static_cast<std::uint64_t>(memoryLimit) * 15 / 16;
-
-        SPDLOG_DEBUG("Running GC; we have {} data series and {} candidate chunks, trying to delete at least {} bytes", dsCollections.size(), queue.size(), prevUsage - memoryLimit);
-
-        unsigned int deleted = 0;
-        while (!queue.empty() && memoryUsage > memoryLimit) {
-            // TODO: What happens if a chunk is running while this tries to delete it?
-            // We could just increment the ref counter while it's running, but that's not atomic. Actually it is.
-            // We could only decrement the counter when the chunk finishes computing, but then we can't delete in-progress chunks.
-
-            const ChunkAddress &addr = queue.top();
-            SPDLOG_DEBUG("Deleting chunk with access time {}", addr.lastAccess);
-            addr.release(addr.dsPtr, addr.index);
-            queue.pop();
-            deleted++;
-        }
-
-        SPDLOG_DEBUG("Finished GC; deleted {} chunks, and {} bytes", deleted, prevUsage - memoryUsage);
-    }
-}
-
-}
+});

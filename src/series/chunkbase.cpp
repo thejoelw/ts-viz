@@ -19,7 +19,6 @@ ChunkBase::ChunkBase(DataSeriesBase *ds)
     , followingDuration(NAN)
 {
     jw_util::Thread::assert_main_thread();
-    recordAccess();
 }
 
 ChunkBase::~ChunkBase() {
@@ -29,28 +28,31 @@ ChunkBase::~ChunkBase() {
     assert(notifies == 0);
 #endif
 #endif
+
+    ds->releaseChunk(this);
+    ds->getContext().get<GarbageCollector<ChunkBase>>().dequeue(this);
 }
 
-void ChunkBase::addDependent(ChunkPtrBase dep) {
+void ChunkBase::addDependent(ChunkBase *dep) {
     jw_util::Thread::assert_main_thread();
-    assert(dep.operator->() != this);
+    assert(dep != this);
 
 #if ENABLE_CHUNK_MULTITHREADING
     std::lock_guard<util::SpinLock> lock(mutex);
 #endif
-    dependents.push_back(std::move(dep));
+    dependents.push_back(dep);
 }
 
-void ChunkBase::removeDependent(ChunkBase *chunk) {
+void ChunkBase::removeDependent(const ChunkBase *dep) {
     jw_util::Thread::assert_main_thread();
 
 #if ENABLE_CHUNK_MULTITHREADING
     std::lock_guard<util::SpinLock> lock(mutex);
 #endif
 
-    for (std::vector<ChunkPtrBase>::iterator i = dependents.begin(); i != dependents.end(); i++) {
-        if (i->operator->() == chunk) {
-            *i = std::move(dependents.back());
+    for (std::vector<ChunkBase *>::iterator i = dependents.begin(); i != dependents.end(); i++) {
+        if (*i == dep) {
+            *i = dependents.back();
             dependents.pop_back();
             return;
         }
@@ -121,26 +123,28 @@ void ChunkBase::notify() {
 #endif
 }
 
-void ChunkBase::recordAccess() {
-    lastAccessTime = GarbageCollector::getCurrentTime();
-}
-unsigned int ChunkBase::getLastAccess() const {
-    return lastAccessTime;
-}
-
 void ChunkBase::incRefs() {
-    refs++;
-    recordAccess();
+    if (refs++ == 0) {
+        ds->getContext().get<GarbageCollector<ChunkBase>>().dequeue(this);
+    }
+    SPDLOG_DEBUG("incRefs for {} to {}", static_cast<void *>(this), refs);
+//    SPDLOG_DEBUG("backtrace is {}", backtrace());
 }
 void ChunkBase::decRefs() {
     assert(refs > 0);
     if (--refs == 0) {
-        delete this;
+        ds->getContext().get<GarbageCollector<ChunkBase>>().enqueue(this);
     }
+    SPDLOG_DEBUG("decRefs for {} to {}", static_cast<void *>(this), refs);
+//    SPDLOG_DEBUG("backtrace is {}", backtrace());
+}
+
+bool ChunkBase::canFree() const {
+    return refs == 0;
 }
 
 void ChunkBase::updateMemoryUsage(std::make_signed<std::size_t>::type inc) {
-    ds->getContext().get<GarbageCollector>().updateMemoryUsage(inc);
+    ds->getContext().get<GarbageCollector<ChunkBase>>().updateMemoryUsage(inc);
 }
 
 }

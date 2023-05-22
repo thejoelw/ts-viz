@@ -17,12 +17,15 @@
 #include "stream/inputmanager.h"
 #include "util/testrunner.h"
 #include "util/wrapper.h"
+#include "jw_util/thread.h"
 
 #include "defs/CHUNK_SIZE_LOG2.h"
 #include "defs/ENABLE_CONV_MIN_COMPUTE_FLAG.h"
 #include "defs/ENABLE_PMUOI_FLAG.h"
 
 int main(int argc, char **argv) {
+    jw_util::Thread::set_main_thread();
+
     // Setup argument parser
     argparse::ArgumentParser program("ts-viz", tsVizVersion);
     program.add_description("A time series visualizer and processor");
@@ -174,8 +177,10 @@ int main(int argc, char **argv) {
     SPDLOG_INFO("An unsigned long long is {} bits", sizeof(unsigned long long) * CHAR_BIT);
     SPDLOG_INFO("Chunk size log2 is: {}", CHUNK_SIZE_LOG2);
 
+#ifndef NDEBUG
     SPDLOG_INFO("Running tests...");
     util::TestRunner::getInstance().run();
+#endif
 
     SPDLOG_INFO("Starting...");
 

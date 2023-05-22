@@ -6,9 +6,11 @@
 #include <atomic>
 #include <string>
 
+#include "log.h"
 #include "jw_util/thread.h"
 
 #include "series/chunkptrbase.h"
+#include "series/garbagecollector.h"
 
 #include "defs/ENABLE_CHUNK_NAMES.h"
 #include "defs/ENABLE_CHUNK_MULTITHREADING.h"
@@ -28,6 +30,10 @@ public:
 
 #if ENABLE_CHUNK_NAMES
     void setName(std::string newName) {
+#if ENABLE_CHUNK_NAMES
+        SPDLOG_DEBUG("Chunk {} name is {}", static_cast<void *>(this), newName);
+#endif
+
         name = std::move(newName);
     }
     const std::string &getName() const {
@@ -35,8 +41,8 @@ public:
     }
 #endif
 
-    void addDependent(ChunkPtrBase dep);
-    void removeDependent(ChunkBase *chunk);
+    void addDependent(ChunkBase *dep);
+    void removeDependent(const ChunkBase *dep);
 
 #if ENABLE_CHUNK_MULTITHREADING
     std::chrono::duration<float> getOrdering() const;
@@ -48,21 +54,22 @@ public:
 
     virtual bool isDone() const = 0;
 
-    void recordAccess();
-    unsigned int getLastAccess() const;
-
     void incRefs();
     void decRefs();
+    bool canFree() const;
 
-    DataSeriesBase *getDataSeries() const {
-        return ds;
+    GarbageCollector<ChunkBase>::Registration &getGcRegistration() {
+        return gcReg;
     }
 
 protected:
     DataSeriesBase *ds;
 
-    std::atomic<unsigned int> lastAccessTime;
+    GarbageCollector<ChunkBase>::Registration gcReg;
 
+    // This is actually the number of strong refs (ptrs) we have to it.
+    // Additionally, there is a raw pointer in the DataSeries, and raw pointers in dependencies' dependents array.
+    // DataSeries.destroyChunk manages freeing chunks.
 #if ENABLE_CHUNK_MULTITHREADING
     std::atomic<unsigned int> refs = 0;
 #else
@@ -73,7 +80,7 @@ protected:
     std::atomic<unsigned int> notifies = 0;
     util::SpinLock mutex;
 #endif
-    std::vector<ChunkPtrBase> dependents;
+    std::vector<ChunkBase *> dependents;
 
     mutable std::chrono::duration<float> followingDuration;
 

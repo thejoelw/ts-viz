@@ -16,7 +16,9 @@ public:
     void run();
 
     int registerTest(void (*funcPtr)(app::AppContext &)) {
+#ifndef NDEBUG
         tests.push_back(funcPtr);
+#endif
         return 0;
     }
 
