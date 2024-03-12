@@ -80,9 +80,7 @@ private:
     bool needsRender = ENABLE_GUI;
 
     static void errorCallback(int code, const char *str);
-    static void mouseMoveCallback(GLFWwindow *glfwWindow, double x, double y);
-    static void mouseButtonCallback(GLFWwindow *glfwWindow, int button, int action, int mods);
-    static void keyCallback(GLFWwindow *glfwWindow, int key, int scancode, int action, int mods);
+    static void charCallback(GLFWwindow *glfwWindow, unsigned int codepoint);
 };
 
 }

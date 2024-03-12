@@ -32,17 +32,17 @@ static_assert(divFloor(3, 4) == 0, "divFloor test #9 failure");
 static_assert(divFloor(4, 4) == 1, "divFloor test #10 failure");
 static_assert(divFloor(5, 4) == 1, "divFloor test #11 failure");
 
-static_assert(remFloor(-5, 4) == 3, "divFloor test #1 failure");
-static_assert(remFloor(-4, 4) == 0, "divFloor test #2 failure");
-static_assert(remFloor(-3, 4) == 1, "divFloor test #3 failure");
-static_assert(remFloor(-2, 4) == 2, "divFloor test #4 failure");
-static_assert(remFloor(-1, 4) == 3, "divFloor test #5 failure");
-static_assert(remFloor(0, 4) == 0, "divFloor test #6 failure");
-static_assert(remFloor(1, 4) == 1, "divFloor test #7 failure");
-static_assert(remFloor(2, 4) == 2, "divFloor test #8 failure");
-static_assert(remFloor(3, 4) == 3, "divFloor test #9 failure");
-static_assert(remFloor(4, 4) == 0, "divFloor test #10 failure");
-static_assert(remFloor(5, 4) == 1, "divFloor test #11 failure");
+static_assert(remFloor(-5, 4) == 3, "remFloor test #1 failure");
+static_assert(remFloor(-4, 4) == 0, "remFloor test #2 failure");
+static_assert(remFloor(-3, 4) == 1, "remFloor test #3 failure");
+static_assert(remFloor(-2, 4) == 2, "remFloor test #4 failure");
+static_assert(remFloor(-1, 4) == 3, "remFloor test #5 failure");
+static_assert(remFloor(0, 4) == 0, "remFloor test #6 failure");
+static_assert(remFloor(1, 4) == 1, "remFloor test #7 failure");
+static_assert(remFloor(2, 4) == 2, "remFloor test #8 failure");
+static_assert(remFloor(3, 4) == 3, "remFloor test #9 failure");
+static_assert(remFloor(4, 4) == 0, "remFloor test #10 failure");
+static_assert(remFloor(5, 4) == 1, "remFloor test #11 failure");
 
 template <std::size_t partitionSize, signed int srcOffset, unsigned int copySize>
 struct MaxNumChunksCalculator {

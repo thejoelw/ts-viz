@@ -1,7 +1,5 @@
 #pragma once
 
-#include <unordered_map>
-
 #include "render/seriesrenderer.h"
 #include "series/dataseries.h"
 

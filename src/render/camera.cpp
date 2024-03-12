@@ -11,6 +11,7 @@
 #include "series/garbagecollector.h"
 #include "series/chunkbase.h"
 #include "app/options.h"
+#include "stream/drawingmanager.h"
 
 namespace render {
 
@@ -50,24 +51,35 @@ void Camera::tickOpen(app::TickerContext &tickerContext) {
     }
 
 #if ENABLE_GUI
-    bool swapButtons = window.isKeyPressed(GLFW_KEY_LEFT_CONTROL) || window.isKeyPressed(GLFW_KEY_RIGHT_CONTROL);
-    int buttonPan = swapButtons ? GLFW_MOUSE_BUTTON_RIGHT : GLFW_MOUSE_BUTTON_LEFT;
-    int buttonPlace = swapButtons ? GLFW_MOUSE_BUTTON_LEFT : GLFW_MOUSE_BUTTON_RIGHT;
+    bool ctrlPressed = window.isKeyPressed(GLFW_KEY_LEFT_CONTROL) || window.isKeyPressed(GLFW_KEY_RIGHT_CONTROL);
+    int buttonPan = ctrlPressed ? GLFW_MOUSE_BUTTON_RIGHT : GLFW_MOUSE_BUTTON_LEFT;
+    int buttonDraw = ctrlPressed ? GLFW_MOUSE_BUTTON_LEFT : GLFW_MOUSE_BUTTON_RIGHT;
+
     if (window.isMouseButtonPressed(buttonPan) && !ImGui::GetIO().WantCaptureMouse) {
-        mouseDelta *= (max - min) * glm::vec2(-0.5f, 0.5f);
-        max += mouseDelta;
-        min += mouseDelta;
-    }
+        bool altPressed = window.isKeyPressed(GLFW_KEY_LEFT_ALT) || window.isKeyPressed(GLFW_KEY_RIGHT_ALT);
 
-    if (window.isMouseButtonPressed(buttonPlace) && !ImGui::GetIO().WantCaptureMouse) {
-        float y = getMousePos().y;
-        if (std::isnan(rmbDownY)) {
-            rmbDownY = y;
+        if (altPressed) {
+            float y = getMousePos().y;
+            if (std::isnan(rmbDownY)) {
+                rmbDownY = y;
+            }
+
+            tickerContext.getAppContext().get<Renderer>().updateTransform(rmbDownY, std::fabs(y - rmbDownY));
+        } else {
+            rmbDownY = NAN;
+
+            mouseDelta *= (max - min) * glm::vec2(-0.5f, 0.5f);
+            max += mouseDelta;
+            min += mouseDelta;
         }
-
-        tickerContext.getAppContext().get<Renderer>().updateTransform(rmbDownY, std::fabs(y - rmbDownY));
     } else {
         rmbDownY = NAN;
+    }
+
+    if (window.isMouseButtonPressed(buttonDraw) && !ImGui::GetIO().WantCaptureMouse) {
+        tickerContext.getAppContext().get<stream::DrawingManager>().draw(getMousePos());
+    } else {
+        tickerContext.getAppContext().get<stream::DrawingManager>().mouseUp();
     }
 #endif
 

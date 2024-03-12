@@ -10,6 +10,7 @@
 #include "app/tickercontext.h"
 #include "app/quitexception.h"
 #include "app/options.h"
+#include "stream/drawingmanager.h"
 
 namespace app {
 
@@ -73,6 +74,8 @@ Window::Window(AppContext &context)
     glfwSetInputMode(glfwWindow, GLFW_STICKY_KEYS, GL_TRUE);
     glfwSetInputMode(glfwWindow, GLFW_STICKY_MOUSE_BUTTONS, GL_TRUE);
     setMouseVisible(true);
+
+    glfwSetCharCallback(glfwWindow, &Window::charCallback);
 #endif
 }
 
@@ -211,6 +214,13 @@ void Window::errorCallback(int code, const char *str) {
 #endif
 
     SPDLOG_ERROR("GLFW error {}: {}", code, str);
+}
+
+void Window::charCallback(GLFWwindow *window, unsigned int codepoint) {
+    if (codepoint >= 0x20 && codepoint <= 0x7E) {
+        Window &window = *static_cast<Window *>(glfwGetWindowUserPointer(window));
+        window.get<stream::DrawingManager>().resetDrawing(codepoint);
+    }
 }
 
 GLFWwindow *Window::firstWindow = nullptr;
