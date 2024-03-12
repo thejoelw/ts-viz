@@ -1,15 +1,5 @@
 #include "drawingmanager.h"
 
-#include "app/appcontext.h"
-#include "program/resolver.h"
-#include "log.h"
-#include "util/jsontostring.h"
-
-#include "defs/ENABLE_GRAPHICS.h"
-#if ENABLE_GRAPHICS
-#include "render/camera.h"
-#endif
-
 namespace stream {
 
 DrawingManager::DrawingManager(app::AppContext &context)
@@ -17,7 +7,7 @@ DrawingManager::DrawingManager(app::AppContext &context)
 {}
 
 void DrawingManager::resetDrawing(char code) {
-    curStream = &getStream(std::string(code, 1));
+    curStream = &getStream(std::string(1, code));
     curStream->reset();
 }
 
@@ -27,7 +17,7 @@ void DrawingManager::addPoint(glm::vec2 pt) {
     }
 }
 
-DrawingStream &DrawingManager::getStream(const std::string &name) {
+Drawing &DrawingManager::getStream(const std::string &name) {
     return streams[name];
 }
 

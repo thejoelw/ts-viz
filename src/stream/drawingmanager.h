@@ -2,7 +2,10 @@
 
 #include <unordered_map>
 
-#include "series/type/inputseries.h"
+#include "graphics/glm.h"
+#include "glm/vec2.hpp"
+
+#include "app/appcontext.h"
 #include "stream/drawing.h"
 
 namespace stream {

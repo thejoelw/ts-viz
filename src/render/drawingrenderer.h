@@ -1,7 +1,7 @@
 #pragma once
 
 #include "render/seriesrenderer.h"
-#include "series/dataseries.h"
+#include "stream/drawingmanager.h"
 
 #include "defs/ENABLE_GRAPHICS.h"
 #if ENABLE_GRAPHICS
@@ -16,7 +16,7 @@ class DrawingRenderer : public SeriesRenderer {
 public:
     DrawingRenderer(app::AppContext &context, const std::string &name, stream::Drawing &drawing, bool enabled, float r, float g, float b, float a)
         : SeriesRenderer(context, name)
-        , data(data)
+        , drawing(drawing)
 #if ENABLE_GRAPHICS
         , enabled(enabled)
         , remoteBuffer(GL_ARRAY_BUFFER, GL_STREAM_DRAW)
@@ -35,7 +35,7 @@ public:
 #endif
 
 private:
-    stream::Drawing *data;
+    stream::Drawing &drawing;
 
 #if ENABLE_GRAPHICS
     bool enabled;

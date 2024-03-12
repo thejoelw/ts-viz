@@ -77,9 +77,7 @@ void Camera::tickOpen(app::TickerContext &tickerContext) {
     }
 
     if (window.isMouseButtonPressed(buttonDraw) && !ImGui::GetIO().WantCaptureMouse) {
-        tickerContext.getAppContext().get<stream::DrawingManager>().draw(getMousePos());
-    } else {
-        tickerContext.getAppContext().get<stream::DrawingManager>().mouseUp();
+        tickerContext.getAppContext().get<stream::DrawingManager>().addPoint(getMousePos());
     }
 #endif
 

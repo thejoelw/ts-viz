@@ -21,7 +21,7 @@ public:
     Chunk<ElementType> *makeChunk(std::size_t chunkIndex) override {
         auto triggerChunk = trigger.getChunk(chunkIndex);
         return this->constructChunk([this, chunkIndex, triggerChunk = std::move(triggerChunk)](ElementType *dst, unsigned int computedCount) -> unsigned int {
-            unsigned int endCount = triggerChunk.getComputedCount();
+            unsigned int endCount = triggerChunk->getComputedCount();
             unsigned int offset = chunkIndex * CHUNK_SIZE;
             for (std::size_t i = computedCount; i < endCount; i++) {
                 dst[i] = drawing.sample(offset + i);

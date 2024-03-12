@@ -23,7 +23,7 @@ void DrawingRenderer::draw(std::size_t begin, std::size_t end, std::size_t strid
     sample.clear();
 
     for (std::size_t i = begin; i < end; i += stride) {
-        sample.push_back(data->sample(i));
+        sample.push_back(drawing.sample(i));
     }
 
     vao.bind();
@@ -57,7 +57,7 @@ void DrawingRenderer::draw(std::size_t begin, std::size_t end, std::size_t strid
 void DrawingRenderer::updateDrawStyle() {
     if (ImGui::Begin("Series")) {
         double x = context.get<Camera>().getMousePos().x;
-        double y = data->sample(x);
+        double y = drawing.sample(x);
 
         std::string uuid = std::to_string(reinterpret_cast<std::uintptr_t>(this));
 
@@ -73,7 +73,7 @@ void DrawingRenderer::updateDrawStyle() {
         ImGui::Button(("y:" + std::to_string(y) + "##y-" + uuid).data(), ImVec2(90, 0));
 
         ImGui::SameLine();
-        ImGui::GetStyle().Colors[ImGuiCol_FrameBg] = originalOffset ? ImVec4(0.16f, 0.29f, 0.48f, 0.54f) : ImVec4(0.40f, 0.55f, 0.75f, 0.54f);
+        ImGui::GetStyle().Colors[ImGuiCol_FrameBg] = ImVec4(0.40f, 0.55f, 0.75f, 0.54f);
 
         bool isSelected = false;
         ImGui::Checkbox(("selected##selected-" + uuid).data(), &isSelected);

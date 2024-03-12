@@ -216,10 +216,10 @@ void Window::errorCallback(int code, const char *str) {
     SPDLOG_ERROR("GLFW error {}: {}", code, str);
 }
 
-void Window::charCallback(GLFWwindow *window, unsigned int codepoint) {
+void Window::charCallback(GLFWwindow *glfwWindow, unsigned int codepoint) {
     if (codepoint >= 0x20 && codepoint <= 0x7E) {
-        Window &window = *static_cast<Window *>(glfwGetWindowUserPointer(window));
-        window.get<stream::DrawingManager>().resetDrawing(codepoint);
+        Window &window = *static_cast<Window *>(glfwGetWindowUserPointer(glfwWindow));
+        window.context.get<stream::DrawingManager>().resetDrawing(codepoint);
     }
 }
 
