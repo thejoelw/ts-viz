@@ -43,11 +43,11 @@ public:
         lastPt = pt;
     }
 
-    double sample(double x) {
-        std::vector<glm::vec2>::iterator it = std::lower_bound(pts.begin(), pts.end(), glm::vec2(x, 0.0f), Comparator());
-        if (it == pts.end()) {
+    double sample(double x) const {
+        std::vector<glm::vec2>::const_iterator it = std::lower_bound(pts.cbegin(), pts.cend(), glm::vec2(x, 0.0f), Comparator());
+        if (it == pts.cend()) {
             return NAN;
-        } else if (it == pts.begin()) {
+        } else if (it == pts.cbegin()) {
             return NAN;
         } else if (it->x == x) {
             return it->y;

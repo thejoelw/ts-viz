@@ -27,6 +27,10 @@ public:
         }
     }
 
+    void yield() {
+        context.get<ReceiverClass>().yield();
+    }
+
     void end() {
         context.get<ReceiverClass>().end();
     }

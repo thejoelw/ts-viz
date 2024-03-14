@@ -6,8 +6,10 @@
 
 #include "log.h"
 
-#include "defs/ENABLE_FILEPOLLER_YIELDING.h"
+#include "defs/ENABLE_FILEPOLLER_YIELD_KEYWORD.h"
 #include "defs/FILEPOLLER_TICK_TIMEOUT_MS.h"
+
+#include "app/mainloop.h"
 
 namespace {
 
@@ -48,21 +50,44 @@ void FilePoller::tick(app::TickerContext &tickerContext) {
     (void) tickerContext;
 
     for (File &file : files) {
+#if FILEPOLLER_TICK_TIMEOUT_MS
         std::chrono::steady_clock::time_point timeout = std::chrono::steady_clock::now() + std::chrono::milliseconds(FILEPOLLER_TICK_TIMEOUT_MS);
+#endif
 
         Message msg;
-        while (file.messages.try_dequeue(msg)) {
+        while (true) {
+            if (!file.messages.try_dequeue(msg)) {
+#if ENABLE_FILEPOLLER_BLOCKING
+                if (!file.blocking) {
+                    break;
+                }
+                std::chrono::steady_clock::duration wait = context.get<app::MainLoop>().getBlockDuration();
+                if (wait == std::chrono::steady_clock::duration::zero()) {
+                    break;
+                }
+                if (!file.messages.wait_dequeue_timed(msg, wait)) {
+                    break;
+                }
+#else
+                break;
+#endif
+            }
+
             static constexpr const char *yieldKeyword = "yield";
-            if (ENABLE_FILEPOLLER_YIELDING && msg.size == 5 && std::equal(yieldKeyword, yieldKeyword + 5, msg.data)) {
+            if (ENABLE_FILEPOLLER_YIELD_KEYWORD && msg.size == 5 && std::equal(yieldKeyword, yieldKeyword + 5, msg.data)) {
                 break;
             }
 
             msg.dispatch(context, msg.data, msg.size);
 
+#if FILEPOLLER_TICK_TIMEOUT_MS
             if (std::chrono::steady_clock::now() > timeout) {
                 break;
             }
+#endif
         }
+
+        file.yieldDispatcher(context);
     }
 }
 

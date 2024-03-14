@@ -43,10 +43,12 @@ export default (variant: string) => {
     ENABLE_NOTIFICATION_TRACING: '!defined(NDEBUG) && 0', // Requires ENABLE_CHUNK_NAMES; also requires SPDLOG_ACTIVE_LEVEL to be 'SPDLOG_LEVEL_TRACE' and --log-level trace
 
     ENABLE_CHUNK_MULTITHREADING: 0,
-    ENABLE_FILEPOLLER_YIELDING:
+    ENABLE_FILEPOLLER_YIELD_KEYWORD:
       variant === 'qtc' || variant.match(/\btest\b/) ? 1 : 0, // Only used for tests; has a more predictable effect when multithreading is disabled
+    ENABLE_FILEPOLLER_BLOCKING: 0,
+    FILEPOLLER_TICK_TIMEOUT_MS: ENABLE_GRAPHICS ? 10 : 1000, // Pass zero to disable
 
-    FILEPOLLER_TICK_TIMEOUT_MS: ENABLE_GRAPHICS ? 10 : 1000,
+    PROPAGATE_EVERY_ROW: 1,
 
     ENABLE_PMUOI_FLAG: 1, // --print-memory-usage-output-index
 

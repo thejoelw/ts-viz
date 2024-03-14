@@ -10,6 +10,8 @@
 #include "render/camera.h"
 #endif
 
+#include "defs/PROPAGATE_EVERY_ROW.h"
+
 namespace stream {
 
 InputManager::InputManager(app::AppContext &context)
@@ -58,7 +60,16 @@ void InputManager::recvRecord(const rapidjson::Document &row) {
 #endif
 
     index++;
+
+#if PROPAGATE_EVERY_ROW
     propagate();
+#endif
+}
+
+void InputManager::yield() {
+#if !PROPAGATE_EVERY_ROW
+    propagate();
+#endif
 }
 
 void InputManager::end() {

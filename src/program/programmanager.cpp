@@ -74,6 +74,8 @@ void ProgramManager::recvRecord(const rapidjson::Document &row) {
     hasProgram = true;
 }
 
+void ProgramManager::yield() {}
+
 void ProgramManager::end() {
     assert(running);
     running = false;

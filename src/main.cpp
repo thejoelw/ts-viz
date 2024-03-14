@@ -27,65 +27,65 @@ int main(int argc, char **argv) {
     jw_util::Thread::set_main_thread();
 
     // Setup argument parser
-    argparse::ArgumentParser program("ts-viz", tsVizVersion);
-    program.add_description("A time series visualizer and processor");
+    argparse::ArgumentParser args("ts-viz", tsVizVersion);
+    args.add_description("A time series visualizer and processor");
 
-    program.add_argument("program-path")
+    args.add_argument("program-path")
             .help("The path to the program file or stream")
             .required();
 
-    program.add_argument("data-path")
+    args.add_argument("data-path")
             .help("The path to the data file or stream")
             .required();
 
-    program.add_argument("--title")
+    args.add_argument("--title")
             .help("The window title to show")
             .default_value(std::string("ts-viz"));
 
-    program.add_argument("--log-level")
+    args.add_argument("--log-level")
             .help("Minimum logging level to output")
             .default_value(spdlog::level::info)
             .action(spdlog::level::from_str);
 
-    program.add_argument("--wisdom-dir")
+    args.add_argument("--wisdom-dir")
             .help("The directory to load and save wisdom to/from")
             .default_value(std::string("."));
 
-    program.add_argument("--require-existing-wisdom")
+    args.add_argument("--require-existing-wisdom")
             .help("Disable generating fftw's wisdom; exit if they don't exist in filesystem")
             .default_value(false)
             .implicit_value(true);
 
-    program.add_argument("--dont-write-wisdom")
+    args.add_argument("--dont-write-wisdom")
             .help("Disable writing fftw's wisdom files")
             .default_value(false)
             .implicit_value(true);
 
 #if ENABLE_CONV_MIN_COMPUTE_FLAG
-    program.add_argument("--conv-min-compute-log2")
+    args.add_argument("--conv-min-compute-log2")
             .help("For calculating convolutions, advance in (2 ^ value) element increments")
             .default_value(0u)
             .action([](const std::string& value) -> unsigned int { return std::max(0, std::min(std::stoi(value), CHUNK_SIZE_LOG2)); });
 #endif
 
-    program.add_argument("--gc-memory-limit")
+    args.add_argument("--gc-memory-limit")
             .help("Enable garbage collector above this value")
             .default_value(static_cast<std::size_t>(-1))
             .action([](const std::string& value) -> std::size_t { return std::stoull(value); });
 
 #if ENABLE_PMUOI_FLAG
-    program.add_argument("--print-memory-usage-output-index")
+    args.add_argument("--print-memory-usage-output-index")
             .help("Prints the memory usage required to compute and output the nth record")
             .default_value(static_cast<std::size_t>(-1))
             .action([](const std::string& value) -> std::size_t { return std::stoull(value); });
 #endif
 
-    program.add_argument("--disable-emit")
+    args.add_argument("--disable-emit")
             .help("Disable emitting")
             .default_value(false)
             .implicit_value(true);
 
-    program.add_argument("--meter-indices")
+    args.add_argument("--meter-indices")
             .help("Output meter records at these indices")
             .default_value(util::PrivateWrapper<std::vector<std::size_t>>())
             .action([](const std::string& value) -> util::PrivateWrapper<std::vector<std::size_t>> {
@@ -113,46 +113,46 @@ int main(int argc, char **argv) {
         return res;
     });
 
-    program.add_argument("--max-fps")
+    args.add_argument("--max-fps")
             .help("Cap frames per second at this value, or zero to disable")
             .default_value(static_cast<std::size_t>(0))
             .action([](const std::string& value) -> std::size_t { return std::stoull(value); });
 
-    program.add_argument("--dont-exit")
+    args.add_argument("--dont-exit")
             .help("Don't exit, even if the program pipe and data pipes end")
             .default_value(false)
             .implicit_value(true);
 
     try {
-        program.parse_args(argc, argv);
+        args.parse_args(argc, argv);
     }
     catch (const std::runtime_error &err) {
         std::cerr << err.what() << std::endl;
-        std::cerr << program;
+        std::cerr << args;
         return 1;
     }
 
-    app::Options::getMutableInstance().title = program.get<std::string>("--title");
-    app::Options::getMutableInstance().wisdomDir = program.get<std::string>("--wisdom-dir");
-    app::Options::getMutableInstance().requireExistingWisdom = program.get<bool>("--require-existing-wisdom");
-    app::Options::getMutableInstance().writeWisdom = !program.get<bool>("--dont-write-wisdom");
+    app::Options::getMutableInstance().title = args.get<std::string>("--title");
+    app::Options::getMutableInstance().wisdomDir = args.get<std::string>("--wisdom-dir");
+    app::Options::getMutableInstance().requireExistingWisdom = args.get<bool>("--require-existing-wisdom");
+    app::Options::getMutableInstance().writeWisdom = !args.get<bool>("--dont-write-wisdom");
 #if ENABLE_CONV_MIN_COMPUTE_FLAG
-    app::Options::getMutableInstance().convMinComputeLog2 = program.get<unsigned int>("--conv-min-compute-log2");
+    app::Options::getMutableInstance().convMinComputeLog2 = args.get<unsigned int>("--conv-min-compute-log2");
 #endif
-    app::Options::getMutableInstance().gcMemoryLimit = program.get<std::size_t>("--gc-memory-limit");
+    app::Options::getMutableInstance().gcMemoryLimit = args.get<std::size_t>("--gc-memory-limit");
 #if ENABLE_PMUOI_FLAG
-    app::Options::getMutableInstance().printMemoryUsageOutputIndex = program.get<std::size_t>("--print-memory-usage-output-index");
+    app::Options::getMutableInstance().printMemoryUsageOutputIndex = args.get<std::size_t>("--print-memory-usage-output-index");
 #endif
-    app::Options::getMutableInstance().enableEmit = !program.get<bool>("--disable-emit");
-    app::Options::getMutableInstance().meterIndices = program.get<util::PrivateWrapper<std::vector<std::size_t>>>("--meter-indices").val;
-    app::Options::getMutableInstance().maxFps = program.get<std::size_t>("--max-fps");
-    app::Options::getMutableInstance().dontExit = program.get<bool>("--dont-exit");
+    app::Options::getMutableInstance().enableEmit = !args.get<bool>("--disable-emit");
+    app::Options::getMutableInstance().meterIndices = args.get<util::PrivateWrapper<std::vector<std::size_t>>>("--meter-indices").val;
+    app::Options::getMutableInstance().maxFps = args.get<std::size_t>("--max-fps");
+    app::Options::getMutableInstance().dontExit = args.get<bool>("--dont-exit");
 
     // Setup logger
     spdlog::set_default_logger(nullptr);
     spdlog::set_default_logger(spdlog::stderr_color_mt(""));
 
-    spdlog::level::level_enum logLevel = program.get<spdlog::level::level_enum>("--log-level");
+    spdlog::level::level_enum logLevel = args.get<spdlog::level::level_enum>("--log-level");
     if (logLevel >= 0 && logLevel < SPDLOG_ACTIVE_LEVEL) {
         spdlog::critical("Tried to set --log-level flag to {}, which is below (more verbose) than the compile-time SPDLOG_ACTIVE_LEVEL, which is {}", spdlog::level::level_string_views[logLevel], spdlog::level::level_string_views[SPDLOG_ACTIVE_LEVEL]);
         return 1;
@@ -184,8 +184,8 @@ int main(int argc, char **argv) {
 
     SPDLOG_INFO("Starting...");
 
-    context.get<stream::FilePoller>().addFile<stream::JsonUnwrapper<program::ProgramManager>>(program.get<std::string>("program-path"));
-    context.get<stream::FilePoller>().addFile<stream::JsonUnwrapper<stream::InputManager>>(program.get<std::string>("data-path"));
+    context.get<stream::FilePoller>().addFile<stream::JsonUnwrapper<program::ProgramManager>>(args.get<std::string>("program-path"), false);
+    context.get<stream::FilePoller>().addFile<stream::JsonUnwrapper<stream::InputManager>>(args.get<std::string>("data-path"), true);
 
     // Run it!!!
     try {

@@ -24,6 +24,7 @@ public:
     ProgramManager(app::AppContext &context);
 
     void recvRecord(const rapidjson::Document &row);
+    void yield();
     void end();
 
     bool isRunning() const { return running; }

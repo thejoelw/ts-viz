@@ -2,8 +2,6 @@
 
 #include "defs/ENABLE_GRAPHICS.h"
 
-#include <unistd.h>
-
 #include "app/tickercontext.h"
 #include "program/programmanager.h"
 #include "stream/inputmanager.h"
@@ -30,15 +28,16 @@ void MainLoop::run() {
 #endif
                 ;
 
-        std::chrono::steady_clock::time_point timeout;
         if (maxFps != 0) {
-            timeout = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::seconds(1)) / maxFps;
+            blockTimeout = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::seconds(1)) / maxFps;
+        } else {
+            blockTimeout = std::chrono::steady_clock::time_point();
         }
 
         context.get<TickerContext>().tick();
 
-        if (maxFps != 0 && std::chrono::steady_clock::now() < timeout) {
-            std::this_thread::sleep_until(timeout);
+        if (blockTimeout != std::chrono::steady_clock::time_point() && std::chrono::steady_clock::now() < blockTimeout) {
+            std::this_thread::sleep_until(blockTimeout);
         }
     } while (shouldRun());
 }
@@ -49,6 +48,20 @@ bool MainLoop::shouldRun() const {
             || context.get<program::ProgramManager>().isRunning()
             || context.get<stream::InputManager>().isRunning()
             || context.get<stream::MetricManager>().isRunning();
+}
+
+std::chrono::steady_clock::duration MainLoop::getBlockDuration() {
+    if (blockTimeout != std::chrono::steady_clock::time_point()) {
+        std::chrono::steady_clock::duration res = blockTimeout - std::chrono::steady_clock::now();
+        if (res > std::chrono::steady_clock::duration::zero()) {
+            return res;
+        } else {
+            blockTimeout = std::chrono::steady_clock::time_point();
+            return std::chrono::steady_clock::duration::zero();
+        }
+    } else {
+        return std::chrono::steady_clock::duration::zero();
+    }
 }
 
 }

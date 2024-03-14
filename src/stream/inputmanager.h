@@ -15,6 +15,7 @@ public:
     InputManager(app::AppContext &context);
 
     void recvRecord(const rapidjson::Document &row);
+    void yield();
     void end();
 
     std::size_t getIndex() const { return index; }
