@@ -12,11 +12,24 @@ namespace stream {
 
 class DrawingManager {
 public:
-    DrawingManager(app::AppContext &context);
+    DrawingManager(app::AppContext &context)
+        : context(context)
+    {}
 
-    void resetDrawing(char code);
-    void addPoint(glm::vec2 pt);
-    Drawing &getStream(const std::string &name);
+    void resetDrawing(char code) {
+        curStream = &getStream(std::string(1, code));
+        curStream->reset();
+    }
+
+    void addPoint(glm::vec2 pt) {
+        if (curStream != nullptr) {
+            curStream->addPoint(pt);
+        }
+    }
+
+    Drawing &getStream(const std::string &name) {
+        return streams[name];
+    }
 
 private:
     app::AppContext &context;

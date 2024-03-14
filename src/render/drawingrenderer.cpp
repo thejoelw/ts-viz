@@ -1,7 +1,8 @@
-#include "defs/ENABLE_GRAPHICS.h"
-
 #include "drawingrenderer.h"
 
+#include <cassert>
+
+#include "defs/ENABLE_GRAPHICS.h"
 #if ENABLE_GRAPHICS
 #include "graphics/imgui.h"
 #include "render/camera.h"

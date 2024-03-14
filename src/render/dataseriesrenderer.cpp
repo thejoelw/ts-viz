@@ -1,10 +1,6 @@
-#include "defs/ENABLE_GRAPHICS.h"
-
-// TODO: Remove
-#include <iostream>
-
 #include "dataseriesrenderer.h"
 
+#include "defs/ENABLE_GRAPHICS.h"
 #if ENABLE_GRAPHICS
 #include "graphics/imgui.h"
 #include "render/camera.h"

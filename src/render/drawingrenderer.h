@@ -1,23 +1,23 @@
 #pragma once
 
 #include "render/seriesrenderer.h"
-#include "stream/drawingmanager.h"
 
 #include "defs/ENABLE_GRAPHICS.h"
 #if ENABLE_GRAPHICS
 #include "graphics/glbuffer.h"
 #include "graphics/type/element.h"
 #include "render/program/linestripprogram.h"
+#include "stream/drawingmanager.h"
 #endif
 
 namespace render {
 
 class DrawingRenderer : public SeriesRenderer {
 public:
-    DrawingRenderer(app::AppContext &context, const std::string &name, stream::Drawing &drawing, bool enabled, float r, float g, float b, float a)
+    DrawingRenderer(app::AppContext &context, const std::string &name, bool enabled, float r, float g, float b, float a)
         : SeriesRenderer(context, name)
-        , drawing(drawing)
 #if ENABLE_GRAPHICS
+        , drawing(context.get<stream::DrawingManager>().getStream(name))
         , enabled(enabled)
         , remoteBuffer(GL_ARRAY_BUFFER, GL_STREAM_DRAW)
         , drawStyle(r, g, b, a, true)
@@ -35,9 +35,9 @@ public:
 #endif
 
 private:
+#if ENABLE_GRAPHICS
     stream::Drawing &drawing;
 
-#if ENABLE_GRAPHICS
     bool enabled;
 
     graphics::GlVao vao;
