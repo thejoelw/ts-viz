@@ -48,7 +48,7 @@ export default (variant: string) => {
     ENABLE_FILEPOLLER_BLOCKING: 0,
     FILEPOLLER_TICK_TIMEOUT_MS: ENABLE_GRAPHICS ? 10 : 1000, // Pass zero to disable
 
-    PROPAGATE_EVERY_ROW: 1,
+    PROPAGATE_EVERY_ROW: variant.match(/\bheadless\b/) ? 1 : 0,
 
     ENABLE_PMUOI_FLAG: 1, // --print-memory-usage-output-index
 

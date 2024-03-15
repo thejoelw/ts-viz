@@ -17,6 +17,7 @@ template <typename RealType> struct FuncExp { RealType operator()(RealType a) co
 template <typename RealType> struct FuncLog { RealType operator()(RealType a) const { return std::log(a); } };
 template <typename RealType> struct FuncExpm1 { RealType operator()(RealType a) const { return std::expm1(a); } };
 template <typename RealType> struct FuncLog1p { RealType operator()(RealType a) const { return std::log1p(a); } };
+template <typename RealType> struct FuncSigmoid { RealType operator()(RealType a) const { return RealType(1.0) / (RealType(1.0) + std::exp(-a)); } };
 template <typename RealType> struct FuncSin { RealType operator()(RealType a) const { return std::sin(a); } };
 template <typename RealType> struct FuncCos { RealType operator()(RealType a) const { return std::cos(a); } };
 template <typename RealType> struct FuncTan { RealType operator()(RealType a) const { return std::tan(a); } };
@@ -63,6 +64,7 @@ static int _ = program::Resolver::registerBuilder([](app::AppContext &context, p
     declUnaryOp<FuncLog>(context, resolver, "log");
     declUnaryOp<FuncExpm1>(context, resolver, "expm1");
     declUnaryOp<FuncLog1p>(context, resolver, "log1p");
+    declUnaryOp<FuncSigmoid>(context, resolver, "sigmoid");
     declUnaryOp<FuncSin>(context, resolver, "sin");
     declUnaryOp<FuncCos>(context, resolver, "cos");
     declUnaryOp<FuncTan>(context, resolver, "tan");
