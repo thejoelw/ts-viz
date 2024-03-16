@@ -80,10 +80,15 @@ int main(int argc, char **argv) {
             .action([](const std::string& value) -> std::size_t { return std::stoull(value); });
 #endif
 
-    args.add_argument("--disable-emit")
-            .help("Disable emitting")
-            .default_value(false)
-            .implicit_value(true);
+    args.add_argument("--emit-format")
+            .help("Sets the format of emitted records: none, json, or binary")
+            .default_value(std::string("none"))
+            .action([](const std::string& value) -> app::Options::EmitFormat {
+        if (value == "none") { return app::Options::EmitFormat::None; }
+        else if (value == "json") { return app::Options::EmitFormat::Json; }
+        else if (value == "binary") { return app::Options::EmitFormat::Binary; }
+        else { throw std::runtime_error("Invalid value of --emit-format"); }
+    });
 
     args.add_argument("--meter-indices")
             .help("Output meter records at these indices")
@@ -143,7 +148,7 @@ int main(int argc, char **argv) {
 #if ENABLE_PMUOI_FLAG
     app::Options::getMutableInstance().printMemoryUsageOutputIndex = args.get<std::size_t>("--print-memory-usage-output-index");
 #endif
-    app::Options::getMutableInstance().enableEmit = !args.get<bool>("--disable-emit");
+    app::Options::getMutableInstance().emitFormat = args.get<app::Options::EmitFormat>("--emit-format");
     app::Options::getMutableInstance().meterIndices = args.get<util::PrivateWrapper<std::vector<std::size_t>>>("--meter-indices").val;
     app::Options::getMutableInstance().maxFps = args.get<std::size_t>("--max-fps");
     app::Options::getMutableInstance().dontExit = args.get<bool>("--dont-exit");

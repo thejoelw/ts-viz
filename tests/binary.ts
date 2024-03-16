@@ -11,7 +11,7 @@ import {
   mul,
   shrink,
   sub,
-} from '../trader-exprs/modules/base.ts';
+} from '../ts/base.ts';
 
 const r = d;
 

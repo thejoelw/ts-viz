@@ -1,4 +1,4 @@
-import { d, input } from '../trader-exprs/modules/base.ts';
+import { d, input } from '../ts/base.ts';
 
 const r = d;
 

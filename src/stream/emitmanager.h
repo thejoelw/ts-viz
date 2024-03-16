@@ -23,6 +23,8 @@ private:
     std::vector<SeriesEmitter *> curEmitters;
 
     void emit();
+    void emitJson();
+    void emitBinary();
 };
 
 }

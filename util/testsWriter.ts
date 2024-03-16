@@ -1,6 +1,6 @@
 import { walk } from 'https://deno.land/std@0.107.0/fs/walk.ts';
-import { Node } from '../trader-exprs/types/types.ts';
-import { stringify } from '../trader-exprs/util/stringify.ts';
+import { Node } from '../ts/types.ts';
+import { stringify } from '../ts/stringify.ts';
 
 const variant = Deno.args[0];
 

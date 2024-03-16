@@ -43,6 +43,8 @@ public:
 
     static void setInstance(Options newInstance);
 
+    enum EmitFormat { None, Json, Binary };
+
     std::string title;
     std::string wisdomDir;
     bool requireExistingWisdom = false;
@@ -53,7 +55,7 @@ public:
     std::size_t gcMemoryLimit = static_cast<std::size_t>(-1);
     std::size_t printMemoryUsageOutputIndex = static_cast<std::size_t>(-1);
 
-    bool enableEmit = true;
+    EmitFormat emitFormat = EmitFormat::None;
 
     std::vector<std::size_t> meterIndices;
 

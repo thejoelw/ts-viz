@@ -1,6 +1,7 @@
 #include "emitmanager.h"
 
 #include <iostream>
+#include <stdio.h>
 
 #include "rapidjson/document.h"
 #include "rapidjson/stringbuffer.h"
@@ -21,7 +22,7 @@ EmitManager::EmitManager(app::AppContext &context)
     : TickableBase(context)
 {
     context.get<InputManager>();
-    assert(app::Options::getInstance().enableEmit);
+    assert(app::Options::getInstance().emitFormat != app::Options::EmitFormat::None);
 }
 
 EmitManager::~EmitManager() {
@@ -29,10 +30,18 @@ EmitManager::~EmitManager() {
 }
 
 void EmitManager::clearEmitters() {
+    if (nextEmitIndex != 0 && app::Options::getInstance().emitFormat == app::Options::EmitFormat::Binary) {
+        throw std::runtime_error("Cannot modify emitters while writing binary output!");
+    }
+
     curEmitters.clear();
 }
 
 void EmitManager::addEmitter(SeriesEmitter *emitter) {
+    if (nextEmitIndex != 0 && app::Options::getInstance().emitFormat == app::Options::EmitFormat::Binary) {
+        throw std::runtime_error("Cannot modify emitters while writing binary output!");
+    }
+
     curEmitters.push_back(emitter);
 }
 
@@ -51,6 +60,14 @@ void EmitManager::tick(app::TickerContext &tickerContext) {
 }
 
 void EmitManager::emit() {
+    switch (app::Options::getInstance().emitFormat) {
+        case app::Options::EmitFormat::Json: emitJson(); break;
+        case app::Options::EmitFormat::Binary: emitBinary(); break;
+        default: assert(false);
+    }
+}
+
+void EmitManager::emitJson() {
     static thread_local rapidjson::StringBuffer buffer;
     static thread_local rapidjson::Writer<rapidjson::StringBuffer> writer;
 
@@ -64,7 +81,7 @@ void EmitManager::emit() {
         for (SeriesEmitter *emitter : curEmitters) {
             std::pair<bool, double> res = emitter->getValue(nextEmitIndex);
             if (!res.first) {
-                goto finishLoop;
+                return;
             }
 
             writer.Key(emitter->getKey().data(), emitter->getKey().size());
@@ -82,7 +99,30 @@ void EmitManager::emit() {
 
         nextEmitIndex++;
     }
-    finishLoop:;
+}
+
+void EmitManager::emitBinary() {
+    static thread_local std::vector<double> buffer;
+
+    std::size_t endIndex = context.get<InputManager>().getIndex();
+    while (nextEmitIndex < endIndex) {
+        buffer.clear();
+
+        for (SeriesEmitter *emitter : curEmitters) {
+            std::pair<bool, double> res = emitter->getValue(nextEmitIndex);
+            if (!res.first) {
+                return;
+            }
+
+            buffer.push_back(res.second);
+        }
+
+        fwrite(buffer.data(), sizeof(double), buffer.size(), stdout);
+        fflush(stdout);
+
+        nextEmitIndex++;
+    }
+
 }
 
 }

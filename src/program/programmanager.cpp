@@ -51,7 +51,7 @@ void ProgramManager::recvRecord(const rapidjson::Document &row) {
                 context.get<render::Renderer>().addSeries(std::get<render::SeriesRenderer *>(obj));
             } else
 #endif
-            if (app::Options::getInstance().enableEmit && std::holds_alternative<stream::SeriesEmitter *>(obj)) {
+            if (app::Options::getInstance().emitFormat != app::Options::EmitFormat::None && std::holds_alternative<stream::SeriesEmitter *>(obj)) {
                 context.get<stream::EmitManager>().addEmitter(std::get<stream::SeriesEmitter *>(obj));
             } else if (std::holds_alternative<stream::SeriesMetric *>(obj)) {
                 context.get<stream::MetricManager>().addMetric(std::get<stream::SeriesMetric *>(obj));
