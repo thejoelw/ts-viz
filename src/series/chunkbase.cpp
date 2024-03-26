@@ -124,7 +124,8 @@ void ChunkBase::notify() {
 }
 
 void ChunkBase::incRefs() {
-    if (refs++ == 0) {
+    if (refs++ == 0 && ds->getIsTransient()) {
+        assert(!canFree());
         ds->getContext().get<GarbageCollector<ChunkBase>>().dequeue(this);
     }
     SPDLOG_DEBUG("incRefs for {} to {}", static_cast<void *>(this), refs);
@@ -132,7 +133,8 @@ void ChunkBase::incRefs() {
 }
 void ChunkBase::decRefs() {
     assert(refs > 0);
-    if (--refs == 0) {
+    if (--refs == 0 && ds->getIsTransient()) {
+        assert(canFree());
         ds->getContext().get<GarbageCollector<ChunkBase>>().enqueue(this);
     }
     SPDLOG_DEBUG("decRefs for {} to {}", static_cast<void *>(this), refs);
@@ -140,7 +142,7 @@ void ChunkBase::decRefs() {
 }
 
 bool ChunkBase::canFree() const {
-    return refs == 0;
+    return refs == 0 && ds->getIsTransient();
 }
 
 void ChunkBase::updateMemoryUsage(std::make_signed<std::size_t>::type inc) {

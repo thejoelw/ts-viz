@@ -117,9 +117,6 @@ public:
         auto foundValue = cache.emplace(&arg, static_cast<SelfType *>(0));
         if (foundValue.second) {
             foundValue.first->second = new SelfType(context, arg);
-#if ENABLE_CHUNK_NAMES
-            foundValue.first->second->setName("fft<" + std::to_string(partitionSize) + ">");
-#endif
         }
         return *foundValue.first->second;
     }

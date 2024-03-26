@@ -1,5 +1,23 @@
 import { Node, Window } from './types.ts';
 
+const debug = true;
+
+const errorRegex = /at (\w+) \([^)]+\/([^)]+)\)/g;
+
+const node = (...args: [string, ...Node[]]): Node => {
+  if (debug) {
+    const name = `${args[0]}/${args.length - 1}`;
+    const bt = new Error().stack;
+    let match;
+    const stack = [];
+    while (match = errorRegex.exec(bt)) {
+      stack.push(`${match[1]}@${match[2]}`);
+    }
+    args = ['meta', args, name, stack.slice(1).join(' <- ')];
+  }
+  return args;
+};
+
 const colors = [
   0x1f77b4,
   0xff7f0e,
@@ -21,60 +39,59 @@ const colorToGl = (color: number) => [
   0,
 ];
 
-export const input = (name: string): Node => ['input', name];
+export const input = (name: string): Node => node('input', name);
 
-export const f = (num: number | Node): Node => ['cast_float', num];
-export const d = (num: number | Node): Node => ['cast_double', num];
-export const i64 = (num: number | Node): Node => ['cast_int64', num];
+export const f = (num: number | Node): Node => node('cast_float', num);
+export const d = (num: number | Node): Node => node('cast_double', num);
+export const i64 = (num: number | Node): Node => node('cast_int64', num);
 
-const toConst = (x: Node) =>
-  (x[0] === 'cast_float' || x[0] === 'cast_double' || x[0] === 'cast_int64') &&
+const toConst = (x: Node) => x[0]==='named'?toConst(x[1]): (x[0] === 'cast_float' || x[0] === 'cast_double' || x[0] === 'cast_int64') &&
     typeof x[1] === 'number'
     ? x[1]
     : undefined;
 
-export const info = (msg: string, val: Node): Node => ['info', msg, val];
+export const info = (msg: string, val: Node): Node => node('info', msg, val);
 
-export const arr = (...args: Node[]): Node => ['arr', ...args];
+export const arr = (...args: Node[]): Node => node('arr', ...args);
 
-export const sgn = (a: Node): Node => ['sgn', a];
-export const abs = (a: Node): Node => ['abs', a];
-export const inv = (a: Node): Node => ['inv', a];
-export const square = (a: Node): Node => ['square', a];
-export const sqrt = (a: Node): Node => ['sqrt', a];
-export const cbrt = (a: Node): Node => ['cbrt', a];
-export const exp = (a: Node): Node => ['exp', a];
-export const log = (a: Node): Node => ['log', a];
-export const expm1 = (a: Node): Node => ['expm1', a];
-export const log1p = (a: Node): Node => ['log1p', a];
-export const sigmoid = (a: Node): Node => ['sigmoid', a];
-export const sin = (a: Node): Node => ['sin', a];
-export const cos = (a: Node): Node => ['cos', a];
-export const tan = (a: Node): Node => ['tan', a];
-export const asin = (a: Node): Node => ['asin', a];
-export const acos = (a: Node): Node => ['acos', a];
-export const atan = (a: Node): Node => ['atan', a];
-export const sinh = (a: Node): Node => ['sinh', a];
-export const cosh = (a: Node): Node => ['cosh', a];
-export const tanh = (a: Node): Node => ['tanh', a];
-export const asinh = (a: Node): Node => ['asinh', a];
-export const acosh = (a: Node): Node => ['acosh', a];
-export const atanh = (a: Node): Node => ['atanh', a];
-export const erf = (a: Node): Node => ['erf', a];
-export const erfc = (a: Node): Node => ['erfc', a];
-export const lgamma = (a: Node): Node => ['lgamma', a];
-export const tgamma = (a: Node): Node => ['tgamma', a];
-export const floor = (a: Node): Node => ['floor', a];
-export const ceil = (a: Node): Node => ['ceil', a];
-export const round = (a: Node): Node => ['round', a];
-export const not = (a: Node): Node => ['not', a];
-export const isNan = (a: Node): Node => ['is_nan', a];
-export const isNum = (a: Node): Node => ['is_num', a];
+export const sgn = (a: Node): Node => node('sgn', a);
+export const abs = (a: Node): Node => node('abs', a);
+export const inv = (a: Node): Node => node('inv', a);
+export const square = (a: Node): Node => node('square', a);
+export const sqrt = (a: Node): Node => node('sqrt', a);
+export const cbrt = (a: Node): Node => node('cbrt', a);
+export const exp = (a: Node): Node => node('exp', a);
+export const log = (a: Node): Node => node('log', a);
+export const expm1 = (a: Node): Node => node('expm1', a);
+export const log1p = (a: Node): Node => node('log1p', a);
+export const sigmoid = (a: Node): Node => node('sigmoid', a);
+export const sin = (a: Node): Node => node('sin', a);
+export const cos = (a: Node): Node => node('cos', a);
+export const tan = (a: Node): Node => node('tan', a);
+export const asin = (a: Node): Node => node('asin', a);
+export const acos = (a: Node): Node => node('acos', a);
+export const atan = (a: Node): Node => node('atan', a);
+export const sinh = (a: Node): Node => node('sinh', a);
+export const cosh = (a: Node): Node => node('cosh', a);
+export const tanh = (a: Node): Node => node('tanh', a);
+export const asinh = (a: Node): Node => node('asinh', a);
+export const acosh = (a: Node): Node => node('acosh', a);
+export const atanh = (a: Node): Node => node('atanh', a);
+export const erf = (a: Node): Node => node('erf', a);
+export const erfc = (a: Node): Node => node('erfc', a);
+export const lgamma = (a: Node): Node => node('lgamma', a);
+export const tgamma = (a: Node): Node => node('tgamma', a);
+export const floor = (a: Node): Node => node('floor', a);
+export const ceil = (a: Node): Node => node('ceil', a);
+export const round = (a: Node): Node => node('round', a);
+export const not = (a: Node): Node => node('not', a);
+export const isNan = (a: Node): Node => node('is_nan', a);
+export const isNum = (a: Node): Node => node('is_num', a);
 
 export const add = (a: Node, b: Node): Node =>
-  toConst(a) === 0 ? b : toConst(b) === 0 ? a : ['add', a, b];
+  toConst(a) === 0 ? b : toConst(b) === 0 ? a : node('add', a, b);
 export const sub = (a: Node, b: Node): Node =>
-  toConst(b) === 0 ? a : ['sub', a, b];
+  toConst(b) === 0 ? a : node('sub', a, b);
 export const mul = (a: Node, b: Node): Node =>
   toConst(a) === 1
     ? b
@@ -82,14 +99,14 @@ export const mul = (a: Node, b: Node): Node =>
     ? a
     : a === b
     ? square(a)
-    : ['mul', a, b];
+    : node('mul', a, b);
 export const div = (a: Node, b: Node): Node =>
   toConst(a) === 1
     ? inv(b)
     : toConst(b) !== undefined
     ? mul(a, inv(b))
-    : ['div', a, b];
-export const mod = (a: Node, b: Node): Node => ['mod', a, b];
+    : node('div', a, b);
+export const mod = (a: Node, b: Node): Node => node('mod', a, b);
 export const pow = (a: Node, b: Node): Node =>
   toConst(b) === -1
     ? inv(a)
@@ -101,39 +118,39 @@ export const pow = (a: Node, b: Node): Node =>
     ? a
     : toConst(b) === 2
     ? square(a)
-    : ['pow', a, b];
-export const atan2 = (a: Node, b: Node): Node => ['atan2', a, b];
-export const lt = (a: Node, b: Node): Node => ['lt', a, b];
-export const lte = (a: Node, b: Node): Node => ['lte', a, b];
-export const gt = (a: Node, b: Node): Node => ['gt', a, b];
-export const gte = (a: Node, b: Node): Node => ['gte', a, b];
-export const eq = (a: Node, b: Node): Node => ['eq', a, b];
-export const neq = (a: Node, b: Node): Node => ['neq', a, b];
-export const min = (a: Node, b: Node): Node => ['min', a, b];
-export const max = (a: Node, b: Node): Node => ['max', a, b];
-export const shrink = (a: Node, b: Node): Node => ['shrink', a, b];
-export const clamp = (a: Node, b: Node): Node => ['clamp', a, b];
+    : node('pow', a, b);
+export const atan2 = (a: Node, b: Node): Node => node('atan2', a, b);
+export const lt = (a: Node, b: Node): Node => node('lt', a, b);
+export const lte = (a: Node, b: Node): Node => node('lte', a, b);
+export const gt = (a: Node, b: Node): Node => node('gt', a, b);
+export const gte = (a: Node, b: Node): Node => node('gte', a, b);
+export const eq = (a: Node, b: Node): Node => node('eq', a, b);
+export const neq = (a: Node, b: Node): Node => node('neq', a, b);
+export const min = (a: Node, b: Node): Node => node('min', a, b);
+export const max = (a: Node, b: Node): Node => node('max', a, b);
+export const shrink = (a: Node, b: Node): Node => node('shrink', a, b);
+export const clamp = (a: Node, b: Node): Node => node('clamp', a, b);
 
 export const cond = (a: Node, b: Node, c: Node): Node =>
-  b === c ? b : ['cond', a, b, c];
+  b === c ? b : node('cond', a, b, c);
 export const triCond = (
   a: Node,
   b: Node,
   c: Node,
   d: Node,
-): Node => ['tri_cond', a, b, c, d];
-export const nanTo = (a: Node, b: Node): Node => ['nan_to', a, b];
+): Node => node('tri_cond', a, b, c, d);
+export const nanTo = (a: Node, b: Node): Node => node('nan_to', a, b);
 
-export const cumSum = (a: Node): Node => ['cum_sum', a];
-export const cumSumClamped = (a: Node): Node => ['cum_sum_clamped', a];
-export const decayingSum = (a: Node, b: Node): Node => ['decaying_sum', a, b];
-export const cumProd = (a: Node): Node => ['cum_prod', a];
-export const fwdFillZero = (a: Node): Node => ['fwd_fill_zero', a];
-export const subDelta = (a: Node): Node => ['sub_delta', a];
-export const divDelta = (a: Node): Node => ['div_delta', a];
-export const monotonify = (a: Node): Node => ['monotonify', a];
-export const slowPassZero = (a: Node): Node => ['slow_pass_zero', a];
-export const scanIf = (a: Node, b: Node, c: Node): Node => ['scan_if', a, b, c];
+export const cumSum = (a: Node): Node => node('cum_sum', a);
+export const cumSumClamped = (a: Node): Node => node('cum_sum_clamped', a);
+export const decayingSum = (a: Node, b: Node): Node => node('decaying_sum', a, b);
+export const cumProd = (a: Node): Node => node('cum_prod', a);
+export const fwdFillZero = (a: Node): Node => node('fwd_fill_zero', a);
+export const subDelta = (a: Node): Node => node('sub_delta', a);
+export const divDelta = (a: Node): Node => node('div_delta', a);
+export const monotonify = (a: Node): Node => node('monotonify', a);
+export const slowPassZero = (a: Node): Node => node('slow_pass_zero', a);
+export const scanIf = (a: Node, b: Node, c: Node): Node => node('scan_if', a, b, c);
 
 export const windowRect = (scale_0: Node): Window => {
   const width = i64(scale_0);
@@ -187,22 +204,22 @@ export const conv = (
   { name, kernel, width }: Window,
   ts: Node,
   backfillZeros: boolean = false,
-): Node => ['conv', kernel, ts, info(`${name} width`, width), backfillZeros];
+): Node => node('conv', kernel, ts, info(`${name} width`, width), backfillZeros);
 
-export const norm = (a: Node, size: Node, zeroOutside = true): Node => [
+export const norm = (a: Node, size: Node, zeroOutside = true): Node => node(
   'norm',
   a,
   size,
   zeroOutside,
-];
+);
 
-export const delay = (a: Node, d: Node): Node => ['delay', a, d];
+export const delay = (a: Node, d: Node): Node => node('delay', a, d);
 
-export const toTs = (a: Node): Node => ['to_ts', a];
-export const seq = (scale: Node): Node => ['seq', scale];
-export const gaussian = (wavelength: Node): Node => ['gaussian', wavelength];
+export const toTs = (a: Node): Node => node('to_ts', a);
+export const seq = (scale: Node): Node => node('seq', scale);
+export const gaussian = (wavelength: Node): Node => node('gaussian', wavelength);
 
-export const checkEq = (a: Node, b: Node): Node => ['check_eq', a, b];
+export const checkEq = (a: Node, b: Node): Node => node('check_eq', a, b);
 
 export const plot = (
   name: string,
@@ -210,27 +227,27 @@ export const plot = (
   offset = false,
   enabled = true,
   color: undefined | number = undefined,
-): Node => [
+): Node => node(
   'plot',
   name,
   value,
   offset,
   enabled,
   ...colorToGl(color || selectColor()),
-];
+);
 export const drawn = (
   name: string,
   trigger: Node,
-): Node => ['drawn', name, trigger];
+): Node => node('drawn', name, trigger);
 export const drawing = (
   name: string,
   enabled = true,
   color: undefined | number = undefined,
-): Node => [
+): Node => node(
   'drawing',
   name,
   enabled,
   ...colorToGl(color || selectColor()),
-];
-export const emit = (key: string, value: Node): Node => ['emit', key, value];
-export const meter = (key: string, value: Node): Node => ['meter', key, value];
+);
+export const emit = (key: string, value: Node): Node => node('emit', key, value);
+export const meter = (key: string, value: Node): Node => node('meter', key, value);

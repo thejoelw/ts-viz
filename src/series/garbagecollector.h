@@ -17,6 +17,12 @@ public:
     class Registration {
         friend class GarbageCollector;
 
+    public:
+        bool isEnqueued() const {
+            assert(!freeAfter == !freeBefore);
+            return freeAfter;
+        }
+
     private:
         ObjectType *freeAfter = nullptr;
         ObjectType *freeBefore = nullptr;
@@ -76,9 +82,8 @@ public:
 
         Level &level = getLevel(obj);
         Registration &reg = obj->getGcRegistration();
-        assert(!reg.freeAfter == !reg.freeBefore);
 
-        if (reg.freeAfter) {
+        if (reg.isEnqueued()) {
             if (level.freeNext == obj) {
                 if (obj->getGcRegistration().freeBefore == obj) {
                     return;
@@ -111,9 +116,8 @@ public:
 
         Level &level = getLevel(obj);
         Registration &reg = obj->getGcRegistration();
-        assert(!reg.freeAfter == !reg.freeBefore);
 
-        if (reg.freeAfter) {
+        if (reg.isEnqueued()) {
             if (level.freeNext == obj) {
                 if (obj->getGcRegistration().freeBefore == obj) {
                     level.freeNext = nullptr;

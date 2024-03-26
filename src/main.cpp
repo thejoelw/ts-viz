@@ -18,10 +18,12 @@
 #include "util/testrunner.h"
 #include "util/wrapper.h"
 #include "jw_util/thread.h"
+#include "app/seriesdebugger.h"
 
 #include "defs/CHUNK_SIZE_LOG2.h"
 #include "defs/ENABLE_CONV_MIN_COMPUTE_FLAG.h"
 #include "defs/ENABLE_PMUOI_FLAG.h"
+#include "defs/ENABLE_CHUNK_DEBUG.h"
 
 int main(int argc, char **argv) {
     jw_util::Thread::set_main_thread();
@@ -80,9 +82,15 @@ int main(int argc, char **argv) {
             .action([](const std::string& value) -> std::size_t { return std::stoull(value); });
 #endif
 
+#if ENABLE_CHUNK_DEBUG
+    args.add_argument("--debug-series-to-file")
+            .help("Outputs per-chunk debugging information to a file")
+            .default_value(std::string());
+#endif
+
     args.add_argument("--emit-format")
             .help("Sets the format of emitted records: none, json, or binary")
-            .default_value(std::string("none"))
+            .default_value(app::Options::EmitFormat::None)
             .action([](const std::string& value) -> app::Options::EmitFormat {
         if (value == "none") { return app::Options::EmitFormat::None; }
         else if (value == "json") { return app::Options::EmitFormat::Json; }
@@ -148,6 +156,9 @@ int main(int argc, char **argv) {
 #if ENABLE_PMUOI_FLAG
     app::Options::getMutableInstance().printMemoryUsageOutputIndex = args.get<std::size_t>("--print-memory-usage-output-index");
 #endif
+#if ENABLE_CHUNK_DEBUG
+    app::Options::getMutableInstance().debugSeriesToFile = args.get<std::string>("--debug-series-to-file");
+#endif
     app::Options::getMutableInstance().emitFormat = args.get<app::Options::EmitFormat>("--emit-format");
     app::Options::getMutableInstance().meterIndices = args.get<util::PrivateWrapper<std::vector<std::size_t>>>("--meter-indices").val;
     app::Options::getMutableInstance().maxFps = args.get<std::size_t>("--max-fps");
@@ -191,6 +202,10 @@ int main(int argc, char **argv) {
 
     context.get<stream::FilePoller>().addFile<stream::JsonUnwrapper<program::ProgramManager>>(args.get<std::string>("program-path"), false);
     context.get<stream::FilePoller>().addFile<stream::JsonUnwrapper<stream::InputManager>>(args.get<std::string>("data-path"), true);
+
+    if (!app::Options::getMutableInstance().debugSeriesToFile.empty()) {
+        context.get<app::SeriesDebugger>();
+    }
 
     // Run it!!!
     try {

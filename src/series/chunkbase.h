@@ -4,7 +4,6 @@
 #include <cmath>
 #include <vector>
 #include <atomic>
-#include <string>
 
 #include "log.h"
 #include "jw_util/thread.h"
@@ -12,11 +11,15 @@
 #include "series/chunkptrbase.h"
 #include "series/garbagecollector.h"
 
-#include "defs/ENABLE_CHUNK_NAMES.h"
+#include "defs/ENABLE_CHUNK_DEBUG.h"
 #include "defs/ENABLE_CHUNK_MULTITHREADING.h"
 
 #if ENABLE_CHUNK_MULTITHREADING
 #include "util/spinlock.h"
+#endif
+
+#if ENABLE_CHUNK_DEBUG
+#include <string>
 #endif
 
 namespace series { class DataSeriesBase; }
@@ -27,19 +30,6 @@ class ChunkBase {
 public:
     ChunkBase(DataSeriesBase *ds);
     virtual ~ChunkBase();
-
-#if ENABLE_CHUNK_NAMES
-    void setName(std::string newName) {
-#if ENABLE_CHUNK_NAMES
-        SPDLOG_DEBUG("Chunk {} name is {}", static_cast<void *>(this), newName);
-#endif
-
-        name = std::move(newName);
-    }
-    const std::string &getName() const {
-        return name;
-    }
-#endif
 
     void addDependent(ChunkBase *dep);
     void removeDependent(const ChunkBase *dep);
@@ -59,6 +49,9 @@ public:
     bool canFree() const;
 
     GarbageCollector<ChunkBase>::Registration &getGcRegistration() {
+        return gcReg;
+    }
+    const GarbageCollector<ChunkBase>::Registration &getGcRegistration() const {
         return gcReg;
     }
 
@@ -84,15 +77,13 @@ protected:
 
     mutable std::chrono::duration<float> followingDuration;
 
-#if ENABLE_CHUNK_NAMES
+#if ENABLE_CHUNK_DEBUG
     static std::string getIndentation(signed int inc) {
         static thread_local signed int ind = 0;
         ind += inc;
         assert(ind >= 0);
         return std::string(std::min(ind, ind - inc), ' ');
     }
-
-    std::string name;
 #endif
 
     void updateMemoryUsage(std::make_signed<std::size_t>::type inc);

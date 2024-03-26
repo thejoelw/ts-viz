@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <iomanip>
 
 #include "jw_util/thread.h"
 
@@ -20,7 +21,7 @@ public:
     static constexpr std::size_t size = _size;
 
     DataSeries(app::AppContext &context, bool isTransient = true)
-        : DataSeriesBase(context)
+        : DataSeriesBase(context, isTransient)
     {}
 
     ~DataSeries() {
@@ -48,10 +49,6 @@ public:
         if (!chunks[chunkIndex]) {
             std::size_t depStackSize = getDependencyStack().size();
             chunks[chunkIndex] = makeChunk(chunkIndex);
-
-#if ENABLE_CHUNK_NAMES
-            chunks[chunkIndex]->setName(name + "[" + std::to_string(chunkIndex) + "]");
-#endif
 
             assert(getDependencyStack().size() >= depStackSize);
             while (getDependencyStack().size() > depStackSize) {
@@ -93,14 +90,39 @@ public:
         chunks[chunkIndex] = nullptr;
     }
 
+#if ENABLE_CHUNK_DEBUG
+    void writeDebug(std::ostream &dst) const {
+        dst << std::setfill('0') << std::setw(16) << reinterpret_cast<std::uintptr_t>(this);
+        bool first = true;
+        for (const Meta &meta : metas) {
+            if (first) {
+                dst << ": ";
+                first = false;
+            } else {
+                dst << ", ";
+            }
+            dst << meta.name << " from " << meta.trace;
+        }
+        dst << std::endl << "  ";
+
+        for (const Chunk<ElementType, size> *chunk : chunks) {
+            if (!chunk) {
+                dst << '.';
+            } else if (chunk->getGcRegistration().isEnqueued()) {
+                dst << '-';
+            } else {
+                dst << '!';
+            }
+        }
+
+        dst << std::endl;
+    }
+#endif
+
     virtual Chunk<ElementType, size> *makeChunk(std::size_t chunkIndex) = 0;
 
     const std::vector<Chunk<ElementType, size> *> &getChunks() const {
         return chunks;
-    }
-
-    bool getIsTransient() const {
-        return isTransient;
     }
 
 protected:
@@ -116,8 +138,6 @@ protected:
 private:
 //    std::uint64_t offset = 0;
     std::vector<Chunk<ElementType, size> *> chunks;
-
-    bool isTransient;
 
     std::size_t locateChunk(const ChunkBase *chunk) {
         // Search backwards because it's more likely that we're searching for a recent chunk.

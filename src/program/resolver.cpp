@@ -5,23 +5,6 @@
 #include "app/appcontext.h"
 #include "series/dataseries.h"
 
-namespace {
-
-#if ENABLE_CHUNK_NAMES
-template <class Type>
-auto setName(Type *obj, const std::string &name, int) -> decltype(obj->setName(name), void()) {
-    obj->setName(name);
-}
-template <class Type>
-auto setName(Type &obj, const std::string &name, int) -> decltype(obj.setName(name), void()) {
-    obj.setName(name);
-}
-template <class Type>
-void setName(Type &, const std::string &, long) {}
-#endif
-
-}
-
 namespace program {
 
 Resolver::Resolver(app::AppContext &context)
@@ -66,6 +49,10 @@ ProgObj Resolver::execDecl(const std::string &name, const std::vector<ProgObj> &
 
     auto foundImpl = declarations.find(Decl(name, Decl::calcArgTypeComb(args)));
     if (foundImpl == declarations.cend()) {
+        if (name == "meta" && args.size() > 0) {
+            return args[0];
+        }
+
         std::string msg = "Unable to resolve " + name + "(";
 
         for (const ProgObj &obj : args) {
@@ -79,11 +66,7 @@ ProgObj Resolver::execDecl(const std::string &name, const std::vector<ProgObj> &
         throw UnresolvedCallException(msg);
     }
 
-    ProgObj res = foundImpl->second->invoke(args);
-#if ENABLE_CHUNK_NAMES
-    std::visit([name](auto &arg) {setName(arg, name, 0);}, res);
-#endif
-    return res;
+    return foundImpl->second->invoke(args);
 }
 
 int Resolver::registerBuilder(std::function<void (app::AppContext &, Resolver &)> func) {

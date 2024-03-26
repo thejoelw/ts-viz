@@ -39,8 +39,8 @@ export default (variant: string) => {
     GLVAO_ASSERT_BINDINGS: '!defined(NDEBUG) && 1',
 
     PRINT_TICK_ORDER: '!defined(NDEBUG) && 0', // Also requires SPDLOG_ACTIVE_LEVEL to be 'SPDLOG_LEVEL_TRACE' and --log-level trace
-    ENABLE_CHUNK_NAMES: '!defined(NDEBUG) && 1', // Also requires SPDLOG_ACTIVE_LEVEL to be 'SPDLOG_LEVEL_TRACE' and --log-level trace
-    ENABLE_NOTIFICATION_TRACING: '!defined(NDEBUG) && 0', // Requires ENABLE_CHUNK_NAMES; also requires SPDLOG_ACTIVE_LEVEL to be 'SPDLOG_LEVEL_TRACE' and --log-level trace
+    ENABLE_CHUNK_DEBUG: '!defined(NDEBUG) && 1', // Also requires SPDLOG_ACTIVE_LEVEL to be 'SPDLOG_LEVEL_TRACE' and --log-level trace
+    ENABLE_NOTIFICATION_TRACING: '!defined(NDEBUG) && 0', // Requires ENABLE_CHUNK_DEBUG; also requires SPDLOG_ACTIVE_LEVEL to be 'SPDLOG_LEVEL_TRACE' and --log-level trace
 
     ENABLE_CHUNK_MULTITHREADING: 0,
     ENABLE_FILEPOLLER_YIELD_KEYWORD:

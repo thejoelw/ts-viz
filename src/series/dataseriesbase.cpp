@@ -5,6 +5,7 @@
 #include "jw_util/thread.h"
 
 #include "app/tickercontext.h"
+#include "program/programmanager.h"
 
 namespace {
 
@@ -23,11 +24,12 @@ thread_local std::vector<ChunkBase *> DataSeriesBase::dependencyStack;
 
 thread_local bool DataSeriesBase::dryConstruct = false;
 
-DataSeriesBase::DataSeriesBase(app::AppContext &context)
+DataSeriesBase::DataSeriesBase(app::AppContext &context, bool isTransient)
     : context(context)
 #if ENABLE_CHUNK_MULTITHREADING
     , avgRunDuration(std::chrono::duration<float>::zero())
 #endif
+    , isTransient(isTransient || !context.get<program::ProgramManager>().isRunning())
 {
     class DepStackResetter : public app::TickerContext::TickableBase<DepStackResetter> {
     public:
@@ -43,6 +45,14 @@ DataSeriesBase::DataSeriesBase(app::AppContext &context)
     };
 
     context.get<DepStackResetter>();
+    context.get<Registry>().registry.push_back(this);
+}
+
+DataSeriesBase::~DataSeriesBase() {
+    std::vector<DataSeriesBase *> &registry = context.get<Registry>().registry;
+    std::vector<DataSeriesBase *>::iterator it = std::find(registry.begin(), registry.end(), this);
+    assert(it != registry.end());
+    registry.erase(it);
 }
 
 #if ENABLE_CHUNK_MULTITHREADING

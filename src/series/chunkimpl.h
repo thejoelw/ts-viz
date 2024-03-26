@@ -32,11 +32,7 @@ public:
 
         this->updateMemoryUsage(-sizeof(*this));
 
-#if ENABLE_CHUNK_NAMES
-        SPDLOG_DEBUG("Destroying chunk {} with name {} and size {}", static_cast<void *>(this), this->name, sizeof(*this));
-#else
         SPDLOG_DEBUG("Destroying chunk {} with size {}", static_cast<void *>(this), sizeof(*this));
-#endif
     }
 
     unsigned int compute(ElementType *dst, unsigned int computedCount) override {
