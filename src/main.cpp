@@ -100,27 +100,37 @@ int main(int argc, char **argv) {
 
     args.add_argument("--meter-indices")
             .help("Output meter records at these indices")
-            .default_value(util::PrivateWrapper<std::vector<std::size_t>>())
-            .action([](const std::string& value) -> util::PrivateWrapper<std::vector<std::size_t>> {
-        auto parse = [](std::string_view str) -> std::size_t {
-            std::size_t num;
-            std::from_chars_result res = std::from_chars(str.data(), str.data() + str.size(), num);
-            if (res.ec == std::errc()) {
-                return num;
-            } else {
+            .default_value(util::PrivateWrapper<std::vector<app::Options::MeterIndex>>())
+            .action([](const std::string& value) -> util::PrivateWrapper<std::vector<app::Options::MeterIndex>> {
+        auto parseNumber = []<typename T>(T &dst, std::string_view str) {
+            std::from_chars_result res = std::from_chars(str.data(), str.data() + str.size(), dst);
+            if (res.ec != std::errc() || res.ptr != str.data() + str.size()) {
                 throw std::runtime_error("Invalid number in --meter-indices");
             }
         };
 
-        util::PrivateWrapper<std::vector<std::size_t>> res;
+        auto parseMeterIndex = [&parseNumber](std::string_view str) -> app::Options::MeterIndex {
+            app::Options::MeterIndex res;
+            std::size_t found = str.find('/');
+            if (found != std::string::npos) {
+                parseNumber(res.num, str.substr(0, found));
+                parseNumber(res.den, str.substr(found + 1));
+            } else {
+                parseNumber(res.num, str);
+                res.den = 0;
+            }
+            return res;
+        };
+
+        util::PrivateWrapper<std::vector<app::Options::MeterIndex>> res;
         std::size_t idx = 0;
         while (true) {
             std::size_t found = value.find(',', idx);
             if (found == std::string::npos) {
-                res.val.push_back(parse(value.substr(idx)));
+                res.val.push_back(parseMeterIndex(value.substr(idx)));
                 break;
             }
-            res.val.push_back(parse(value.substr(idx, found - idx)));
+            res.val.push_back(parseMeterIndex(value.substr(idx, found - idx)));
             idx = found + 1;
         }
         return res;
@@ -160,7 +170,7 @@ int main(int argc, char **argv) {
     app::Options::getMutableInstance().debugSeriesToFile = args.get<std::string>("--debug-series-to-file");
 #endif
     app::Options::getMutableInstance().emitFormat = args.get<app::Options::EmitFormat>("--emit-format");
-    app::Options::getMutableInstance().meterIndices = args.get<util::PrivateWrapper<std::vector<std::size_t>>>("--meter-indices").val;
+    app::Options::getMutableInstance().meterIndices = args.get<util::PrivateWrapper<std::vector<app::Options::MeterIndex>>>("--meter-indices").val;
     app::Options::getMutableInstance().maxFps = args.get<std::size_t>("--max-fps");
     app::Options::getMutableInstance().dontExit = args.get<bool>("--dont-exit");
 

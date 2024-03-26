@@ -3,6 +3,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <type_traits>
 
 #include "rapidjson/include/rapidjson/document.h"
 
@@ -10,6 +11,11 @@ namespace app {
 
 class Options {
 public:
+    struct MeterIndex {
+        std::int64_t num;
+        std::uint64_t den;
+    };
+
     /*
     template <typename ResultType>
     const ResultType &get(const char *name) {
@@ -58,7 +64,7 @@ public:
 
     EmitFormat emitFormat = EmitFormat::None;
 
-    std::vector<std::size_t> meterIndices;
+    std::vector<MeterIndex> meterIndices;
 
     std::size_t maxFps = 0;
 

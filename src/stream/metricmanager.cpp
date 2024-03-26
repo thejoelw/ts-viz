@@ -24,10 +24,15 @@ void MetricManager::addMetric(SeriesMetric *metric) {
 }
 
 void MetricManager::submitMetrics() {
-    for (std::size_t index : app::Options::getInstance().meterIndices) {
+    for (app::Options::MeterIndex idx : app::Options::getInstance().meterIndices) {
+        if (idx.den != 0 || idx.num < 0) {
+            assert(false);
+            return;
+        }
+
         std::vector<std::pair<SeriesMetric *, SeriesMetric::ValuePoller *>> rec;
         for (SeriesMetric *metric : curMetrics) {
-            rec.emplace_back(metric, metric->makePoller(index));
+            rec.emplace_back(metric, metric->makePoller(idx.num));
         }
         metricQueue.emplace(std::move(rec));
     }

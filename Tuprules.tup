@@ -8,7 +8,7 @@ BIN_TARGET = $(ROOT)/ts-viz
 # VERSION = `cd .. && git add --all && git write-tree`
 VERSION = 0.1
 
-CFLAGS += -std=c++17
+CFLAGS += -std=c++20
 CFLAGS += -Wall -Werror -Wno-missing-braces -Wno-unused -Wno-expansion-to-defined
 CFLAGS += -I$(SRC_PATH) -I$(THIRD_PARTY_PATH) -I$(THIRD_PARTY_PATH)/spdlog/include/ -I$(THIRD_PARTY_PATH)/rapidjson/include/
 CFLAGS += -DIMGUI_IMPL_OPENGL_LOADER_GLEW
