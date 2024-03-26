@@ -46,14 +46,10 @@ public:
             , trace(trace)
         {}
 
-        std::string name = "?";
+        std::string name;
         std::string trace;
     };
-    void addMeta(const std::string &name, const std::string &trace) {
-        metas.emplace_back(name, trace);
-    }
-
-    // std::string getName(const ChunkBase *chunk) const;
+    void addMeta(const std::string &name, const std::string &trace);
 
     virtual void writeDebug(std::ostream &dst) const = 0;
 #endif

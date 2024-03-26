@@ -70,6 +70,18 @@ std::chrono::duration<float> DataSeriesBase::getAvgRunDuration() const {
 }
 #endif
 
+#if ENABLE_CHUNK_DEBUG
+void DataSeriesBase::addMeta(const std::string &name, const std::string &trace) {
+    for (const Meta &meta : metas) {
+        if (meta.name == name && meta.trace == trace) {
+            return;
+        }
+    }
+
+    metas.emplace_back(name, trace);
+}
+#endif
+
 std::vector<ChunkBase *> &DataSeriesBase::getDependencyStack() {
     jw_util::Thread::assert_main_thread();
 
