@@ -1,6 +1,6 @@
 import { Node, Window } from './types.ts';
 
-const debug = true;
+const debug = false;
 
 const errorRegex = /at (\w+) \([^)]+\/([^)]+)\)/g;
 
@@ -213,7 +213,7 @@ export const norm = (a: Node, size: Node, zeroOutside = true): Node => node(
   zeroOutside,
 );
 
-export const delay = (a: Node, d: Node): Node => node('delay', a, d);
+export const delay = (a: Node, d: Node): Node => toConst(d) === 0 ? a : node('delay', a, d);
 
 export const toTs = (a: Node): Node => node('to_ts', a);
 export const seq = (scale: Node): Node => node('seq', scale);

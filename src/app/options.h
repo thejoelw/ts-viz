@@ -3,7 +3,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <type_traits>
+#include <cstdint>
 
 #include "rapidjson/include/rapidjson/document.h"
 
