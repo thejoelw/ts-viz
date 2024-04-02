@@ -57,8 +57,6 @@ export const toConst = (x: number | Node) =>typeof x === 'number' ? x :
 
 export const info = (msg: string, val: Node): Node => node('info', msg, val);
 
-export const arr = (...args: Node[]): Node => node('arr', ...args);
-
 export const sgn = (a: Node): Node => node('sgn', a);
 export const abs = (a: Node): Node => node('abs', a);
 export const inv = (a: Node): Node => node('inv', a);
@@ -158,6 +156,8 @@ export const monotonify = (a: Node): Node => node('monotonify', a);
 export const slowPassZero = (a: Node): Node => node('slow_pass_zero', a);
 export const scanIf = (a: Node, b: Node, c: Node): Node =>
   node('scan_if', a, b, c);
+
+export const dot = (a: Node[], b: Node[]): Node => node('dot', node('arr', ...a), node('arr', ...b));
 
 export const windowRect = (scale_0: Node): Window => {
   const width = i64(scale_0);
