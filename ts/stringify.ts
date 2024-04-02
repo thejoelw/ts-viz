@@ -66,3 +66,33 @@ export const stringify = (root: unknown) => {
     return value;
   });
 };
+
+export const inflate = (str: string, rootPath: string[] = []) => {
+  const refs = [];
+
+  const obj = JSON.parse(str, function (key, value) {
+    if (typeof value === 'object' && value !== null && '$ref' in value) {
+      refs.push({ parent: this, key, path: value.$ref });
+    }
+    return value;
+  });
+
+  let root = obj;
+  for (const key of rootPath) {
+    root = root[key];
+  }
+
+  for (const {parent, key, path} of refs) {
+    const idxs = path.split('/');
+    if (idxs[0] !== '#') {
+      throw new Error(`Invaild path!`);
+    }
+    let ptr = root;
+    for (const idx of idxs.slice(1)) {
+      ptr = ptr[parseInt(idx)];
+    }
+    parent[key] = ptr;
+  }
+
+  return obj;
+};

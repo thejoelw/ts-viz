@@ -42,11 +42,11 @@ const colorToGl = (color: number) => [
 
 export const input = (name: string): Node => node('input', name);
 
-export const f = (num: number | Node): Node => node('cast_float', num);
-export const d = (num: number | Node): Node => node('cast_double', num);
-export const i64 = (num: number | Node): Node => node('cast_int64', num);
+export const f = (num: number | Node): Node => node('cast_float', toConst(num) ?? num);
+export const d = (num: number | Node): Node => node('cast_double', toConst(num) ?? num);
+export const i64 = (num: number | Node): Node => node('cast_int64', toConst(num) ?? num);
 
-const toConst = (x: Node) =>
+export const toConst = (x: number | Node) =>typeof x === 'number' ? x :
   x[0] === 'meta'
     ? toConst(x[1])
     : (x[0] === 'cast_float' || x[0] === 'cast_double' ||

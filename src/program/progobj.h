@@ -60,12 +60,12 @@ public:
         : arr(std::move(arr))
     {}
 
-    const std::vector<ItemType> &getArr() const {
-        return arr;
-    }
-
     bool operator==(const ProgObjArray<ItemType> &other) const {
         return arr == other.arr;
+    }
+
+    const std::vector<ItemType> &getArr() const {
+        return arr;
     }
 
 private:

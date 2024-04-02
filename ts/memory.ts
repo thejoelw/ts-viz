@@ -1,5 +1,5 @@
 import { Node, Window } from './types.ts';
-import { add, conv, decayingSum, div, exp, inv, log, mul } from './base.ts';
+import { add, conv, decayingSum, div, exp, inv, log, mul, sub, toConst } from './base.ts';
 import { r } from './config.ts';
 
 export const decay = (
@@ -18,9 +18,10 @@ export const lse = (
   data: Node,
   c: Node | number,
   backfillZeros?: boolean,
+  base = r(0),
 ) =>
-  c
-    ? mul(log(decay(window, exp(mul(data, r(c))), backfillZeros)), inv(r(c)))
+  toConst(c) !== 0
+    ? add(div(log(decay(window, exp(mul(sub(data, base), r(c))), backfillZeros)), r(c)), base)
     : decay(window, data, backfillZeros);
 
 export const persist = (
@@ -43,7 +44,7 @@ export const persistLse = (
   eps = 1e-9,
   backfillZeros?: boolean,
 ) =>
-  c
+  toConst(c) !== 0
     ? mul(
       log(persist(window, trigger, exp(mul(value, r(c))), eps, backfillZeros)),
       inv(r(c)),
