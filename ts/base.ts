@@ -1,4 +1,5 @@
 import { Node, Window } from './types.ts';
+import { getHash } from './stringify.ts';
 
 const debug = false;
 
@@ -45,8 +46,12 @@ export const f = (num: number | Node): Node => node('cast_float', num);
 export const d = (num: number | Node): Node => node('cast_double', num);
 export const i64 = (num: number | Node): Node => node('cast_int64', num);
 
-const toConst = (x: Node) => x[0]==='named'?toConst(x[1]): (x[0] === 'cast_float' || x[0] === 'cast_double' || x[0] === 'cast_int64') &&
-    typeof x[1] === 'number'
+const toConst = (x: Node) =>
+  x[0] === 'meta'
+    ? toConst(x[1])
+    : (x[0] === 'cast_float' || x[0] === 'cast_double' ||
+        x[0] === 'cast_int64') &&
+        typeof x[1] === 'number'
     ? x[1]
     : undefined;
 
@@ -143,14 +148,16 @@ export const nanTo = (a: Node, b: Node): Node => node('nan_to', a, b);
 
 export const cumSum = (a: Node): Node => node('cum_sum', a);
 export const cumSumClamped = (a: Node): Node => node('cum_sum_clamped', a);
-export const decayingSum = (a: Node, b: Node): Node => node('decaying_sum', a, b);
+export const decayingSum = (a: Node, b: Node): Node =>
+  node('decaying_sum', a, b);
 export const cumProd = (a: Node): Node => node('cum_prod', a);
 export const fwdFillZero = (a: Node): Node => node('fwd_fill_zero', a);
 export const subDelta = (a: Node): Node => node('sub_delta', a);
 export const divDelta = (a: Node): Node => node('div_delta', a);
 export const monotonify = (a: Node): Node => node('monotonify', a);
 export const slowPassZero = (a: Node): Node => node('slow_pass_zero', a);
-export const scanIf = (a: Node, b: Node, c: Node): Node => node('scan_if', a, b, c);
+export const scanIf = (a: Node, b: Node, c: Node): Node =>
+  node('scan_if', a, b, c);
 
 export const windowRect = (scale_0: Node): Window => {
   const width = i64(scale_0);
@@ -204,20 +211,24 @@ export const conv = (
   { name, kernel, width }: Window,
   ts: Node,
   backfillZeros: boolean = false,
-): Node => node('conv', kernel, ts, info(`${name} width`, width), backfillZeros);
+): Node =>
+  node('conv', kernel, ts, info(`${name} width`, width), backfillZeros);
 
-export const norm = (a: Node, size: Node, zeroOutside = true): Node => node(
-  'norm',
-  a,
-  size,
-  zeroOutside,
-);
+export const norm = (a: Node, size: Node, zeroOutside = true): Node =>
+  node(
+    'norm',
+    a,
+    size,
+    zeroOutside,
+  );
 
-export const delay = (a: Node, d: Node): Node => toConst(d) === 0 ? a : node('delay', a, d);
+export const delay = (a: Node, d: Node): Node =>
+  toConst(d) === 0 ? a : node('delay', a, d);
 
 export const toTs = (a: Node): Node => node('to_ts', a);
 export const seq = (scale: Node): Node => node('seq', scale);
-export const gaussian = (wavelength: Node): Node => node('gaussian', wavelength);
+export const gaussian = (wavelength: Node): Node =>
+  node('gaussian', wavelength);
 
 export const checkEq = (a: Node, b: Node): Node => node('check_eq', a, b);
 
@@ -227,14 +238,15 @@ export const plot = (
   offset = false,
   enabled = true,
   color: undefined | number = undefined,
-): Node => node(
-  'plot',
-  name,
-  value,
-  offset,
-  enabled,
-  ...colorToGl(color || selectColor()),
-);
+): Node =>
+  node(
+    'plot',
+    name,
+    value,
+    offset,
+    enabled,
+    ...colorToGl(color || selectColor()),
+  );
 export const drawn = (
   name: string,
   trigger: Node,
@@ -243,11 +255,14 @@ export const drawing = (
   name: string,
   enabled = true,
   color: undefined | number = undefined,
-): Node => node(
-  'drawing',
-  name,
-  enabled,
-  ...colorToGl(color || selectColor()),
-);
-export const emit = (key: string, value: Node): Node => node('emit', key, value);
-export const meter = (key: string, value: Node): Node => node('meter', key, value);
+): Node =>
+  node(
+    'drawing',
+    name,
+    enabled,
+    ...colorToGl(color || selectColor()),
+  );
+export const emit = (key: string, value: Node): Node =>
+  node('emit', key, value, getHash(value));
+export const meter = (key: string, value: Node): Node =>
+  node('meter', key, value);
