@@ -77,27 +77,27 @@ template <template <typename> typename Operator> struct FuncSafeOp {
 template <template <typename> typename Operator>
 void declScanOp(app::AppContext &context, program::Resolver &resolver, const char *funcName, double initialValue) {
     resolver.decl(funcName, [&context, initialValue](series::DataSeries<float> *a) {
-        return new series::ScannedSeries<float, Operator<float>, series::DataSeries<float>>(context, Operator<float>(), initialValue, *a);
+        return new series::ScannedSeries<float, Operator<float>, series::DataSeries<float> &>(context, Operator<float>(), initialValue, *a);
     });
     resolver.decl(funcName, [&context, initialValue](series::DataSeries<double> *a) {
-        return new series::ScannedSeries<double, Operator<double>, series::DataSeries<double>>(context, Operator<double>(), initialValue, *a);
+        return new series::ScannedSeries<double, Operator<double>, series::DataSeries<double> &>(context, Operator<double>(), initialValue, *a);
     });
 }
 
 template <template <typename> typename Operator, template <typename> typename OperatorVarying>
 void declScanOpP1(app::AppContext &context, program::Resolver &resolver, const char *funcName, double initialValue) {
     resolver.decl(funcName, [&context, initialValue](series::DataSeries<float> *a, float param_0) {
-        return new series::ScannedSeries<float, Operator<float>, series::DataSeries<float>>(context, Operator<float>(param_0), initialValue, *a);
+        return new series::ScannedSeries<float, Operator<float>, series::DataSeries<float> &>(context, Operator<float>(param_0), initialValue, *a);
     });
     resolver.decl(funcName, [&context, initialValue](series::DataSeries<double> *a, double param_0) {
-        return new series::ScannedSeries<double, Operator<double>, series::DataSeries<double>>(context, Operator<double>(param_0), initialValue, *a);
+        return new series::ScannedSeries<double, Operator<double>, series::DataSeries<double> &>(context, Operator<double>(param_0), initialValue, *a);
     });
 
     resolver.decl(funcName, [&context, initialValue](series::DataSeries<float> *a, series::DataSeries<float> *b) {
-        return new series::ScannedSeries<float, OperatorVarying<float>, series::DataSeries<float>, series::DataSeries<float>>(context, OperatorVarying<float>(), initialValue, *a, *b);
+        return new series::ScannedSeries<float, OperatorVarying<float>, series::DataSeries<float> &, series::DataSeries<float> &>(context, OperatorVarying<float>(), initialValue, *a, *b);
     });
     resolver.decl(funcName, [&context, initialValue](series::DataSeries<double> *a, series::DataSeries<double> *b) {
-        return new series::ScannedSeries<double, OperatorVarying<double>, series::DataSeries<double>, series::DataSeries<double>>(context, OperatorVarying<double>(), initialValue, *a, *b);
+        return new series::ScannedSeries<double, OperatorVarying<double>, series::DataSeries<double> &, series::DataSeries<double> &>(context, OperatorVarying<double>(), initialValue, *a, *b);
     });
 }
 
@@ -106,10 +106,10 @@ template <template <typename> typename Operator, typename RealType>
 void declScanTernaryOp(app::AppContext &context, program::Resolver &resolver, const char *funcName) {
     resolver.decl(funcName, [&context](series::DataSeries<RealType> *a, RealType b, RealType initialValue){
         auto op = [b](RealType prev, RealType a) {return Operator<RealType>()(prev, a, b);};
-        return new series::ScannedSeries<RealType, decltype(op), series::DataSeries<RealType>>(context, op, initialValue, *a);
+        return new series::ScannedSeries<RealType, decltype(op), series::DataSeries<RealType> &>(context, op, initialValue, *a);
     });
     resolver.decl(funcName, [&context](series::DataSeries<RealType> *a, series::DataSeries<RealType> *b, RealType initialValue){
-        return new series::ScannedSeries<RealType, Operator<RealType>, series::DataSeries<RealType>, series::DataSeries<RealType>>(context, Operator<RealType>(), initialValue, *a, *b);
+        return new series::ScannedSeries<RealType, Operator<RealType>, series::DataSeries<RealType> &, series::DataSeries<RealType> &>(context, Operator<RealType>(), initialValue, *a, *b);
     });
 }
 

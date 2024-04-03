@@ -13,18 +13,22 @@ std::size_t getSize(const program::ProgObjArray<ArrItemType1> &a, const program:
 
 template <typename ElementType>
 void declDotOp(app::AppContext &context, program::Resolver &resolver) {
-    resolver.decl("dot", [&context](const program::ProgObjArray<double> &a, const program::ProgObjArray<double> &b){
+    resolver.decl("dot", [&context](const program::ProgObjArray<double> a, const program::ProgObjArray<double> b){
         std::size_t size = getSize(a, b);
         ElementType sum = 0.0;
         for (std::size_t i = 0; i < size; i++) {
             sum += a.getArr()[i] * b.getArr()[i];
         }
         auto op = [sum](std::size_t i) {(void) i; return sum;};
+        
         return new series::CompSeries<ElementType, decltype(op)>(context, op);
     });
 
-    resolver.decl("dot", [&context](const program::ProgObjArray<ElementType> &a, const program::ProgObjArray<series::DataSeries<ElementType> *> &b){
+    resolver.decl("dot", [&context](const program::ProgObjArray<ElementType> a, const program::ProgObjArray<series::DataSeries<ElementType> *> b){
         auto op = [size = getSize(a, b), a = a.getArr()](ElementType *dst, unsigned int computedCount, const std::vector<series::ChunkPtr<ElementType>> &b){
+            assert(a.size() == size);
+            assert(b.size() == size);
+
             unsigned int endCount = CHUNK_SIZE;
             for (const series::ChunkPtr<ElementType> &ptr : b) {
                 unsigned int cc = ptr->getComputedCount();
@@ -51,11 +55,15 @@ void declDotOp(app::AppContext &context, program::Resolver &resolver) {
 
             return endCount;
         };
+
         return new series::ParallelComputerSeries<ElementType, decltype(op), const program::ProgObjArray<series::DataSeries<ElementType> *>>(context, op, b);
     });
 
-    resolver.decl("dot", [&context](const program::ProgObjArray<series::DataSeries<ElementType> *> &a, const program::ProgObjArray<ElementType> &b){
+    resolver.decl("dot", [&context](const program::ProgObjArray<series::DataSeries<ElementType> *> a, const program::ProgObjArray<ElementType> b){
         auto op = [size = getSize(a, b), b = b.getArr()](ElementType *dst, unsigned int computedCount, const std::vector<series::ChunkPtr<ElementType>> &a){
+            assert(a.size() == size);
+            assert(b.size() == size);
+
             unsigned int endCount = CHUNK_SIZE;
             for (const series::ChunkPtr<ElementType> &ptr : a) {
                 unsigned int cc = ptr->getComputedCount();
@@ -82,11 +90,15 @@ void declDotOp(app::AppContext &context, program::Resolver &resolver) {
 
             return endCount;
         };
+
         return new series::ParallelComputerSeries<ElementType, decltype(op), const program::ProgObjArray<series::DataSeries<ElementType> *>>(context, op, a);
     });
 
-    resolver.decl("dot", [&context](const program::ProgObjArray<series::DataSeries<ElementType> *> &a, const program::ProgObjArray<series::DataSeries<ElementType> *> &b){
+    resolver.decl("dot", [&context](const program::ProgObjArray<series::DataSeries<ElementType> *> a, const program::ProgObjArray<series::DataSeries<ElementType> *> b){
         auto op = [size = getSize(a, b)](ElementType *dst, unsigned int computedCount, const std::vector<series::ChunkPtr<ElementType>> &a, const std::vector<series::ChunkPtr<ElementType>> &b){
+            assert(a.size() == size);
+            assert(b.size() == size);
+
             unsigned int endCount = CHUNK_SIZE;
             for (const series::ChunkPtr<ElementType> &ptr : a) {
                 unsigned int cc = ptr->getComputedCount();
@@ -119,6 +131,7 @@ void declDotOp(app::AppContext &context, program::Resolver &resolver) {
 
             return endCount;
         };
+
         return new series::ParallelComputerSeries<ElementType, decltype(op), const program::ProgObjArray<series::DataSeries<ElementType> *>, const program::ProgObjArray<series::DataSeries<ElementType> *>>(context, op, a, b);
     });
 }

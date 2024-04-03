@@ -4,10 +4,10 @@
 template <template <typename> typename Operator>
 void declDeltaOp(app::AppContext &context, program::Resolver &resolver, const char *funcName) {
     resolver.decl(funcName, [&context](series::DataSeries<float> *a){
-        return new series::DeltaSeries<float, Operator<float>, series::DataSeries<float>>(context, Operator<float>(), *a);
+        return new series::DeltaSeries<float, Operator<float>, series::DataSeries<float> &>(context, Operator<float>(), *a);
     });
     resolver.decl(funcName, [&context](series::DataSeries<double> *a){
-        return new series::DeltaSeries<double, Operator<double>, series::DataSeries<double>>(context, Operator<double>(), *a);
+        return new series::DeltaSeries<double, Operator<double>, series::DataSeries<double> &>(context, Operator<double>(), *a);
     });
 }
 

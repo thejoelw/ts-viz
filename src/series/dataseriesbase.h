@@ -27,8 +27,10 @@ public:
     };
 
     DataSeriesBase(app::AppContext &context, bool isTransient);
-
     virtual ~DataSeriesBase();
+
+    DataSeriesBase(DataSeriesBase const&) = delete;
+    DataSeriesBase& operator=(DataSeriesBase const&) = delete;
 
     app::AppContext &getContext() {
         return context;

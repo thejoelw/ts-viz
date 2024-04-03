@@ -53,7 +53,7 @@ namespace series {
 template <typename ElementType, typename OperatorType, typename... ArgTypes>
 class ScannedSeries : public DataSeries<ElementType> {
 public:
-    ScannedSeries(app::AppContext &context, OperatorType op, ElementType initialValue, ArgTypes &... args)
+    ScannedSeries(app::AppContext &context, OperatorType op, ElementType initialValue, ArgTypes... args)
         : DataSeries<ElementType>(context)
         , op(op)
         , initialValue(initialValue)
@@ -93,7 +93,7 @@ private:
     OperatorType op;
 
     ElementType initialValue;
-    std::tuple<ArgTypes &...> args;
+    std::tuple<ArgTypes...> args;
 };
 
 }

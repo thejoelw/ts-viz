@@ -7,7 +7,7 @@ namespace series {
 template <typename ElementType, typename OperatorType, typename... ArgTypes>
 class ParallelOpSeries : public DataSeries<ElementType> {
 public:
-    ParallelOpSeries(app::AppContext &context, OperatorType op, ArgTypes &... args)
+    ParallelOpSeries(app::AppContext &context, OperatorType op, ArgTypes... args)
         : DataSeries<ElementType>(context)
         , op(op)
         , args(args...)
@@ -27,7 +27,7 @@ public:
 private:
     OperatorType op;
 
-    std::tuple<ArgTypes &...> args;
+    std::tuple<ArgTypes...> args;
 };
 
 }

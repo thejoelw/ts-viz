@@ -8,30 +8,30 @@ void declTernaryOp(app::AppContext &context, program::Resolver &resolver, const 
     resolver.decl(funcName, [](RealType a, RealType b, RealType c) -> RealType { return Operator<RealType>()(a, b, c); });
     resolver.decl(funcName, [&context](RealType a, RealType b, series::DataSeries<RealType> *c){
         auto op = [a, b](RealType c) {return Operator<RealType>()(a, b, c);};
-        return new series::ParallelOpSeries<RealType, decltype(op), series::DataSeries<RealType>>(context, op, *c);
+        return new series::ParallelOpSeries<RealType, decltype(op), series::DataSeries<RealType> &>(context, op, *c);
     });
     resolver.decl(funcName, [&context](RealType a, series::DataSeries<RealType> *b, RealType c){
         auto op = [a, c](RealType b) {return Operator<RealType>()(a, b, c);};
-        return new series::ParallelOpSeries<RealType, decltype(op), series::DataSeries<RealType>>(context, op, *b);
+        return new series::ParallelOpSeries<RealType, decltype(op), series::DataSeries<RealType> &>(context, op, *b);
     });
     resolver.decl(funcName, [&context](RealType a, series::DataSeries<RealType> *b, series::DataSeries<RealType> *c){
         auto op = [a](RealType b, RealType c) {return Operator<RealType>()(a, b, c);};
-        return new series::ParallelOpSeries<RealType, decltype(op), series::DataSeries<RealType>, series::DataSeries<RealType>>(context, op, *b, *c);
+        return new series::ParallelOpSeries<RealType, decltype(op), series::DataSeries<RealType> &, series::DataSeries<RealType> &>(context, op, *b, *c);
     });
     resolver.decl(funcName, [&context](series::DataSeries<RealType> *a, RealType b, RealType c){
         auto op = [b, c](RealType a) {return Operator<RealType>()(a, b, c);};
-        return new series::ParallelOpSeries<RealType, decltype(op), series::DataSeries<RealType>>(context, op, *a);
+        return new series::ParallelOpSeries<RealType, decltype(op), series::DataSeries<RealType> &>(context, op, *a);
     });
     resolver.decl(funcName, [&context](series::DataSeries<RealType> *a, RealType b, series::DataSeries<RealType> *c){
         auto op = [b](RealType a, RealType c) {return Operator<RealType>()(a, b, c);};
-        return new series::ParallelOpSeries<RealType, decltype(op), series::DataSeries<RealType>, series::DataSeries<RealType>>(context, op, *a, *c);
+        return new series::ParallelOpSeries<RealType, decltype(op), series::DataSeries<RealType> &, series::DataSeries<RealType> &>(context, op, *a, *c);
     });
     resolver.decl(funcName, [&context](series::DataSeries<RealType> *a, series::DataSeries<RealType> *b, RealType c){
         auto op = [c](RealType a, RealType b) {return Operator<RealType>()(a, b, c);};
-        return new series::ParallelOpSeries<RealType, decltype(op), series::DataSeries<RealType>, series::DataSeries<RealType>>(context, op, *a, *b);
+        return new series::ParallelOpSeries<RealType, decltype(op), series::DataSeries<RealType> &, series::DataSeries<RealType> &>(context, op, *a, *b);
     });
     resolver.decl(funcName, [&context](series::DataSeries<RealType> *a, series::DataSeries<RealType> *b, series::DataSeries<RealType> *c){
-        return new series::ParallelOpSeries<RealType, Operator<RealType>, series::DataSeries<RealType>, series::DataSeries<RealType>, series::DataSeries<RealType>>(context, Operator<RealType>(), *a, *b, *c);
+        return new series::ParallelOpSeries<RealType, Operator<RealType>, series::DataSeries<RealType> &, series::DataSeries<RealType> &, series::DataSeries<RealType> &>(context, Operator<RealType>(), *a, *b, *c);
     });
 }
 

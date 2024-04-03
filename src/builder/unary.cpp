@@ -46,10 +46,10 @@ void declUnaryOp(app::AppContext &context, program::Resolver &resolver, const ch
     resolver.decl(funcName, Operator<float>());
     resolver.decl(funcName, Operator<double>());
     resolver.decl(funcName, [&context](series::DataSeries<float> *a){
-        return new series::ParallelOpSeries<float, Operator<float>, series::DataSeries<float>>(context, Operator<float>(), *a);
+        return new series::ParallelOpSeries<float, Operator<float>, series::DataSeries<float> &>(context, Operator<float>(), *a);
     });
     resolver.decl(funcName, [&context](series::DataSeries<double> *a){
-        return new series::ParallelOpSeries<double, Operator<double>, series::DataSeries<double>>(context, Operator<double>(), *a);
+        return new series::ParallelOpSeries<double, Operator<double>, series::DataSeries<double> &>(context, Operator<double>(), *a);
     });
 }
 

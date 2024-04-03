@@ -31,6 +31,9 @@ public:
     ChunkBase(DataSeriesBase *ds);
     virtual ~ChunkBase();
 
+    ChunkBase(ChunkBase const&) = delete;
+    ChunkBase& operator=(ChunkBase const&) = delete;
+
     void addDependent(ChunkBase *dep);
     void removeDependent(const ChunkBase *dep);
 

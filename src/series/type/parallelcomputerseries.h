@@ -15,7 +15,7 @@ std::vector<series::ChunkPtr<ElementType, size>> extractSlice(const program::Pro
     std::vector<series::ChunkPtr<ElementType, size>> res;
     res.reserve(x.getArr().size());
     for (series::DataSeries<ElementType, size> *ds : x.getArr()) {
-        res.push_back(ds->getChunk(chunkIndex));
+        res.emplace_back(ds->getChunk(chunkIndex));
     }
     return std::move(res);
 }
@@ -43,7 +43,7 @@ public:
 private:
     OperatorType op;
 
-    std::tuple<ArgTypes &...> args;
+    std::tuple<ArgTypes...> args;
 };
 
 }

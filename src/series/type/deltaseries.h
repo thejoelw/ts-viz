@@ -7,7 +7,7 @@ namespace series {
 template <typename ElementType, typename OperatorType, typename... ArgTypes>
 class DeltaSeries : public DataSeries<ElementType> {
 public:
-    DeltaSeries(app::AppContext &context, OperatorType op, ArgTypes &... args)
+    DeltaSeries(app::AppContext &context, OperatorType op, ArgTypes... args)
         : DataSeries<ElementType>(context)
         , op(op)
         , args(args...)
@@ -51,7 +51,7 @@ public:
 private:
     OperatorType op;
 
-    std::tuple<ArgTypes &...> args;
+    std::tuple<ArgTypes...> args;
 };
 
 }

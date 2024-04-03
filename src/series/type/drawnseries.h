@@ -10,7 +10,7 @@ namespace series {
 template <typename ElementType, typename TriggerType>
 class DrawnSeries : public DataSeries<ElementType> {
 public:
-    DrawnSeries(app::AppContext &context, const std::string &name, TriggerType &trigger)
+    DrawnSeries(app::AppContext &context, const std::string &name, TriggerType trigger)
         : DataSeries<ElementType>(context, false)
         , trigger(trigger)
         , drawing(context.get<stream::DrawingManager>().getStream(name))
@@ -31,7 +31,7 @@ public:
     }
 
 private:
-    TriggerType &trigger;
+    TriggerType trigger;
     stream::Drawing &drawing;
 };
 

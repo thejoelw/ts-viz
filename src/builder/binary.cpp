@@ -18,25 +18,25 @@ void declBinaryOp(app::AppContext &context, program::Resolver &resolver, const c
     resolver.decl(funcName, [](double a, double b) -> double { return Operator<double>()(a, b); });
     resolver.decl(funcName, [&context](series::DataSeries<float> *a, float b){
         auto op = [b](float a) {return Operator<float>()(a, b);};
-        return new series::ParallelOpSeries<float, decltype(op), series::DataSeries<float>>(context, op, *a);
+        return new series::ParallelOpSeries<float, decltype(op), series::DataSeries<float> &>(context, op, *a);
     });
     resolver.decl(funcName, [&context](series::DataSeries<double> *a, double b){
         auto op = [b](double a) {return Operator<double>()(a, b);};
-        return new series::ParallelOpSeries<double, decltype(op), series::DataSeries<double>>(context, op, *a);
+        return new series::ParallelOpSeries<double, decltype(op), series::DataSeries<double> &>(context, op, *a);
     });
     resolver.decl(funcName, [&context](float a, series::DataSeries<float> *b){
         auto op = [a](float b) {return Operator<float>()(a, b);};
-        return new series::ParallelOpSeries<float, decltype(op), series::DataSeries<float>>(context, op, *b);
+        return new series::ParallelOpSeries<float, decltype(op), series::DataSeries<float> &>(context, op, *b);
     });
     resolver.decl(funcName, [&context](double a, series::DataSeries<double> *b){
         auto op = [a](double b) {return Operator<double>()(a, b);};
-        return new series::ParallelOpSeries<double, decltype(op), series::DataSeries<double>>(context, op, *b);
+        return new series::ParallelOpSeries<double, decltype(op), series::DataSeries<double> &>(context, op, *b);
     });
     resolver.decl(funcName, [&context](series::DataSeries<float> *a, series::DataSeries<float> *b){
-        return new series::ParallelOpSeries<float, Operator<float>, series::DataSeries<float>, series::DataSeries<float>>(context, Operator<float>(), *a, *b);
+        return new series::ParallelOpSeries<float, Operator<float>, series::DataSeries<float> &, series::DataSeries<float> &>(context, Operator<float>(), *a, *b);
     });
     resolver.decl(funcName, [&context](series::DataSeries<double> *a, series::DataSeries<double> *b){
-        return new series::ParallelOpSeries<double, Operator<double>, series::DataSeries<double>, series::DataSeries<double>>(context, Operator<double>(), *a, *b);
+        return new series::ParallelOpSeries<double, Operator<double>, series::DataSeries<double> &, series::DataSeries<double> &>(context, Operator<double>(), *a, *b);
     });
 }
 

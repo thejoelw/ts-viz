@@ -10,7 +10,7 @@ namespace series {
 template <typename ElementType, typename ArgType>
 class NormalizedSeries : public DataSeries<ElementType> {
 public:
-    NormalizedSeries(app::AppContext &context, ArgType &arg, std::int64_t normSize, bool zeroOutside)
+    NormalizedSeries(app::AppContext &context, ArgType arg, std::int64_t normSize, bool zeroOutside)
         : DataSeries<ElementType>(context)
         , arg(arg)
         , normSize(normSize)
@@ -78,7 +78,7 @@ public:
     }
 
 private:
-    ArgType &arg;
+    ArgType arg;
 
     std::size_t normSize;
     bool zeroOutside;

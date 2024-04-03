@@ -4,7 +4,7 @@
 template <typename RealType>
 void declNorm(app::AppContext &context, program::Resolver &resolver) {
     resolver.decl("norm", [&context](series::DataSeries<RealType> *a, std::int64_t size, bool zeroOutside) {
-        return new series::NormalizedSeries<RealType, series::DataSeries<RealType>>(context, *a, size, zeroOutside);
+        return new series::NormalizedSeries<RealType, series::DataSeries<RealType> &>(context, *a, size, zeroOutside);
     });
 }
 

@@ -11,7 +11,7 @@ static int _ = program::Resolver::registerBuilder([](app::AppContext &context, p
     });
     resolver.decl("cast_float", [&context](series::DataSeries<double> *a){
         auto op = [](double a) {return static_cast<float>(a);};
-        return new series::ParallelOpSeries<float, decltype(op), series::DataSeries<double>>(context, op, *a);
+        return new series::ParallelOpSeries<float, decltype(op), series::DataSeries<double> &>(context, op, *a);
     });
 
     resolver.decl("cast_double", [](program::UncastNumber num){return static_cast<double>(num.value);});
@@ -20,7 +20,7 @@ static int _ = program::Resolver::registerBuilder([](app::AppContext &context, p
     resolver.decl("cast_double", [](std::int64_t num) {return static_cast<double>(num);});
     resolver.decl("cast_double", [&context](series::DataSeries<float> *a){
         auto op = [](float a) {return static_cast<double>(a);};
-        return new series::ParallelOpSeries<double, decltype(op), series::DataSeries<float>>(context, op, *a);
+        return new series::ParallelOpSeries<double, decltype(op), series::DataSeries<float> &>(context, op, *a);
     });
     resolver.decl("cast_double", [](series::DataSeries<double> *a){
         return a;
