@@ -60,6 +60,7 @@ private:
 #else
         moodycamel::ReaderWriterQueue<Message> messages;
 #endif
+        std::size_t queuePendingSize = 0;
     };
     std::deque<File> files;
     std::atomic<bool> running = true;
@@ -88,6 +89,8 @@ private:
     }
 
     static void loop(FilePoller *filePoller, File &threadCtx);
+
+    static void enqueueMessage(File &file, Message &&message);
 };
 
 }

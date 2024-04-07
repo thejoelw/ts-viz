@@ -8,6 +8,7 @@
 
 #include "defs/ENABLE_FILEPOLLER_YIELD_KEYWORD.h"
 #include "defs/FILEPOLLER_TICK_TIMEOUT_MS.h"
+#include "defs/FILEPOLLER_MAX_QUEUE_SIZE.h"
 
 #include "app/mainloop.h"
 
@@ -121,7 +122,7 @@ void FilePoller::loop(FilePoller *filePoller, File &file) {
 
         for (std::size_t end = index + readBytes; index < end; index++) {
             if (data[index] == '\n') {
-                file.messages.enqueue(Message(file.lineDispatcher, data + lineStart, index - lineStart));
+                enqueueMessage(file, Message(file.lineDispatcher, data + lineStart, index - lineStart));
 
                 lineStart = index + 1;
             }
@@ -139,7 +140,7 @@ void FilePoller::loop(FilePoller *filePoller, File &file) {
             char *newData = new char[chunkSize];
             std::copy(data + lineStart, data + index, newData);
 
-            file.messages.enqueue(Message(&freeer, data, 0));
+            enqueueMessage(file, Message(&freeer, data, 0));
 
             data = newData;
             index -= lineStart;
@@ -147,13 +148,25 @@ void FilePoller::loop(FilePoller *filePoller, File &file) {
         }
     }
 
-    file.messages.enqueue(Message(&freeer, data, 0));
+    enqueueMessage(file, Message(&freeer, data, 0));
 
     if (file.path != "-") {
         close(fileNo);
     }
 
-    file.messages.enqueue(Message(file.endDispatcher, 0, 0));
+    enqueueMessage(file, Message(file.endDispatcher, 0, 0));
+}
+
+void FilePoller::enqueueMessage(File &file, Message &&message) {
+    file.messages.enqueue(std::move(message));
+
+    file.queuePendingSize++;
+    if (file.queuePendingSize > FILEPOLLER_MAX_QUEUE_SIZE) {
+        file.queuePendingSize = file.messages.size_approx();
+        if (file.queuePendingSize > FILEPOLLER_MAX_QUEUE_SIZE) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+    }
 }
 
 }

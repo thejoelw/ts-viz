@@ -168,7 +168,7 @@ export const windowRect = (scale_0: Node): Window => {
 
 export const windowSimple = (scale_0: Node, precision = 1e-9): Window => {
   const width = i64(
-    add(mul(f(Math.sqrt(-Math.log(precision))), scale_0), f(1.0)),
+    add(mul(d(Math.sqrt(-Math.log(precision))), scale_0), d(1.0)),
   );
   return {
     name: 'windowSimple',
@@ -179,12 +179,12 @@ export const windowSimple = (scale_0: Node, precision = 1e-9): Window => {
 
 export const windowSmooth = (
   scale_0: Node,
-  scale_1_mult: Node = f(2),
+  scale_1_mult: Node = d(2),
   precision = 1e-9,
 ): Window => {
   const scale_1 = mul(scale_0, scale_1_mult);
   const width = i64(
-    add(mul(f(Math.sqrt(-Math.log(precision))), max(scale_0, scale_1)), f(1.0)),
+    add(mul(d(Math.sqrt(-Math.log(precision))), max(scale_0, scale_1)), d(1.0)),
   );
   return {
     name: 'windowSmooth',
@@ -195,17 +195,33 @@ export const windowSmooth = (
 
 export const windowDelta = (
   scale_0: Node,
-  scale_1_mult: Node = f(2),
+  scale_1_mult: Node = d(2),
   precision = 1e-9,
 ): Window => {
   const scale_1 = mul(scale_0, scale_1_mult);
   const width = i64(
-    add(mul(f(Math.sqrt(-Math.log(precision))), max(scale_0, scale_1)), f(1.0)),
+    add(mul(d(Math.sqrt(-Math.log(precision))), max(scale_0, scale_1)), d(1.0)),
   );
   return {
     name: 'windowDelta',
     width,
     kernel: sub(norm(gaussian(scale_0), width), norm(gaussian(scale_1), width)),
+  };
+};
+
+export const windowLog = (
+  scale: Node,
+  c: Node = d(1),
+  precision = 1e-9,
+): Window => {
+  const width = i64(
+    add(mul(exp(sqrt(div(d(Math.log(precision)), mul(c, d(-1))))), scale), d(1.0)),
+  );
+  const kFn = (x: Node) => exp(mul(square(log(x)), mul(c, d(-1))));
+  return {
+    name: 'windowLog',
+    width,
+    kernel: norm(sub(kFn(seq(inv(scale))), seq(div(kFn(div(d(width), scale)), d(width)))), width),
   };
 };
 
