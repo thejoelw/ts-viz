@@ -210,8 +210,8 @@ int main(int argc, char **argv) {
 
     SPDLOG_INFO("Starting...");
 
-    context.get<stream::FilePoller>().addFile<stream::JsonUnwrapper<program::ProgramManager>>(args.get<std::string>("program-path"), false);
-    context.get<stream::FilePoller>().addFile<stream::JsonUnwrapper<stream::InputManager>>(args.get<std::string>("data-path"), true);
+    context.get<stream::FilePoller>().addFile(context.get<stream::JsonUnwrapper<program::ProgramManager>>(), args.get<std::string>("program-path"));
+    context.get<stream::FilePoller>().addFile(context.get<stream::JsonUnwrapper<stream::InputManager>>(), args.get<std::string>("data-path"));
 
     if (!app::Options::getMutableInstance().debugSeriesToFile.empty()) {
         context.get<app::SeriesDebugger>();

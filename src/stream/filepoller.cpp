@@ -50,45 +50,42 @@ FilePoller::~FilePoller() {
 void FilePoller::tick(app::TickerContext &tickerContext) {
     (void) tickerContext;
 
-    for (File &file : files) {
 #if FILEPOLLER_TICK_TIMEOUT_MS
-        std::chrono::steady_clock::time_point timeout = std::chrono::steady_clock::now() + std::chrono::milliseconds(FILEPOLLER_TICK_TIMEOUT_MS);
+    std::chrono::steady_clock::time_point timeout = std::chrono::steady_clock::now() + std::chrono::milliseconds(FILEPOLLER_TICK_TIMEOUT_MS);
 #endif
 
-        Message msg;
-        while (true) {
-            if (!file.messages.try_dequeue(msg)) {
+    Message msg;
+    while (true) {
+        if (!messages.try_dequeue(msg)) {
 #if ENABLE_FILEPOLLER_BLOCKING
-                if (!file.blocking) {
-                    break;
-                }
-                std::chrono::steady_clock::duration wait = context.get<app::MainLoop>().getBlockDuration();
-                if (wait == std::chrono::steady_clock::duration::zero()) {
-                    break;
-                }
-                if (!file.messages.wait_dequeue_timed(msg, wait)) {
-                    break;
-                }
+            std::chrono::steady_clock::duration wait = context.get<app::MainLoop>().getBlockDuration();
+            if (wait == std::chrono::steady_clock::duration::zero()) {
+                break;
+            }
+            if (!messages.wait_dequeue_timed(msg, wait)) {
+                break;
+            }
 #else
-                break;
-#endif
-            }
-
-            static constexpr const char *yieldKeyword = "yield";
-            if (ENABLE_FILEPOLLER_YIELD_KEYWORD && msg.size == 5 && std::equal(yieldKeyword, yieldKeyword + 5, msg.data)) {
-                break;
-            }
-
-            msg.dispatch(context, msg.data, msg.size);
-
-#if FILEPOLLER_TICK_TIMEOUT_MS
-            if (std::chrono::steady_clock::now() > timeout) {
-                break;
-            }
+            break;
 #endif
         }
 
-        file.yieldDispatcher(context);
+        static constexpr const char *yieldKeyword = "yield";
+        if (ENABLE_FILEPOLLER_YIELD_KEYWORD && msg.size == 5 && std::equal(yieldKeyword, yieldKeyword + 5, msg.data)) {
+            break;
+        }
+
+        msg.dispatch(msg.receiver, msg.data, msg.size);
+
+#if FILEPOLLER_TICK_TIMEOUT_MS
+        if (std::chrono::steady_clock::now() > timeout) {
+            break;
+        }
+#endif
+    }
+
+    for (File &file : files) {
+        file.yieldDispatcher(file.receiver);
     }
 }
 
@@ -105,6 +102,7 @@ void FilePoller::loop(FilePoller *filePoller, File &file) {
     char *data = new char[chunkSize];
     std::size_t lineStart = 0;
     std::size_t index = 0;
+    std::size_t queuePendingSize = 0;
 
     while (filePoller->running) {
         ssize_t readBytes = read(fileNo, data + index, chunkSize - index);
@@ -122,9 +120,16 @@ void FilePoller::loop(FilePoller *filePoller, File &file) {
 
         for (std::size_t end = index + readBytes; index < end; index++) {
             if (data[index] == '\n') {
-                enqueueMessage(file, Message(file.lineDispatcher, data + lineStart, index - lineStart));
-
+                filePoller->messages.enqueue(Message(file.lineDispatcher, file.receiver, data + lineStart, index - lineStart));
                 lineStart = index + 1;
+
+                queuePendingSize++;
+                if (queuePendingSize > FILEPOLLER_MAX_QUEUE_SIZE) {
+                    queuePendingSize = filePoller->messages.size_approx();
+                    if (queuePendingSize > FILEPOLLER_MAX_QUEUE_SIZE) {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                    }
+                }
             }
         }
 
@@ -140,7 +145,7 @@ void FilePoller::loop(FilePoller *filePoller, File &file) {
             char *newData = new char[chunkSize];
             std::copy(data + lineStart, data + index, newData);
 
-            enqueueMessage(file, Message(&freeer, data, 0));
+            filePoller->messages.enqueue(Message(&freeer, 0, data, 0));
 
             data = newData;
             index -= lineStart;
@@ -148,25 +153,13 @@ void FilePoller::loop(FilePoller *filePoller, File &file) {
         }
     }
 
-    enqueueMessage(file, Message(&freeer, data, 0));
+    filePoller->messages.enqueue(Message(&freeer, 0, data, 0));
 
     if (file.path != "-") {
         close(fileNo);
     }
 
-    enqueueMessage(file, Message(file.endDispatcher, 0, 0));
-}
-
-void FilePoller::enqueueMessage(File &file, Message &&message) {
-    file.messages.enqueue(std::move(message));
-
-    file.queuePendingSize++;
-    if (file.queuePendingSize > FILEPOLLER_MAX_QUEUE_SIZE) {
-        file.queuePendingSize = file.messages.size_approx();
-        if (file.queuePendingSize > FILEPOLLER_MAX_QUEUE_SIZE) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
-    }
+    filePoller->messages.enqueue(Message(file.endDispatcher, file.receiver, 0, 0));
 }
 
 }

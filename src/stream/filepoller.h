@@ -17,17 +17,16 @@ public:
     FilePoller(app::AppContext &context);
     ~FilePoller();
 
+    // Only one file should be blocking; we want it to be the most important one because it'll respond most quickly to new records
     template <typename ReceiverClass>
-    void addFile(const std::string &path, bool blocking) {
+    void addFile(ReceiverClass &receiver, const std::string &path) {
         File &file = files.emplace_back();
         file.path = path;
+        file.receiver = static_cast<void *>(&receiver);
         file.lineDispatcher = &dispatchLine<ReceiverClass>;
         file.yieldDispatcher = &dispatchYield<ReceiverClass>;
         file.endDispatcher = &dispatchEnd<ReceiverClass>;
         file.thread = std::thread(loop, this, std::ref(file));
-#if ENABLE_FILEPOLLER_BLOCKING
-        file.blocking = blocking;
-#endif
     }
 
     void tick(app::TickerContext &tickerContext);
@@ -36,61 +35,61 @@ private:
     struct Message {
         Message() {}
 
-        Message(void (*dispatch)(app::AppContext &context, const char *data, std::size_t size), const char *data, std::size_t size)
+        Message(void (*dispatch)(void *receiver, const char *data, std::size_t size), void *receiver, const char *data, std::size_t size)
             : dispatch(dispatch)
+            , receiver(receiver)
             , data(data)
             , size(size)
         {}
 
-        void (*dispatch)(app::AppContext &context, const char *data, std::size_t size);
+        void (*dispatch)(void *receiver, const char *data, std::size_t size);
+        void *receiver;
         const char *data;
         std::size_t size;
     };
 
     struct File {
         std::string path;
-        void (*lineDispatcher)(app::AppContext &context, const char *data, std::size_t size);
-        void (*yieldDispatcher)(app::AppContext &context);
-        void (*endDispatcher)(app::AppContext &context, const char *data, std::size_t size);
+        void *receiver;
+        void (*lineDispatcher)(void *receiver, const char *data, std::size_t size);
+        void (*yieldDispatcher)(void *receiver);
+        void (*endDispatcher)(void *receiver, const char *data, std::size_t size);
 
         std::thread thread;
-#if ENABLE_FILEPOLLER_BLOCKING
-        moodycamel::BlockingReaderWriterQueue<Message> messages;
-        bool blocking;
-#else
-        moodycamel::ReaderWriterQueue<Message> messages;
-#endif
-        std::size_t queuePendingSize = 0;
     };
     std::deque<File> files;
     std::atomic<bool> running = true;
 
+#if ENABLE_FILEPOLLER_BLOCKING
+        moodycamel::BlockingReaderWriterQueue<Message> messages;
+#else
+        moodycamel::ReaderWriterQueue<Message> messages;
+#endif
+
     template <typename ReceiverClass>
-    static void dispatchLine(app::AppContext &context, const char *data, std::size_t size) {
-        context.get<ReceiverClass>().recvLine(data, size);
+    static void dispatchLine(void *receiver, const char *data, std::size_t size) {
+        static_cast<ReceiverClass *>(receiver)->recvLine(data, size);
     }
 
     template <typename ReceiverClass>
-    static void dispatchYield(app::AppContext &context) {
-        context.get<ReceiverClass>().yield();
+    static void dispatchYield(void *receiver) {
+        static_cast<ReceiverClass *>(receiver)->yield();
     }
 
     template <typename ReceiverClass>
-    static void dispatchEnd(app::AppContext &context, const char *data, std::size_t size) {
+    static void dispatchEnd(void *receiver, const char *data, std::size_t size) {
         (void) data;
         (void) size;
-        context.get<ReceiverClass>().end();
+        static_cast<ReceiverClass *>(receiver)->end();
     }
 
-    static void freeer(app::AppContext &context, const char *data, std::size_t size) {
-        (void) context;
+    static void freeer(void *receiver, const char *data, std::size_t size) {
+        (void) receiver;
         (void) size;
         delete[] data;
     }
 
     static void loop(FilePoller *filePoller, File &threadCtx);
-
-    static void enqueueMessage(File &file, Message &&message);
 };
 
 }
