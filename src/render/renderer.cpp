@@ -17,7 +17,7 @@ Renderer::Renderer(app::AppContext &context)
 {
     graphics::GpuProgram::printExtensions(context);
 
-    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glDisable(GL_DEPTH_TEST);
 
 //    glHint(GL_POINT_SMOOTH_HINT, GL_FASTEST);

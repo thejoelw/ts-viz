@@ -47,7 +47,7 @@ export default (variant: string) => {
       variant === 'qtc' || variant.match(/\btest\b/) ? 1 : 0, // Only used for tests; has a more predictable effect when multithreading is disabled
     ENABLE_FILEPOLLER_BLOCKING: 0,
     FILEPOLLER_TICK_TIMEOUT_MS: ENABLE_GRAPHICS ? 10 : 1000, // Pass zero to disable
-    FILEPOLLER_MAX_QUEUE_SIZE: 100000,
+    FILEPOLLER_MAX_QUEUE_SIZE: 1000000,
 
     PROPAGATE_EVERY_ROW: variant.match(/\bheadless\b/) ? 1 : 0,
 

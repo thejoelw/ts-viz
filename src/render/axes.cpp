@@ -26,8 +26,8 @@ void Axes::tickClose(app::TickerContext &tickerContext) {
         return;
     }
 
-    static constexpr std::uint32_t axisColor = 0x44000000;
-    static constexpr std::uint32_t textColor = 0x88000000;
+    static constexpr std::uint32_t axisColor = 0x44FFFFFF;
+    static constexpr std::uint32_t textColor = 0x88FFFFFF;
 
     app::Window::Dimensions dims = context.get<app::Window>().dimensions;
     dims.width /= 2.0;

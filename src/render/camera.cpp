@@ -100,7 +100,7 @@ void Camera::tickClose(app::TickerContext &tickerContext) {
         return;
     }
 
-    static constexpr std::uint32_t axisColor = 0x88000000;
+    static constexpr std::uint32_t axisColor = 0x88FFFFFF;
 
     drawMouseRegion();
 
