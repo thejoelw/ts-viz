@@ -105,6 +105,7 @@ void FilePoller::loop(FilePoller *filePoller, File &file) {
     char *data = new char[chunkSize];
     std::size_t lineStart = 0;
     std::size_t index = 0;
+    std::size_t queuePendingSize = 0;
 
     while (filePoller->running) {
         ssize_t readBytes = read(fileNo, data + index, chunkSize - index);
@@ -122,9 +123,16 @@ void FilePoller::loop(FilePoller *filePoller, File &file) {
 
         for (std::size_t end = index + readBytes; index < end; index++) {
             if (data[index] == '\n') {
-                enqueueMessage(file, Message(file.lineDispatcher, data + lineStart, index - lineStart));
-
+                file.messages.enqueue(Message(file.lineDispatcher, data + lineStart, index - lineStart));
                 lineStart = index + 1;
+
+                queuePendingSize++;
+                if (queuePendingSize > FILEPOLLER_MAX_QUEUE_SIZE) {
+                    queuePendingSize = file.messages.size_approx();
+                    if (queuePendingSize > FILEPOLLER_MAX_QUEUE_SIZE) {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                    }
+                }
             }
         }
 
@@ -140,7 +148,7 @@ void FilePoller::loop(FilePoller *filePoller, File &file) {
             char *newData = new char[chunkSize];
             std::copy(data + lineStart, data + index, newData);
 
-            enqueueMessage(file, Message(&freeer, data, 0));
+            file.messages.enqueue(Message(&freeer, data, 0));
 
             data = newData;
             index -= lineStart;
@@ -148,25 +156,13 @@ void FilePoller::loop(FilePoller *filePoller, File &file) {
         }
     }
 
-    enqueueMessage(file, Message(&freeer, data, 0));
+    file.messages.enqueue(Message(&freeer, data, 0));
 
     if (file.path != "-") {
         close(fileNo);
     }
 
-    enqueueMessage(file, Message(file.endDispatcher, 0, 0));
-}
-
-void FilePoller::enqueueMessage(File &file, Message &&message) {
-    file.messages.enqueue(std::move(message));
-
-    file.queuePendingSize++;
-    if (file.queuePendingSize > FILEPOLLER_MAX_QUEUE_SIZE) {
-        file.queuePendingSize = file.messages.size_approx();
-        if (file.queuePendingSize > FILEPOLLER_MAX_QUEUE_SIZE) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
-    }
+    file.messages.enqueue(Message(file.endDispatcher, 0, 0));
 }
 
 }

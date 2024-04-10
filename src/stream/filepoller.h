@@ -17,6 +17,7 @@ public:
     FilePoller(app::AppContext &context);
     ~FilePoller();
 
+    // Only one file should be blocking; we want it to be the most important one because it'll respond most quickly to new records
     template <typename ReceiverClass>
     void addFile(const std::string &path, bool blocking) {
         File &file = files.emplace_back();
@@ -89,8 +90,6 @@ private:
     }
 
     static void loop(FilePoller *filePoller, File &threadCtx);
-
-    static void enqueueMessage(File &file, Message &&message);
 };
 
 }
