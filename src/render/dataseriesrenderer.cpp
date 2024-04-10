@@ -22,13 +22,24 @@ void DataSeriesRenderer<ElementType>::draw(std::size_t begin, std::size_t end, s
     static thread_local std::vector<ElementType> sample;
     sample.clear();
 
+    std::size_t camLimitX;
     for (std::size_t i = begin; i < end; i += stride) {
         series::ChunkPtr<ElementType> chunk = data->getChunk(i / CHUNK_SIZE);
         if (i % CHUNK_SIZE < chunk->getComputedCount()) {
             sample.push_back(chunk->getElement(i % CHUNK_SIZE) * scale + offset);
+            camLimitX = i;
         } else {
             sample.push_back(NAN);
         }
+    }
+
+    if (context.has<render::Camera>()) {
+        render::Camera &cam = context.get<render::Camera>();
+        camLimitX += camLimitX >> 6;
+        if (lastCamLimitX <= cam.getMax().x && camLimitX > cam.getMax().x) {
+            cam.getMax().x = camLimitX;
+        }
+        lastCamLimitX = camLimitX;
     }
 
     if (actions.fitY) {

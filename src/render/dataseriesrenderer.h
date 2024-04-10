@@ -64,6 +64,8 @@ private:
     float offset = 0.0f;
     float scale = 1.0f;
 
+    std::size_t lastCamLimitX = 0;
+
     graphics::GlVao vao;
     graphics::GlBuffer<ElementType> remoteBuffer;
 

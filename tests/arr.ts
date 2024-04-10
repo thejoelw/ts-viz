@@ -1,4 +1,4 @@
-import { arr, d, toTs } from '../ts/base.ts';
+import { add, arr, d, input, toTs } from '../ts/base.ts';
 
 const r = d;
 
@@ -7,7 +7,7 @@ export default [
     name: `Test arr #1`,
     variant: 'test-csl2-6',
     input: { 0: { x: 0 }, 300: {} },
-    program: toTs(arr([r(5), r(6), r(7), r(8), r(9)])),
+    program: add(r(input('x')), toTs(arr([r(5), r(6), r(7), r(8), r(9)]))),
     output: {
       0: { z: 5 },
       1: { z: 6 },

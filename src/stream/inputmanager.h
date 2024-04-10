@@ -18,7 +18,6 @@ public:
     void yield();
     void end();
 
-    std::size_t getIndex() const { return index; }
     bool isRunning() const { return running; }
 
 private:

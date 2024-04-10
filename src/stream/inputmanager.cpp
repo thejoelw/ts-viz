@@ -5,11 +5,6 @@
 #include "log.h"
 #include "util/jsontostring.h"
 
-#include "defs/ENABLE_GRAPHICS.h"
-#if ENABLE_GRAPHICS
-#include "render/camera.h"
-#endif
-
 #include "defs/PROPAGATE_EVERY_ROW.h"
 
 namespace stream {
@@ -49,15 +44,6 @@ void InputManager::recvRecord(const rapidjson::Document &row) {
 
         in->set(index, static_cast<INPUT_SERIES_ELEMENT_TYPE>(value));
     }
-
-#if ENABLE_GRAPHICS
-    if (context.has<render::Camera>()) {
-        render::Camera &cam = context.get<render::Camera>();
-        if (index <= cam.getMax().x && (index + 1) > cam.getMax().x) {
-            cam.getMax().x = index + 1;
-        }
-    }
-#endif
 
     index++;
 

@@ -10,7 +10,6 @@
 #include "log.h"
 #include "app/options.h"
 #include "app/quitexception.h"
-#include "stream/inputmanager.h"
 #include "series/garbagecollector.h"
 #include "series/chunkbase.h"
 
@@ -21,7 +20,6 @@ namespace stream {
 EmitManager::EmitManager(app::AppContext &context)
     : TickableBase(context)
 {
-    context.get<InputManager>();
     assert(app::Options::getInstance().emitFormat != app::Options::EmitFormat::None);
 }
 
@@ -71,8 +69,7 @@ void EmitManager::emitJson() {
     static thread_local rapidjson::StringBuffer buffer;
     static thread_local rapidjson::Writer<rapidjson::StringBuffer> writer;
 
-    std::size_t endIndex = context.get<InputManager>().getIndex();
-    while (nextEmitIndex < endIndex) {
+    while (!curEmitters.empty()) {
         buffer.Clear();
         writer.Reset(buffer);
 
@@ -104,8 +101,7 @@ void EmitManager::emitJson() {
 void EmitManager::emitBinary() {
     static thread_local std::vector<double> buffer;
 
-    std::size_t endIndex = context.get<InputManager>().getIndex();
-    while (nextEmitIndex < endIndex) {
+    while (!curEmitters.empty()) {
         buffer.clear();
 
         for (SeriesEmitter *emitter : curEmitters) {
