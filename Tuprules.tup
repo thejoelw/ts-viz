@@ -1,16 +1,14 @@
 ROOT = $(TUP_CWD)
-DEFINES_CONFIG_FILE = $(ROOT)/defines.cfg
 SRC_PATH = $(ROOT)/src
 THIRD_PARTY_PATH = $(ROOT)/third_party
-
-BIN_TARGET = $(ROOT)/ts-viz
+BIN_TARGET = $(TUP_VARIANTDIR)/ts-viz
 
 # VERSION = `cd .. && git add --all && git write-tree`
 VERSION = 0.1
 
 CFLAGS += -std=c++20
 CFLAGS += -Wall -Werror -Wno-missing-braces -Wno-unused -Wno-expansion-to-defined
-CFLAGS += -I$(SRC_PATH) -I$(THIRD_PARTY_PATH) -I$(THIRD_PARTY_PATH)/spdlog/include/ -I$(THIRD_PARTY_PATH)/rapidjson/include/
+CFLAGS += -I$(TUP_CWD)/src -I$(TUP_VARIANTDIR)/src -I$(THIRD_PARTY_PATH) -I$(THIRD_PARTY_PATH)/spdlog/include/ -I$(THIRD_PARTY_PATH)/rapidjson/include/
 CFLAGS += -DIMGUI_IMPL_OPENGL_LOADER_GLEW
 
 ifeq (@(BUILD_TYPE),debug)
@@ -19,12 +17,15 @@ ifeq (@(BUILD_TYPE),debug)
 
     CFLAGS += -O0 -g -fdebug-prefix-map=`pwd`=`pwd | sed 's/\/\.tup\/.*//'`
 endif
+ifeq (@(BUILD_TYPE),release)
+    CFLAGS += -O3 -ffast-math -fno-finite-math-only -fvisibility=hidden -DNDEBUG
+endif
 
 ifeq (@(TUP_PLATFORM),macosx)
     CC = clang
     CXX = clang++
 
-    CFLAGS += -stdlib=libc++ `pkg-config --cflags-only-I glfw3 glew fftw3 fftw3f fmt glm`
+    CFLAGS += -stdlib=libc++ -mcpu=apple-m1 `pkg-config --cflags-only-I glfw3 glew fftw3 fftw3f fmt glm`
     LDFLAGS += -framework OpenGL `pkg-config --static --libs glfw3 glew fftw3 fftw3f fmt glm`
 
     ifeq (@(BUILD_TYPE),release)

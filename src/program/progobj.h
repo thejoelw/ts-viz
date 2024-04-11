@@ -4,6 +4,7 @@
 #include <string>
 #include <cmath>
 #include <vector>
+#include <cstdint>
 
 #include "jw_util/hash.h"
 

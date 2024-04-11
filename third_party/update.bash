@@ -38,7 +38,7 @@ popd
 
 git clone git@github.com:p-ranav/argparse.git
 pushd argparse
-git checkout v2.2
+git checkout v2.5
 popd
 
 
