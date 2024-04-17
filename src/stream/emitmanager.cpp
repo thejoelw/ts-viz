@@ -28,7 +28,8 @@ EmitManager::~EmitManager() {
 }
 
 void EmitManager::clearEmitters() {
-    if (nextEmitIndex != 0 && app::Options::getInstance().emitFormat == app::Options::EmitFormat::Binary) {
+    app::Options::EmitFormat emitFormat = app::Options::getInstance().emitFormat;
+    if (nextEmitIndex != 0 && (emitFormat == app::Options::EmitFormat::Floats || emitFormat == app::Options::EmitFormat::Doubles)) {
         throw std::runtime_error("Cannot modify emitters while writing binary output!");
     }
 
@@ -36,7 +37,8 @@ void EmitManager::clearEmitters() {
 }
 
 void EmitManager::addEmitter(SeriesEmitter *emitter) {
-    if (nextEmitIndex != 0 && app::Options::getInstance().emitFormat == app::Options::EmitFormat::Binary) {
+    app::Options::EmitFormat emitFormat = app::Options::getInstance().emitFormat;
+    if (nextEmitIndex != 0 && (emitFormat == app::Options::EmitFormat::Floats || emitFormat == app::Options::EmitFormat::Doubles)) {
         throw std::runtime_error("Cannot modify emitters while writing binary output!");
     }
 
@@ -60,7 +62,8 @@ void EmitManager::tick(app::TickerContext &tickerContext) {
 void EmitManager::emit() {
     switch (app::Options::getInstance().emitFormat) {
         case app::Options::EmitFormat::Json: emitJson(); break;
-        case app::Options::EmitFormat::Binary: emitBinary(); break;
+        case app::Options::EmitFormat::Floats: emitBinary<float>(); break;
+        case app::Options::EmitFormat::Doubles: emitBinary<double>(); break;
         default: assert(false);
     }
 }
@@ -98,14 +101,15 @@ void EmitManager::emitJson() {
     }
 }
 
+template <typename RealType>
 void EmitManager::emitBinary() {
-    static thread_local std::vector<double> buffer;
+    static thread_local std::vector<RealType> buffer;
 
     while (!curEmitters.empty()) {
         buffer.clear();
 
         for (SeriesEmitter *emitter : curEmitters) {
-            std::pair<bool, double> res = emitter->getValue(nextEmitIndex);
+            std::pair<bool, RealType> res = emitter->getValue(nextEmitIndex);
             if (!res.first) {
                 return;
             }
@@ -113,12 +117,11 @@ void EmitManager::emitBinary() {
             buffer.push_back(res.second);
         }
 
-        fwrite(buffer.data(), sizeof(double), buffer.size(), stdout);
+        fwrite(buffer.data(), sizeof(RealType), buffer.size(), stdout);
         fflush(stdout);
 
         nextEmitIndex++;
     }
-
 }
 
 }

@@ -89,12 +89,13 @@ int main(int argc, char **argv) {
 #endif
 
     args.add_argument("--emit-format")
-            .help("Sets the format of emitted records: none, json, or binary")
+            .help("Sets the format of emitted records: none, json, floats, or doubles")
             .default_value(app::Options::EmitFormat::None)
             .action([](const std::string& value) -> app::Options::EmitFormat {
         if (value == "none") { return app::Options::EmitFormat::None; }
         else if (value == "json") { return app::Options::EmitFormat::Json; }
-        else if (value == "binary") { return app::Options::EmitFormat::Binary; }
+        else if (value == "floats") { return app::Options::EmitFormat::Floats; }
+        else if (value == "doubles") { return app::Options::EmitFormat::Doubles; }
         else { throw std::runtime_error("Invalid value of --emit-format"); }
     });
 

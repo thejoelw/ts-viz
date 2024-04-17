@@ -49,7 +49,7 @@ public:
 
     static void setInstance(Options newInstance);
 
-    enum EmitFormat { None, Json, Binary };
+    enum EmitFormat { None, Json, Floats, Doubles };
 
     std::string title;
     std::string wisdomDir;
