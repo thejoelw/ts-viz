@@ -24,6 +24,7 @@ private:
 
     void emit();
     void emitJson();
+    template <typename RealType>
     void emitBinary();
 };
 
