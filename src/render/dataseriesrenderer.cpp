@@ -22,7 +22,7 @@ void DataSeriesRenderer<ElementType>::draw(std::size_t begin, std::size_t end, s
     static thread_local std::vector<ElementType> sample;
     sample.clear();
 
-    std::size_t camLimitX;
+    std::size_t camLimitX = 0;
     for (std::size_t i = begin; i < end; i += stride) {
         series::ChunkPtr<ElementType> chunk = data->getChunk(i / CHUNK_SIZE);
         if (i % CHUNK_SIZE < chunk->getComputedCount()) {
