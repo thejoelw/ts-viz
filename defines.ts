@@ -1,5 +1,5 @@
 export default (variant: string) => {
-  const ENABLE_GRAPHICS = !variant.match(/\b(?:headless|test)\b/);
+  const ENABLE_GRAPHICS = !variant.match(/\b(?:headless|live|test)\b/);
 
   const CHUNK_SIZE_LOG2 =
     (
@@ -7,6 +7,7 @@ export default (variant: string) => {
         // Not sure why it crashes when we set this to 20
         release: 16,
         'release-headless': 16,
+	'release-live': 16,
         debug: 16,
         'debug-headless': 16,
         qtc: 16,
@@ -15,13 +16,14 @@ export default (variant: string) => {
 
   return {
     // The --log-level flag can further raise this, but this eliminates logs below this level at compile-time
-    SPDLOG_ACTIVE_LEVEL: 'SPDLOG_LEVEL_TRACE',
+    // SPDLOG_ACTIVE_LEVEL: 'SPDLOG_LEVEL_TRACE',
     // SPDLOG_ACTIVE_LEVEL: 'SPDLOG_LEVEL_DEBUG',
     // SPDLOG_ACTIVE_LEVEL: 'SPDLOG_LEVEL_INFO',
     // SPDLOG_ACTIVE_LEVEL: 'SPDLOG_LEVEL_WARN',
     // SPDLOG_ACTIVE_LEVEL: 'SPDLOG_LEVEL_ERROR',
     // SPDLOG_ACTIVE_LEVEL: 'SPDLOG_LEVEL_CRITICAL',
     // SPDLOG_ACTIVE_LEVEL: 'SPDLOG_LEVEL_OFF',
+    SPDLOG_ACTIVE_LEVEL: variant.match(/\bdebug\b/) ? 'SPDLOG_LEVEL_TRACE' : 'SPDLOG_LEVEL_INFO',
 
     ENABLE_GRAPHICS,
     ENABLE_GUI: ENABLE_GRAPHICS,
@@ -49,7 +51,7 @@ export default (variant: string) => {
     FILEPOLLER_TICK_TIMEOUT_MS: ENABLE_GRAPHICS ? 10 : 1000, // Pass zero to disable
     FILEPOLLER_MAX_QUEUE_SIZE: 1000000,
 
-    PROPAGATE_EVERY_ROW: variant.match(/\bheadless\b/) ? 1 : 0,
+    PROPAGATE_EVERY_ROW: variant.match(/\blive\b/) ? 1 : 0,
 
     ENABLE_PMUOI_FLAG: 1, // --print-memory-usage-output-index
 
@@ -59,7 +61,7 @@ export default (variant: string) => {
     CONV_CACHE_KERNEL_FFT_GTE_SIZE_LOG2: 10,
     // CONV_CACHE_TS_FFT_GTE_SIZE_LOG2: CHUNK_SIZE_LOG2 - 2,
     CONV_CACHE_TS_FFT_GTE_SIZE_LOG2: CHUNK_SIZE_LOG2,
-    CONV_USE_FFT_GTE_SIZE_LOG2: 0, // TODO: Increase this
+    CONV_USE_FFT_GTE_SIZE_LOG2: 10,
 
     ENABLE_CONV_MIN_COMPUTE_FLAG: ENABLE_GRAPHICS, // --conv-min-compute-log2
 
