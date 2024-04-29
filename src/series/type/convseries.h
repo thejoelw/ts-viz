@@ -396,7 +396,7 @@ public:
                             for (signed int ki = std::max<signed int>(kiBegin, i - tiEnd + 1); ki < end; ki++) {
                                 signed int ti = i - ki;
                                 assert(ti >= tiBegin && ti < tiEnd);
-                                assert(ti + ki == i);
+                                assert(static_cast<unsigned int>(ti + ki) == i);
                                 sum += kc->getElement(ki) * tc->getElement(ti);
                             }
 
