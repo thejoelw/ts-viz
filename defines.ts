@@ -1,3 +1,5 @@
+const error = (msg: string): never => { throw new Error(msg); };
+
 export default (variant: string) => {
   const ENABLE_GRAPHICS = !variant.match(/\b(?:headless|live|test)\b/);
 
@@ -5,14 +7,14 @@ export default (variant: string) => {
     (
       {
         // Not sure why it crashes when we set this to 20
-        release: 16,
+        'release': 16,
         'release-headless': 16,
-	'release-live': 16,
-        debug: 16,
+        'release-live': 16,
+        'debug': 16,
         'debug-headless': 16,
-        qtc: 16,
+        'qtc': 16,
       } as { [key: string]: number }
-    )[variant] || variant.match(/\bcsl2-(\d+)\b/)![1];
+    )[variant] || (variant.match(/\bcsl2-(\d+)\b/) ?? error(`Invalid variant ${variant}`))[1];
 
   return {
     // The --log-level flag can further raise this, but this eliminates logs below this level at compile-time
@@ -48,10 +50,10 @@ export default (variant: string) => {
     ENABLE_FILEPOLLER_YIELD_KEYWORD:
       variant === 'qtc' || variant.match(/\btest\b/) ? 1 : 0, // Only used for tests; has a more predictable effect when multithreading is disabled
     ENABLE_FILEPOLLER_BLOCKING: 0,
-    FILEPOLLER_TICK_TIMEOUT_MS: ENABLE_GRAPHICS ? 10 : 1000, // Pass zero to disable
+    FILEPOLLER_TICK_TIMEOUT_MS: ENABLE_GRAPHICS || variant.match(/\blive\b/) ? 10 : 1000, // Pass zero to disable
     FILEPOLLER_MAX_QUEUE_SIZE: 1000000,
 
-    PROPAGATE_EVERY_ROW: variant.match(/\blive\b/) ? 1 : 0,
+    PROPAGATE_EVERY_ROW: 0,
 
     ENABLE_PMUOI_FLAG: 1, // --print-memory-usage-output-index
 
@@ -61,7 +63,7 @@ export default (variant: string) => {
     CONV_CACHE_KERNEL_FFT_GTE_SIZE_LOG2: 10,
     // CONV_CACHE_TS_FFT_GTE_SIZE_LOG2: CHUNK_SIZE_LOG2 - 2,
     CONV_CACHE_TS_FFT_GTE_SIZE_LOG2: CHUNK_SIZE_LOG2,
-    CONV_USE_FFT_GTE_SIZE_LOG2: 10,
+    CONV_USE_FFT_GTE_SIZE_LOG2: 0,
 
     ENABLE_CONV_MIN_COMPUTE_FLAG: ENABLE_GRAPHICS, // --conv-min-compute-log2
 
