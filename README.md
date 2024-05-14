@@ -69,7 +69,7 @@ websocat 'wss://data-stream.binance.com:9443/stream?streams=btcusdt@bookTicker' 
   | ./build-release/ts-viz <(deno run --watch --no-clear-screen test.ts) -
 ```
 
-[Demo](/media/ts-viz-demo.webm)
+[Demo](https://github.com/thejoelw/ts-viz/raw/master/media/ts-viz-demo.webm)
 
 ## Options
 
